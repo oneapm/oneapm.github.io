@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby DATA &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Ruby DATA ">
+    <link rel="canonical" href="/ruby/2015/04/14/ruby-data/">
+    
+    
+    <meta property="og:title" content="Ruby DATA "/>
+    <meta property="og:url" content="/ruby/2015/04/14/ruby-data/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="偶然间发现了Ruby DATA，这是什么，这里来解释一下"/>
+    <meta name="description" content="偶然间发现了Ruby DATA，这是什么，这里来解释一下"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Ruby DATA</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-14-April" title="April 14, 2015">April 14, 2015</time>
+                </div>
+            </header>
+        </div>       
+    </div>
+</div>
+
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-14-April" title="April 14, 2015">April 14, 2015</time>
+            </div>
+            <h1 class="title">Ruby DATA</h1>
+            
+        </header> -->
+
+        <section>
+            <p>这段代码能运行吗？ 这个DATA是什么东西？</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;erb&#39;</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="no">DATA</span><span class="o">.</span><span class="n">read</span>
+<span class="n">max</span> <span class="o">=</span> <span class="mi">15_000</span>
+<span class="n">title</span> <span class="o">=</span> <span class="s2">&quot;hello world!&quot;</span>
+<span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;hello world!</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">*</span> <span class="mi">10</span>
+
+<span class="n">max</span><span class="o">.</span><span class="n">times</span><span class="p">{</span>
+  <span class="no">ERB</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="nb">binding</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="cp">__END__</span>
+
+<span class="cp">&lt;html&gt;</span>
+<span class="cp">  &lt;head&gt; &lt;%= title %&gt; &lt;/head&gt;</span>
+<span class="cp">  &lt;body&gt;</span>
+<span class="cp">    &lt;h1&gt; &lt;%= title %&gt; &lt;/h1&gt;</span>
+<span class="cp">    &lt;p&gt;</span>
+<span class="cp">      &lt;%= content %&gt;</span>
+<span class="cp">    &lt;/p&gt;</span>
+<span class="cp">  &lt;/body&gt;</span>
+<span class="cp">&lt;/html&gt;</span>
+</code></pre></div>
+<p>这个神奇的DATA是一个IO对象，读取<code>__END__</code>之后内容。 有一点需要注意的是<code>DATA.read</code>会将<code>__END__</code>之后
+的内容一次性读出，由于IO读取的特性，当第 二次<code>DATA.read</code>的时候内容就会为空，如果需要第二次读取，那
+么先要执行<code>DATA.rewind</code>。</p>
+
+<p>有的时候我们写一个脚本来做一些自动化的工作，需要预先读取一个文件的内容，作为输入或者作为模版，我们可
+以先把这部分内容附到<code>__END__</code>后，然后用<code>DATA</code>来读取，因为它是标准的IO对象，我们可以像处理普通
+文件一样处理<code>__END__</code>后的内容，如上面的代码所示，用来存储<code>ERB</code>内容作为模版，然后再进行处理，非常的
+方便。</p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/04/14/ruby-data" data-title="Ruby DATA" data-url="http://code.oneapm.com/ruby/2015/04/14/ruby-data/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeJS异常处理uncaughtException篇 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="NodeJS异常处理uncaughtException篇 ">
+    <link rel="canonical" href="/nodejs/2015/04/08/nodejs-uncaughtexception/">
+    
+    
+    <meta property="og:title" content="NodeJS异常处理uncaughtException篇 "/>
+    <meta property="og:url" content="/nodejs/2015/04/08/nodejs-uncaughtexception/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="我们来讨论以下Node中异常的问题。"/>
+    <meta name="description" content="我们来讨论以下Node中异常的问题。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">NodeJS异常处理uncaughtException篇</h1>
+                
+                <div class="meta">
+                    <address>王龑</address> &mdash;
+                    <time pubdate datetime="2015-08-April" title="April 08, 2015">April 08, 2015</time>
+                </div>
+            </header>
+        </div>       
+    </div>
+</div>
+
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>王龑</address> &mdash;
+                <time pubdate datetime="2015-08-April" title="April 08, 2015">April 08, 2015</time>
+            </div>
+            <h1 class="title">NodeJS异常处理uncaughtException篇</h1>
+            
+        </header> -->
+
+        <section>
+            <p>很多 NodeJS 的开发者在抱怨异常处理太麻烦，我们会通过一些列博客梳理一下NodeJS中常见的异常处理的手段。</p>
+
+<p>和大多数编程语言一样，在 NodeJS 里可以通过<code>throw</code>抛出一个异常：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;Catch me&#39;</span><span class="p">);</span>
+</code></pre></div>
+<p>为了捕获这个异常需要把代码包在<code>Try Catch</code>中：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="k">try</span><span class="p">{</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;Catch me&#39;</span><span class="p">);</span>
+<span class="p">}</span><span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">){</span>
+    <span class="c1">// error captured</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>然而，由于 NodeJS 的异步特性，上述代码只需稍加改造就会失效：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="k">try</span><span class="p">{</span>
+    <span class="nx">process</span><span class="p">.</span><span class="nx">nextTick</span><span class="p">(</span><span class="kd">function</span> <span class="nx">my_app</span><span class="p">(){</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;Catch me&#39;</span><span class="p">);</span>
+    <span class="p">})</span>
+<span class="p">}</span><span class="k">catch</span><span class="p">(</span><span class="nx">e</span><span class="p">){</span>
+    <span class="c1">// never called</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>在 现实世界里，异常总是会产生在某个模块中。所谓模块就是能完成一个功能的单元，即使是一个简单的函数也可以被看做一个模块。随着项目代码行数增多，异步嵌 套的复杂性加强，经常会有异常没捕获的情况发生。一个没有很强健壮性的 NodeJS 应用，会因为一个未捕获的异常就整个挂掉，导致服务不可用。要改变大家觉得 NodeJS 是脆弱的这个认识，需要开发者加深对这门语言异常处理机制的了解。</p>
+
+<h2>uncaughtException</h2>
+
+<p><code>uncaughtException</code> 其实是 NodeJS 进程的一个事件。如果进程里产生了一个异常而没有被任何<code>Try Catch</code>捕获会触发这个事件。为了简化问题，我们还是先看看同步情况下的例子。</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">function</span> <span class="nx">external</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;Catch me&#39;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kd">function</span> <span class="nx">internal</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nx">external</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="nx">internal</span><span class="p">();</span> <span class="c1">//error will be thrown</span>
+</code></pre></div>
+<p>在命令行里执行这个程序，脚本会在抛出异常的那一行中断。接下来，由于没有<code>Try Catch</code>，异常会一直冒泡直到事件循环为止，而NodeJS对异常的默认处理非常简单，处理的代码 <em>类似</em> 于：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">function</span> <span class="nx">_MyFatalException</span><span class="p">(</span><span class="nx">err</span><span class="p">){</span>
+    <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nx">process</span><span class="p">.</span><span class="nx">emit</span><span class="p">(</span><span class="s1">&#39;uncaughtException&#39;</span><span class="p">,</span><span class="nx">err</span><span class="p">)){</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">stack</span><span class="p">);</span>
+        <span class="nx">process</span><span class="p">.</span><span class="nx">emit</span><span class="p">(</span><span class="s1">&#39;exit&#39;</span><span class="p">,</span><span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>NodeJS 对于未捕获异常的默认处理是：
+- 触发 uncaughtException 事件
+- 如果 uncaughtException 没有被监听，那么
+    - 打印异常的堆栈信息
+    - 触发进程的 exit 事件</p>
+
+<p>如果你正在用 NodeJS 开发服务器，那么你肯定不希望偶然的一个异常让整个服务器挂掉。那么是不是只要监听了 <code>uncaughtException</code> 就可以阻止服务器的进程退出呢？ 答案是可以，<strong>但是不要这么做！</strong>。看这个例子：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">var</span> <span class="nx">express</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;express&#39;</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">external</span><span class="p">(</span><span class="nx">cb</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">process</span><span class="p">.</span><span class="nx">nextTick</span><span class="p">(</span><span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">();</span>
+        <span class="nx">cb</span><span class="p">.</span><span class="nx">call</span><span class="p">(</span><span class="kc">null</span><span class="p">,</span> <span class="s1">&#39;sunny&#39;</span><span class="p">);</span>
+    <span class="p">})</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">app</span> <span class="o">=</span> <span class="nx">express</span><span class="p">();</span>
+<span class="nx">app</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;/weather&#39;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">external</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">res</span><span class="p">.</span><span class="nx">end</span><span class="p">(</span><span class="s1">&#39;Weather of Beijing is &#39;</span> <span class="o">+</span> <span class="nx">data</span><span class="p">);</span>
+    <span class="p">})</span>
+<span class="p">})</span>
+<span class="nx">app</span><span class="p">.</span><span class="nx">listen</span><span class="p">(</span><span class="mi">8018</span><span class="p">);</span>
+
+
+<span class="kd">function</span> <span class="nx">noop</span><span class="p">(){}</span>
+<span class="nx">process</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;uncaughtException&#39;</span><span class="p">,</span> <span class="nx">noop</span><span class="p">)</span>
+</code></pre></div>
+<p>上面这个例子假设用户访问站点的时候可以看到当地的天气，我们用 <code>apache2-utils</code> 来模拟请求</p>
+<div class="highlight"><pre><code class="language-sh" data-lang="sh">ab -n <span class="m">1000</span> -c <span class="m">20</span> http://localhost:8018/weather
+</code></pre></div>
+<p>糟糕！请求一直在等待，内存上涨。原因在于<code>res.end</code> 永远不会执行，现有的<code>I/O</code>处于等待的状态，已经开辟的资源不仅不会被释放，而且服务器还在不知疲倦地接受新的用户请求。</p>
+
+<p>在 NodeJS 中处理异常是代价高昂的，而且一不小心就会导致内存泄露和让应用程序处于不稳定的状态。为了提高健壮性，我们可以用<code>Cluster模式</code>，由之而来的推荐做法是：
+- 针对发生异常的请求返回一个错误代码
+- 出错的Worker不再接受新的请求
+- 退出关闭Worker进程</p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/wangyan.jpg">
+                <p><strong>王龑</strong><br>
+                <span class="muted">NodeJS工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/nodejs/2015/04/08/nodejs-uncaughtexception" data-title="NodeJS异常处理uncaughtException篇" data-url="http://code.oneapm.com/nodejs/2015/04/08/nodejs-uncaughtexception/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

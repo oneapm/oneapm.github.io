@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby中的Profiling工具 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Ruby中的Profiling工具 ">
+    <link rel="canonical" href="/ruby/2015/04/08/ruby-profilers/">
+    
+    
+    <meta property="og:title" content="Ruby中的Profiling工具 "/>
+    <meta property="og:url" content="/ruby/2015/04/08/ruby-profilers/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="我们来讨论以下如何利用Ruby中的开源工具来调试应用的性能问题，看看怎样找出那个最耗时的方法。"/>
+    <meta name="description" content="我们来讨论以下如何利用Ruby中的开源工具来调试应用的性能问题，看看怎样找出那个最耗时的方法。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Ruby中的Profiling工具</h1>
+                <h2 class="subtitle">看看如何调试Ruby的性能问题</h2>
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-08-April" title="April 08, 2015">April 08, 2015</time>
+                </div>
+            </header>
+        </div>       
+    </div>
+</div>
+
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-08-April" title="April 08, 2015">April 08, 2015</time>
+            </div>
+            <h1 class="title">Ruby中的Profiling工具</h1>
+            <h2 class="subtitle">看看如何调试Ruby的性能问题</h2>
+        </header> -->
+
+        <section>
+            <h2>Ruby内置的profiler</h2>
+
+<p>内置的profiler实现的很简单，在ruby2.2中只有150行代码，大家可以看看它的实现<a href="https://github.com/ruby/ruby/blob/trunk/lib/profiler.rb">profile.rb</a>
+。内置的profiler使用起来非常的方便，只需要加上<code>-rprofile</code>参数即可。例如：</p>
+
+<p>执行：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby -rprofile test.rb
+</code></pre></div>
+<p>输出结果为：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text"> %   cumulative   self              self     total
+time   seconds   seconds    calls  ms/call  ms/call  name
+24.24     0.16      0.16    10001     0.02     0.06  Object#m2
+18.18     0.28      0.12        2    60.00   330.00  Integer#times
+18.18     0.40      0.12    10001     0.01     0.06  Object#m1
+15.15     0.50      0.10    10001     0.01     0.01  Class#new
+10.61     0.57      0.07    10000     0.01     0.01  P1.new
+ 6.06     0.61      0.04    20000     0.00     0.00  Fixnum#to_s
+ 4.55     0.64      0.03    10000     0.00     0.00  Struct#initialize
+ 3.03     0.66      0.02    10000     0.00     0.00  P2#initialize
+ 0.00     0.66      0.00        1     0.00     0.00  TracePoint#enable
+ 0.00     0.66      0.00        1     0.00     0.00  Class#initialize
+ 0.00     0.66      0.00        1     0.00     0.00  nil#
+ 0.00     0.66      0.00        1     0.00     0.00  Struct.new
+ 0.00     0.66      0.00        7     0.00     0.00  Module#method_added
+ 0.00     0.66      0.00        3     0.00     0.00  BasicObject#singleton_method_added
+ 0.00     0.66      0.00        2     0.00     0.00  Class#inherited
+ 0.00     0.66      0.00        2     0.00     0.00  IO#set_encoding
+ 0.00     0.66      0.00        1     0.00     0.00  TracePoint#disable
+ 0.00     0.66      0.00        1     0.00   660.00  #toplevel
+</code></pre></div>
+<p>通过打印出的结果能够很明显的看出耗时的方法。内置的profiler很简单，只能打印出这样的结果，没有
+其他输出格式的选项，下面介绍的其他几种都有丰富的格式输出。</p>
+
+<h2>ruby-prof</h2>
+
+<p>repo: <a href="https://github.com/ruby-prof/ruby-prof">https://github.com/ruby-prof/ruby-prof</a></p>
+
+<p><code>ruby-prof</code>具有C扩展，所以它能运行的更快，同时它支持丰富的输出格式，方便我们去查找性能瓶颈。
+<code>ruby-prof</code>支持输出<code>GraphViz</code>支持的dot格式，两者的安装方法如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">gem install ruby-prof
+
+ubuntu | sudo apt-get install graphviz
+Mac    | brew install graphviz
+</code></pre></div>
+<p>执行命令很简单，如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof --mode=wall --printer=dot --file=output.dot test.rb 25
+</code></pre></div>
+<p>此命令的详细使用方法请参考帮助信息<code>ruby-prof --help</code>。</p>
+
+<p>上面命令的执行结果会输出一个graphviz的dot文件，graphviz提供一个格式转换命令，可以将此文件
+转换为一个pdf文件以方便查看，如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">dot -T pdf -o output.pdf output.dot
+</code></pre></div>
+<p>这样就可以打开output.pdf查看程序内的方法调用占比了。</p>
+
+<p><img src="/images/ruby-prof-result.png" alt="ruby-prof"></p>
+
+<h2>perftools.rb</h2>
+
+<p>repo: <a href="https://github.com/tmm1/perftools.rb">https://github.com/tmm1/perftools.rb</a></p>
+
+<p><code>perftools.rb</code>是<code>google-perftools</code>的ruby版本，不过它只支持ruby2.1以下版本，2.1及以上
+版本就需要用到下面的<code>stackprof</code>了，这两个工具都是一个人写的。鉴于此，我们略过<code>perftools.rb</code>，
+作者实现<code>stackprof</code>，就是为了替代<code>perftools.rb</code>。如果有需求的话，就请参考其github主页。</p>
+
+<h2>stackprof</h2>
+
+<p>repo: <a href="https://github.com/tmm1/stackprof">https://github.com/tmm1/stackprof</a></p>
+
+<p><code>stackprof</code>只支持Ruby2.1+，不过现在ruby的版本发布很快，每一个版本都能带来一些新东西，2.1
+应该很快就能成为很基础的版本，我们就在这个版本上来做一些测试。</p>
+
+<p>安装：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">gem install stackprof
+</code></pre></div>
+<p>这次我们直接在代码中使用stackprof的方法：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;stackprof&#39;</span>
+
+<span class="k">def</span> <span class="nf">m1</span>
+  <span class="mi">5_000_000</span><span class="o">.</span><span class="n">times</span><span class="p">{</span> <span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="mi">3</span><span class="o">+</span><span class="mi">4</span><span class="o">+</span><span class="mi">5</span> <span class="p">}</span>
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="nf">m2</span>
+  <span class="mi">1_000_000</span><span class="o">.</span><span class="n">times</span><span class="p">{</span> <span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="mi">3</span><span class="o">+</span><span class="mi">4</span><span class="o">+</span><span class="mi">5</span> <span class="p">}</span>
+<span class="k">end</span>
+
+<span class="no">StackProf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="ss">mode</span><span class="p">:</span> <span class="ss">:cpu</span><span class="p">,</span> <span class="ss">out</span><span class="p">:</span> <span class="s1">&#39;tmp/stackprof.dump&#39;</span><span class="p">)</span> <span class="k">do</span>
+  <span class="n">m1</span>
+  <span class="n">m2</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>我们执行这个ruby程序，<code>ruby test.rb</code>，会在当前目录的tmp目录中产生一个文件<code>stackprof.dump</code>,
+然后来分析以下这个文件，<code>stackprof</code>命令本身可以解析这个文件，执行下面的命令：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">stackprof tmp/stackprof.dump --text
+</code></pre></div>
+<p>则会产生下面的结果，结果应该是很清晰的，很明显在代码中<code>m1</code>方法要占有绝大部分的运行时间。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">==================================
+  Mode: cpu(1000)
+  Samples: 75 (0.00% miss rate)
+  GC: 0 (0.00%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+        62  (82.7%)          62  (82.7%)     block in Object#m1
+        13  (17.3%)          13  (17.3%)     block in Object#m2
+        75 (100.0%)           0   (0.0%)     &lt;main&gt;
+        75 (100.0%)           0   (0.0%)     block in &lt;main&gt;
+        75 (100.0%)           0   (0.0%)     &lt;main&gt;
+        62  (82.7%)           0   (0.0%)     Object#m1
+        13  (17.3%)           0   (0.0%)     Object#m2
+</code></pre></div>
+<p>其他更加丰富的输出方式和分析方式，就请参考<code>stackprof</code>的github主页，讲解的很全面。</p>
+
+<p>如果你希望在web前端中展示相关信息，就请看看<code>stackprof-webnav</code>这个gem，它提供了比较全面的
+展示，操作等等，适合在一些web应用中使用，github地址：<a href="https://github.com/alisnic/stackprof-webnav">stackprof-webnav</a></p>
+
+<h2>rack-mini-profiler</h2>
+
+<p>repo: <a href="https://github.com/MiniProfiler/rack-mini-profiler">https://github.com/MiniProfiler/rack-mini-profiler</a></p>
+
+<p><code>rack-mini-profiler</code>专门应用于基于<code>rack</code>的web应用的性能调优，在rails中的使用方法如下：</p>
+
+<p>首先将gem添加到gemfile中：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">gem</span> <span class="s1">&#39;rack-mini-profiler&#39;</span>
+</code></pre></div>
+<p>执行：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">bundle install
+</code></pre></div>
+<p>然后重启你的服务器，访问任意的URl，在页面上的左上角会看到响应时间的毫秒数。如下图所示：</p>
+
+<p><img src="/images/rack-mini-profiler.png" alt="rack-mini-profiler"></p>
+
+<p>点击<code>query time(ms)</code>列中的<code>1 sql</code>则可以查看到执行的sql语句及耗时：</p>
+
+<p><img src="/images/rack-mini-profiler-sql.png" alt="rack-mini-profiler-sql"></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/04/08/ruby-profilers" data-title="Ruby中的Profiling工具" data-url="http://code.oneapm.com/ruby/2015/04/08/ruby-profilers/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

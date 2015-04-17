@@ -1,0 +1,844 @@
+<?xml version="1.0"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title></title>
+    <link></link>
+    <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
+    <description></description>
+    <language>en-us</language>
+    <pubDate>Fri, 17 Apr 2015 03:18:49 +0000</pubDate>
+    <lastBuildDate>Fri, 17 Apr 2015 03:18:49 +0000</lastBuildDate>
+
+    
+    
+    <item>
+      <title>Ruby DATA</title>
+      <link>/ruby/2015/04/14/ruby-data/</link>
+      <pubDate>Tue, 14 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/04/14/ruby-data</guid>
+      <description>&lt;p&gt;这段代码能运行吗？ 这个DATA是什么东西？&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;erb&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;DATA&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;max&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;15_000&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;title&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;hello world!&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;content&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;hello world!&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;times&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;no&quot;&gt;ERB&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;binding&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;__END__&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;&amp;lt;html&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;  &amp;lt;head&amp;gt; &amp;lt;%= title %&amp;gt; &amp;lt;/head&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;  &amp;lt;body&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    &amp;lt;h1&amp;gt; &amp;lt;%= title %&amp;gt; &amp;lt;/h1&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    &amp;lt;p&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;      &amp;lt;%= content %&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;    &amp;lt;/p&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;  &amp;lt;/body&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;&amp;lt;/html&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个神奇的DATA是一个IO对象，读取&lt;code&gt;__END__&lt;/code&gt;之后内容。 有一点需要注意的是&lt;code&gt;DATA.read&lt;/code&gt;会将&lt;code&gt;__END__&lt;/code&gt;之后
+的内容一次性读出，由于IO读取的特性，当第 二次&lt;code&gt;DATA.read&lt;/code&gt;的时候内容就会为空，如果需要第二次读取，那
+么先要执行&lt;code&gt;DATA.rewind&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;有的时候我们写一个脚本来做一些自动化的工作，需要预先读取一个文件的内容，作为输入或者作为模版，我们可
+以先把这部分内容附到&lt;code&gt;__END__&lt;/code&gt;后，然后用&lt;code&gt;DATA&lt;/code&gt;来读取，因为它是标准的IO对象，我们可以像处理普通
+文件一样处理&lt;code&gt;__END__&lt;/code&gt;后的内容，如上面的代码所示，用来存储&lt;code&gt;ERB&lt;/code&gt;内容作为模版，然后再进行处理，非常的
+方便。&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>翻译 - NodeJS错误处理最佳实践</title>
+      <link>/nodejs/2015/04/13/nodejs-errorhandling/</link>
+      <pubDate>Mon, 13 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/nodejs/2015/04/13/nodejs-errorhandling</guid>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;NodeJS的错误处理让人痛苦，在很长的一段时间里，大量的错误被放任不管。但是要想建立一个健壮的Node.js程序就必须正确的处理这些错误，而且这并不难学。如果你实在没有耐心，那就直接绕过长篇大论跳到“总结”部分吧。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.joyent.com/developers/node/design/errors&quot;&gt;原文&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;这篇文章会回答NodeJS初学者的若干问题：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;我写的函数里什么时候该抛出异常，什么时候该传给callback, 什么时候触发&lt;code&gt;EventEmitter&lt;/code&gt;等等。&lt;/li&gt;
+&lt;li&gt;我的函数对参数该做出怎样的假设？我应该检查更加具体的约束么？例如参数是否非空，是否大于零，是不是看起来像个IP地址，等等等。&lt;/li&gt;
+&lt;li&gt;我该如何处理那些不符合预期的参数？我是应该抛出一个异常，还是把错误传递给一个callback。&lt;/li&gt;
+&lt;li&gt;我该怎么在程序里区分不同的异常（比如“请求错误”和“服务不可用”）？&lt;/li&gt;
+&lt;li&gt;我怎么才能提供足够的信息让调用者知晓错误细节。&lt;/li&gt;
+&lt;li&gt;我该怎么处理未预料的出错？我是应该用 &lt;code&gt;try/catch&lt;/code&gt; ，&lt;code&gt;domains&lt;/code&gt; 还是其它什么方式呢？&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;这篇文章可以划分成互相为基础的几个部分：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;背景&lt;/strong&gt;：希望你所具备的知识。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;操作失败和程序员的失误&lt;/strong&gt;：介绍两种基本的异常。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;编写新函数的实践&lt;/strong&gt;：关于怎么让函数产生有用报错的基本原则。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;编写新函数的具体推荐&lt;/strong&gt;：编写能产生有用报错的、健壮的函数需要的一个检查列表&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;例子&lt;/strong&gt;：以&lt;code&gt;connect&lt;/code&gt;函数为例的文档和序言。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;总结&lt;/strong&gt;：全文至此的观点总结。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;附录：Error对象属性约定&lt;/strong&gt;：用标准方式提供一个属性列表，以提供更多信息。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;背景&lt;/h2&gt;
+
+&lt;p&gt;本文假设：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;你已经熟悉了JavaScript、Java、 Python、 C++ 或者类似的语言中异常的概念，而且你知道抛出异常和捕获异常是什么意思。&lt;/li&gt;
+&lt;li&gt;你熟悉怎么用NodeJS编写代码。你使用异步操作的时候会很自在，并能用&lt;code&gt;callback(err,result)&lt;/code&gt;模式去完成异步操作。你得知道下面的代码不能正确处理异常的原因是什么[脚注1]&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;myApiFunc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt; * This pattern does NOT work!&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt; */&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;try&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;doSomeAsynchronousOperation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/* continue as normal */&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;你还要熟悉三种传递错误的方式:
+- 作为异常抛出。
+- 把错误传给一个callback，这个函数正是为了处理异常和处理异步操作返回结果的。
+- 在EventEmitter上触发一个Error事件。&lt;/p&gt;
+
+&lt;p&gt;接下来我们会详细讨论这几种方式。这篇文章不假设你知道任何关于domains的知识。&lt;/p&gt;
+
+&lt;p&gt;最后，你应该知道在JavaScript里，错误和异常是有区别的。错误是Error的一个实例。错误被创建并且直接传递给另一个函数或者被抛出。如果一个错误被抛出了那么它就变成了一个异常[脚注2]。举个例子：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;something bad happened&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;但是使用一个错误而不抛出也是可以的&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;something bad happened&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这种用法更常见，因为在NodeJS里，大部分的错误都是异步的。实际上，&lt;code&gt;try/catch&lt;/code&gt;唯一常用的是在&lt;code&gt;JSON.parse&lt;/code&gt;和类似验证用户输入的地方。接下来我们会看到，其实很少要捕获一个异步函数里的异常。这一点和Java，C++，以及其它严重依赖异常的语言很不一样。&lt;/p&gt;
+
+&lt;h2&gt;操作失败和程序员的失误&lt;/h2&gt;
+
+&lt;p&gt;把错误分成两大类很有用[脚注3]：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;操作失败&lt;/strong&gt; 是正确编写的程序在运行时产生的错误。它并不是程序的Bug，反而经常是其它问题：系统本身（内存不足或者打开文件数过多），系统配置（没有到达远程主机的路由），网络问题（端口挂起），远程服务（500错误，连接失败）。例子如下：&lt;/li&gt;
+&lt;li&gt;连接不到服务器&lt;/li&gt;
+&lt;li&gt;无法解析主机名&lt;/li&gt;
+&lt;li&gt;无效的用户输入&lt;/li&gt;
+&lt;li&gt;请求超时&lt;/li&gt;
+&lt;li&gt;服务器返回500&lt;/li&gt;
+&lt;li&gt;套接字被挂起&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;系统内存不足&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;程序员失误&lt;/strong&gt; 是程序里的Bug。这些错误往往可以通过修改代码避免。它们永远都没法被有效的处理。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;读取 undefined 的一个属性&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;调用异步函数没有指定回调&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;该传对象的时候传了一个字符串&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;该传IP地址的时候传了一个对象&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;人们把操作失败和程序员的失误都称为“错误”，但其实它们很不一样。操作失败是所有正确的程序应该处理的错误情形，只要被妥善处理它们不一定会预示着Bug或是严重的问题。“文件找不到”是一个操作失败，但是它并不一定意味着哪里出错了。它可能只是代表着程序如果想用一个文件得事先创建它。&lt;/p&gt;
+
+&lt;p&gt;与之相反，程序员失误是彻彻底底的Bug。这些情形下你会犯错：忘记验证用户输入，敲错了变量名，诸如此类。这样的错误根本就没法被处理，如果可以，那就意味着你用处理错误的代码代替了出错的代码。&lt;/p&gt;
+
+&lt;p&gt;这样的区分很重要：操作失败是程序正常操作的一部分。而由程序员的失误则是Bug。&lt;/p&gt;
+
+&lt;p&gt;有的时候，你会在一个Root问题里同时遇到操作失败和程序员的失误。HTTP服务器访问了未定义的变量时奔溃了，这是程序员的失误。当前连接着的客户端会在程序崩溃的同时看到一个&lt;code&gt;ECONNRESET&lt;/code&gt;错误，在NodeJS里通常会被报成“Socket Hang-up”。对客户端来说，这是一个不相关的操作失败, 那是因为正确的客户端必须处理服务器宕机或者网络中断的情况。&lt;/p&gt;
+
+&lt;p&gt;类似的，如果不处理好操作失败, 这本身就是一个失误。举个例子，如果程序想要连接服务器，但是得到一个&lt;code&gt;ECONNREFUSED&lt;/code&gt;错误，而这个程序没有监听套接字上的 &lt;code&gt;error&lt;/code&gt;事件,然后程序崩溃了，这是程序员的失误。连接断开是操作失败（因为这是任何一个正确的程序在系统的网络或者其它模块出问题时都会经历的），如果它不被正确处理，那它就是一个失误。&lt;/p&gt;
+
+&lt;p&gt;理解操作失败和程序员失误的不同, 是搞清怎么传递异常和处理异常的基础。明白了这点再继续往下读。&lt;/p&gt;
+
+&lt;h3&gt;处理操作失败&lt;/h3&gt;
+
+&lt;p&gt;就像性能和安全问题一样，错误处理并不是可以凭空加到一个没有任何错误处理的程序中的。你没有办法在一个集中的地方处理所有的异常，就像你不能在一个集中的地方解决所有的性能问题。你得考虑任何会导致失败的代码（比如打开文件，连接服务器，Fork子进程等）可能产生的结果。包括为什么出错，错误背后的原因。之后会提及，但是关键在于错误处理的粒度要细，因为哪里出错和为什么出错决定了影响大小和对策。&lt;/p&gt;
+
+&lt;p&gt;你可能会发现在栈的某几层不断地处理相同的错误。这是因为底层除了向上层传递错误，上层再向它的上层传递错误以外，底层没有做任何有意义的事情。通常，只有顶层的调用者知道正确的应对是什么，是重试操作，报告给用户还是其它。但是那并不意味着，你应该把所有的错误全都丢给顶层的回调函数。因为，顶层的回调函数不知道发生错误的上下文，不知道哪些操作已经成功执行，哪些操作实际上失败了。&lt;/p&gt;
+
+&lt;p&gt;我们来更具体一些。对于一个给定的错误，你可以做这些事情:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;直接处理&lt;/strong&gt;。有的时候该做什么很清楚。如果你在尝试打开日志文件的时候得到了一个&lt;code&gt;ENOENT&lt;/code&gt;错误，很有可能你是第一次打开这个文件，你要做的就是首先创建它。更有意思的例子是，你维护着到服务器（比如数据库）的持久连接，然后遇到了一个“socket hang-up”的异常。这通常意味着要么远端要么本地的网络失败了。很多时候这种错误是暂时的，所以大部分情况下你得重新连接来解决问题。（这和接下来的重试不大一样，因为在你得到这个错误的时候不一定有操作正在进行）&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;把出错扩散到客户端&lt;/strong&gt;。如果你不知道怎么处理这个异常，最简单的方式就是放弃你正在执行的操作，清理所有开始的，然后把错误传递给客户端。（怎么传递异常是另外一回事了，接下来会讨论）。这种方式适合错误短时间内无法解决的情形。比如，用户提交了不正确的JSON，你再解析一次是没什么帮助的。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;重试操作&lt;/strong&gt;。对于那些来自网络和远程服务的错误，有的时候重试操作就可以解决问题。比如，远程服务返回了503（服务不可用错误），你可能会在几秒种后重试。&lt;strong&gt;如果确定要重试，你应该清晰的用文档记录下将会多次重试，重试多少次直到失败,以及两次重试的间隔。&lt;/strong&gt; 另外，不要每次都假设需要重试。如果在栈中很深的地方（比如，被一个客户端调用，而那个客户端被另外一个由用户操作的客户端控制），这种情形下快速失败让客户端去重试会更好。如果栈中的每一层都觉得需要重试，用户最终会等待更长的时间，因为每一层都没有意识到下层同时也在尝试。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;直接崩溃&lt;/strong&gt;。对于那些本不可能发生的错误，或者由程序员失误导致的错误（比如无法连接到同一程序里的本地套接字），可以记录一个错误日志然后直接崩溃。其它的比如内存不足这种错误，是JavaScript这样的脚本语言无法处理的，崩溃是十分合理的。（即便如此，在&lt;code&gt;child_process.exec&lt;/code&gt;这样的分离的操作里，得到&lt;code&gt;ENOMEM&lt;/code&gt;错误，或者那些你可以合理处理的错误时，你应该考虑这么做）。在你无计可施需要让管理员做修复的时候，你也可以直接崩溃。如果你用光了所有的文件描述符或者没有访问配置文件的权限，这种情况下你什么都做不了，只能等某个用户登录系统把东西修好。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;记录错误，其他什么都不做&lt;/strong&gt;。有的时候你什么都做不了，没有操作可以重试或者放弃，没有任何理由崩溃掉应用程序。举个例子吧，你用DNS跟踪了一组远程服务，结果有一个DNS失败了。除了记录一条日志并且继续使用剩下的服务以外，你什么都做不了。但是，你至少得记录点什么（凡事都有例外。如果这种情况每秒发生几千次，而你又没法处理，那每次发生都记录可能就不值得了，但是要周期性的记录）。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3&gt;（没有办法）处理程序员的失误&lt;/h3&gt;
+
+&lt;p&gt;对于程序员的失误没有什么好做的。从定义上看，一段本该工作的代码坏掉了（比如变量名敲错），你不能用更多的代码再去修复它。一旦你这样做了，你就使用错误处理的代码代替了出错的代码。&lt;/p&gt;
+
+&lt;p&gt;有些人赞成从程序员的失误中恢复，也就是让当前的操作失败，但是继续处理请求。这种做法不推荐。考虑这样的情况：原始代码里有一个失误是没考虑到某种特殊情况。你怎么确定这个问题不会影响其他请求呢？如果其它的请求共享了某个状态（服务器，套接字，数据库连接池等），有极大的可能其他请求会不正常。&lt;/p&gt;
+
+&lt;p&gt;典型的例子是REST服务器（比如用Restify搭的），如果有一个请求处理函数抛出了一个&lt;code&gt;ReferenceError&lt;/code&gt;（比如，变量名打错）。继续运行下去很有肯能会导致严重的Bug，而且极其难发现。例如：&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;一些请求间共享的状态可能会被变成&lt;code&gt;null&lt;/code&gt;，&lt;code&gt;undefined&lt;/code&gt;或者其它无效值，结果就是下一个请求也失败了。&lt;/li&gt;
+&lt;li&gt;数据库（或其它）连接可能会被泄露，降低了能够并行处理的请求数量。最后只剩下几个可用连接会很坏，将导致请求由并行变成串行被处理。&lt;/li&gt;
+&lt;li&gt;更糟的是， postgres 连接会被留在打开的请求事务里。这会导致 postgres “持有”表中某一行的旧值，因为它对这个事务可见。这个问题会存在好几周，造成表无限制的增长，后续的请求全都被拖慢了，从几毫秒到几分钟[脚注4]。虽然这个问题和 postgres 紧密相关，但是它很好的说明了程序员一个简单的失误会让应用程序陷入一种非常可怕的状态。&lt;/li&gt;
+&lt;li&gt;连接会停留在已认证的状态，并且被后续的连接使用。结果就是在请求里搞错了用户。&lt;/li&gt;
+&lt;li&gt;套接字会一直打开着。一般情况下 NodeJS 会在一个空闲的套接字上应用两分钟的超时，但这个值可以覆盖，这将会泄露一个文件描述符。如果这种情况不断发生，程序会因为用光了所有的文件描述符而强退。即使不覆盖这个超时时间，客户端会挂两分钟直到 “hang-up” 错误的发生。这两分钟的延迟会让问题难于处理和调试。&lt;/li&gt;
+&lt;li&gt;很多内存引用会被遗留。这会导致泄露，进而导致内存耗尽，GC需要的时间增加，最后性能急剧下降。这点非常难调试，而且很需要技巧与导致造成泄露的失误联系起来。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;最好的从失误恢复的方法是立刻崩溃&lt;/strong&gt;。你应该用一个restarter 来启动你的程序，在奔溃的时候自动重启。如果restarter 准备就绪，崩溃是失误来临时最快的恢复可靠服务的方法。&lt;/p&gt;
+
+&lt;p&gt;奔溃应用程序唯一的负面影响是相连的客户端临时被扰乱，但是记住：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;从定义上看，这些错误属于Bug。我们并不是在讨论正常的系统或是网络错误，而是程序里实际存在的Bug。它们应该在线上很罕见，并且是调试和修复的最高优先级。&lt;/li&gt;
+&lt;li&gt;上面讨论的种种情形里，请求没有必要一定得成功完成。请求可能成功完成，可能让服务器再次崩溃，可能以某种明显的方式不正确的完成，或者以一种很难调试的方式错误的结束了。&lt;/li&gt;
+&lt;li&gt;在一个完备的分布式系统里，客户端必须能够通过重连和重试来处理服务端的错误。不管 NodeJS 应用程序是否被允许崩溃，网络和系统的失败已经是一个事实了。&lt;/li&gt;
+&lt;li&gt;如果你的线上代码如此频繁地崩溃让连接断开变成了问题，那么正真的问题是你的服务器Bug太多了，而不是因为你选择出错就崩溃。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;如果出现服务器经常崩溃导致客户端频繁掉线的问题，你应该把经历集中在造成服务器崩溃的Bug上，把它们变成可捕获的异常，而不是在代码明显有问题的情况下尽可能地避免崩溃。调试这类问题最好的方法是，把 NodeJS 配置成出现未捕获异常时把内核文件打印出来。在 GNU/Linux 或者 基于 illumos 的系统上使用这些内核文件，你不仅查看应用崩溃时的堆栈记录，还可以看到传递给函数的参数和其它的 JavaScript 对象，甚至是那些在闭包里引用的变量。即使没有配置 code dumps，你也可以用堆栈信息和日志来开始处理问题。&lt;/p&gt;
+
+&lt;p&gt;最后，记住程序员在服务器端的失误会造成客户端的操作失败，还有客户端必须处理好服务器端的奔溃和网络中断。这不只是理论，而是实际发生在线上环境里。&lt;/p&gt;
+
+&lt;h2&gt;编写函数的实践&lt;/h2&gt;
+
+&lt;p&gt;我们已经讨论了如何处理异常，那么当你在编写新的函数的时候，怎么才能向调用者传递错误呢？&lt;/p&gt;
+
+&lt;p&gt;最最重要的一点是为你的函数写好文档，包括它接受的参数（附上类型和其它约束），返回值，可能发生的错误，以及这些错误意味着什么。
+&lt;strong&gt;如果你不知道会导致什么错误或者不了解错误的含义，那你的应用程序正常工作就是一个巧合。&lt;/strong&gt; 所以，当你编写新的函数的时候，一定要告诉调用者可能发生哪些错误和错误的含义。&lt;/p&gt;
+
+&lt;h3&gt;Throw， Callback 还是 EventEmitter&lt;/h3&gt;
+
+&lt;p&gt;函数有三种基本的传递错误的模式。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;&lt;code&gt;throw&lt;/code&gt;以同步的方式传递异常--也就是在函数被调用处的相同的上下文。如果调用者（或者调用者的调用者）用了&lt;code&gt;try/catch&lt;/code&gt;，则异常可以捕获。如果所有的调用者都没有用，那么程序通常情况下会崩溃（异常也可能会被&lt;code&gt;domains&lt;/code&gt;或者进程级的&lt;code&gt;uncaughtException&lt;/code&gt;捕捉到，详见下文）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;Callback 是最基础的异步传递事件的一种方式。用户传进来一个函数（callback），之后当某个异步操作完成后调用这个 callback。通常 callback 会以&lt;code&gt;callback(err,result)&lt;/code&gt;的形式被调用，这种情况下， err和 result必然有一个是非空的，取决于操作是成功还是失败。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;更复杂的情形是，函数没有用 Callback 而是返回一个 EventEmitter 对象，调用者需要监听这个对象的 error事件。这种方式在两种情况下很有用。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;当你在做一个可能会产生多个错误或多个结果的复杂操作的时候。比如，有一个请求一边从数据库取数据一边把数据发送回客户端，而不是等待所有的结果一起到达。在这个例子里，没有用 callback，而是返回了一个 EventEmitter，每个结果会触发一个&lt;code&gt;row&lt;/code&gt; 事件，当所有结果发送完毕后会触发&lt;code&gt;end&lt;/code&gt;事件，出现错误时会触发一个&lt;code&gt;error&lt;/code&gt;事件。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;用在那些具有复杂状态机的对象上，这些对象往往伴随着大量的异步事件。例如，一个套接字是一个EventEmitter，它可能会触发“connect“，”end“，”timeout“，”drain“，”close“事件。这样，很自然地可以把”error“作为另外一种可以被触发的事件。在这种情况下，清楚知道”error“还有其它事件何时被触发很重要，同时被触发的还有什么事件（例如”close“），触发的顺序，还有套接字是否在结束的时候处于关闭状态。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;在大多数情况下，我们会把 callback 和 event emitter 归到同一个“异步错误传递”篮子里。如果你有传递异步错误的需要，你通常只要用其中的一种而不是同时使用。&lt;/p&gt;
+
+&lt;p&gt;那么，什么时候用&lt;code&gt;throw&lt;/code&gt;，什么时候用callback，什么时候又用 EventEmitter 呢？这取决于两件事：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;这是操作失败还是程序员的失误？&lt;/li&gt;
+&lt;li&gt;这个函数本身是同步的还是异步的。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;直到目前，最常见的例子是在异步函数里发生了操作失败。在大多数情况下，你需要写一个以回调函数作为参数的函数，然后你会把异常传递给这个回调函数。这种方式工作的很好，并且被广泛使用。例子可参照 NodeJS 的&lt;code&gt;fs&lt;/code&gt;模块。如果你的场景比上面这个还复杂，那么你可能就得换用 EventEmitter 了，不过你也还是在用异步方式传递这个错误。&lt;/p&gt;
+
+&lt;p&gt;其次常见的一个例子是像&lt;code&gt;JSON.parse&lt;/code&gt;这样的函数同步产生了一个异常。对这些函数而言，如果遇到操作失败（比如无效输入），你得用同步的方式传递它。你可以抛出（更加常见）或者返回它。&lt;/p&gt;
+
+&lt;p&gt;对于给定的函数，如果有一个异步传递的异常，那么所有的异常都应该被异步传递。可能有这样的情况，请求一到来你就知道它会失败，并且知道不是因为程序员的失误。可能的情形是你缓存了返回给最近请求的错误。虽然你知道请求一定失败，但是你还是应该用异步的方式传递它。&lt;/p&gt;
+
+&lt;p&gt;通用的准则就是 &lt;strong&gt;你即可以同步传递错误（抛出），也可以异步传递错误（通过传给一个回调函数或者触发EventEmitter的 &lt;code&gt;error&lt;/code&gt;事件），但是不用同时使用&lt;/strong&gt;。以这种方式，用户处理异常的时候可以选择用回调函数还是用&lt;code&gt;try/catch&lt;/code&gt;，但是不需要两种都用。具体用哪一个取决于异常是怎么传递的，这点得在文档里说明清楚。&lt;/p&gt;
+
+&lt;p&gt;差点忘了程序员的失误。回忆一下，它们其实是Bug。在函数开头通过检查参数的类型（或是其它约束）就可以被立即发现。一个退化的例子是，某人调用了一个异步的函数，但是没有传回调函数。你应该立刻把这个错抛出，因为程序已经出错而在这个点上最好的调试的机会就是得到一个堆栈信息，如果有内核信息就更好了。&lt;/p&gt;
+
+&lt;p&gt;因为程序员的失误永远不应该被处理，上面提到的调用者只能用&lt;code&gt;try/catch&lt;/code&gt;或者回调函数（或者 EventEmitter）其中一种处理异常的准则并没有因为这条意见而改变。如果你想知道更多，请见上面的 （不要）处理程序员的失误。&lt;/p&gt;
+
+&lt;p&gt;下表以 NodeJS 核心模块的常见函数为例，做了一个总结，大致按照每种问题出现的频率来排列：&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;函数&lt;/th&gt;
+&lt;th&gt;类型&lt;/th&gt;
+&lt;th&gt;错误&lt;/th&gt;
+&lt;th&gt;错误类型&lt;/th&gt;
+&lt;th&gt;传递方式&lt;/th&gt;
+&lt;th&gt;调用者&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fs.stat&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;异步&lt;/td&gt;
+&lt;td&gt;file not found&lt;/td&gt;
+&lt;td&gt;操作失败&lt;/td&gt;
+&lt;td&gt;callback&lt;/td&gt;
+&lt;td&gt;handle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;JSON.parse&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;同步&lt;/td&gt;
+&lt;td&gt;bad user input&lt;/td&gt;
+&lt;td&gt;操作失败&lt;/td&gt;
+&lt;td&gt;throw&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;try/catch&lt;/code&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;code&gt;fs.stat&lt;/code&gt;&lt;/td&gt;
+&lt;td&gt;异步&lt;/td&gt;
+&lt;td&gt;null for filename&lt;/td&gt;
+&lt;td&gt;失误&lt;/td&gt;
+&lt;td&gt;throw&lt;/td&gt;
+&lt;td&gt;none (crash)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;异步函数里出现操作错误的例子（第一行）是最常见的。在同步函数里发生操作失败（第二行）比较少见，除非是验证用户输入。程序员失误（第三行）除非是在开发环境下，否则永远都不应该出现。&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;吐槽：程序员失误还是操作失败？&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;你怎么知道是程序员的失误还是操作失败呢？很简单，你自己来定义并且记在文档里，包括允许什么类型的函数，怎样打断它的执行。如果你得到的异常不是文档里能接受的，那就是一个程序员失误。如果在文档里写明接受但是暂时处理不了的，那就是一个操作失败。&lt;/p&gt;
+
+&lt;p&gt;你得用你的判断力去决定你想做到多严格，但是我们会给你一定的意见。具体一些，想象有个函数叫做“connect”，它接受一个IP地址和一个回调函数作为参数，这个回调函数会在成功或者失败的时候被调用。现在假设用户传进来一个明显不是IP地址的参数，比如&lt;code&gt;“bob”&lt;/code&gt;，这个时候你有几种选择：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;在文档里写清楚只接受有效的IPV4的地址，当用户传进来&lt;code&gt;“bob”&lt;/code&gt;的时候抛出一个异常。强烈推荐这种做法。&lt;/li&gt;
+&lt;li&gt;在文档里写上接受任何string类型的参数。如果用户传的是&lt;code&gt;“bob”&lt;/code&gt;，触发一个异步错误指明无法连接到&lt;code&gt;“bob”&lt;/code&gt;这个IP地址。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;这两种方式和我们上面提到的关于操作失败和程序员失误的指导原则是一致的。你决定了这样的输入算是程序员的失误还是操作失败。通常，用户输入的校验是很松的，为了证明这点，可以看&lt;code&gt;Date.parse&lt;/code&gt;这个例子，它接受很多类型的输入。但是对于大多数其它函数，我们强烈建议你偏向更严格而不是更松。你的程序越是猜测用户的本意（使用隐式的转换，无论是JavaScript语言本身这么做还是有意为之），就越是容易猜错。本意是想让开发者在使用的时候不用更加具体，结果却耗费了人家好几个小时在Debug上。再说了，如果你觉得这是个好主意，你也可以在未来的版本里让函数不那么严格，但是如果你发现由于猜测用户的意图导致了很多恼人的bug，要修复它的时候想保持兼容性就不大可能了。&lt;/p&gt;
+
+&lt;p&gt;所以如果一个值怎么都不可能是有效的（本该是string却得到一个&lt;code&gt;undefined&lt;/code&gt;，本该是string类型的IP但明显不是），你应该在文档里写明是这不允许的并且立刻抛出一个异常。只要你在文档里写的清清楚楚，那这就是一个程序员的失误而不是操作失败。立即抛出可以把Bug带来的损失降到最小，并且保存了开发者可以用来调试这个问题的信息（例如，调用堆栈，如果用内核文件还可以得到参数和内存分布）。&lt;/p&gt;
+
+&lt;p&gt;那么 &lt;code&gt;domains&lt;/code&gt; 和 &lt;code&gt;process.on(&amp;#39;uncaughtException&amp;#39;)&lt;/code&gt; 呢？&lt;/p&gt;
+
+&lt;p&gt;操作失败总是可以被显示的机制所处理的：捕获一个异常，在回调里处理错误，或者处理EventEmitter的“error”事件等等。&lt;code&gt;Domains&lt;/code&gt;以及进程级别的&lt;code&gt;‘uncaughtException’&lt;/code&gt;主要是用来从未料到的程序错误恢复的。由于上面我们所讨论的原因，这两种方式都不鼓励。&lt;/p&gt;
+
+&lt;h2&gt;编写新函数的具体建议&lt;/h2&gt;
+
+&lt;p&gt;我们已经谈论了很多指导原则，现在让我们具体一些。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;你的函数做什么得很清楚。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;这点非常重要。每个接口函数的文档都要很清晰的说明：
+- 预期参数
+- 参数的类型
+- 参数的额外约束（例如，必须是有效的IP地址）&lt;/p&gt;
+
+&lt;p&gt;如果其中有一点不正确或者缺少，那就是一个程序员的失误，你应该立刻抛出来。&lt;/p&gt;
+
+&lt;p&gt;此外，你还要记录：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;调用者可能会遇到的操作失败（以及它们的&lt;code&gt;name&lt;/code&gt;）&lt;/li&gt;
+&lt;li&gt;怎么处理操作失败（例如是抛出，传给回调函数，还是被 EventEmitter 发出）&lt;/li&gt;
+&lt;li&gt;返回值&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ol&gt;
+&lt;li&gt;使用 Error 对象或它的子类，并且实现 Error 的协议。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;你的所有错误要么使用 Error 类要么使用它的子类。你应该提供&lt;code&gt;name&lt;/code&gt;和&lt;code&gt;message&lt;/code&gt;属性，&lt;code&gt;stack&lt;/code&gt;也是（注意准确）。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;在程序里通过 Error 的 &lt;code&gt;name&lt;/code&gt; 属性区分不同的错误。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;当你想要知道错误是何种类型的时候，用name属性。 JavaScript内置的供你重用的名字包括“RangeError”（参数超出有效范围）和“TypeError”（参数类型错误）。而HTTP异常，通常会用RFC指定的名字，比如“BadRequestError”或者“ServiceUnavailableError”。&lt;/p&gt;
+
+&lt;p&gt;不要想着给每个东西都取一个新的名字。如果你可以只用一个简单的InvalidArgumentError，就不要分成 InvalidHostnameError，InvalidIpAddressError，InvalidDnsError等等，你要做的是通过增加属性来说明那里出了问题（下面会讲到）。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;用详细的属性来增强 Error 对象。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;举个例子，如果遇到无效参数，把 &lt;code&gt;propertyName&lt;/code&gt; 设成参数的名字，把 &lt;code&gt;propertyValue&lt;/code&gt; 设成传进来的值。如果无法连到服务器，用 &lt;code&gt;remoteIp&lt;/code&gt; 属性指明尝试连接到的 IP。如果发生一个系统错误，在&lt;code&gt;syscal&lt;/code&gt; 属性里设置是哪个系统调用，并把错误代码放到&lt;code&gt;errno&lt;/code&gt;属性里。具体你可以查看附录，看有哪些样例属性可以用。&lt;/p&gt;
+
+&lt;p&gt;至少需要这些属性：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;name&lt;/code&gt;：用于在程序里区分众多的错误类型（例如参数非法和连接失败）&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;message&lt;/code&gt;：一个供人类阅读的错误消息。对可能读到这条消息的人来说这应该已经足够完整。如果你从更底层的地方传递了一个错误，你应该加上一些信息来说明你在做什么。怎么包装异常请往下看。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;stack&lt;/code&gt;：一般来讲不要随意扰乱堆栈信息。甚至不要增强它。V8引擎只有在这个属性被读取的时候才会真的去运算，以此大幅提高处理异常时候的性能。如果你读完再去增强它，结果就会多付出代价，哪怕调用者并不需要堆栈信息。&lt;/p&gt;
+
+&lt;p&gt;你还应该在错误信息里提供足够的消息，这样调用者不用分析你的错误就可以新建自己的错误。它们可能会本地化这个错误信息，也可能想要把大量的错误聚集到一起，再或者用不同的方式显示错误信息（比如在网页上的一个表格里，或者高亮显示用户错误输入的字段）。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;若果你传递一个底层的错误给调用者，考虑先包装一下。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;经常会发现一个异步函数&lt;code&gt;funcA&lt;/code&gt;调用另外一个异步函数&lt;code&gt;funcB&lt;/code&gt;，如果&lt;code&gt;funcB&lt;/code&gt;抛出了一个错误，希望&lt;code&gt;funcA&lt;/code&gt;也抛出一模一样的错误。（请注意，第二部分并不总是跟在第一部分之后。有的时候&lt;code&gt;funcA&lt;/code&gt;会重新尝试。有的时候又希望&lt;code&gt;funcA&lt;/code&gt;忽略错误因为无事可做。但在这里，我们只讨论&lt;code&gt;funcA&lt;/code&gt;直接返回&lt;code&gt;funcB&lt;/code&gt;错误的情况）&lt;/p&gt;
+
+&lt;p&gt;在这个例子里，可以考虑包装这个错误而不是直接返回它。包装的意思是继续抛出一个包含底层信息的新的异常，并且带上当前层的上下文。用 &lt;strong&gt;&lt;code&gt;verror&lt;/code&gt;&lt;/strong&gt; 这个包可以很简单的做到这点。&lt;/p&gt;
+
+&lt;p&gt;举个例子，假设有一个函数叫做 &lt;code&gt;fetchConfig&lt;/code&gt;，这个函数会到一个远程的数据库取得服务器的配置。你可能会在服务器启动的时候调用这个函数。整个流程看起来是这样的：&lt;/p&gt;
+
+&lt;p&gt;1.加载配置
+1.1 连接数据库
+  1.1.1 解析数据库服务器的DNS主机名
+1.1.2 建立一个到数据库服务器的TCP连接
+1.1.3 向数据库服务器认证
+1.2 发送DB请求
+1.3 解析返回结果
+1.4 加载配置
+2 开始处理请求&lt;/p&gt;
+
+&lt;p&gt;假设在运行时出了一个问题连接不到数据库服务器。如果连接在 1.1.2 的时候因为没有到主机的路由而失败了，每个层都不加处理地都把异常向上抛出给调用者。你可能会看到这样的异常信息：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;myserver: Error: connect ECONNREFUSED
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这显然没什么大用。&lt;/p&gt;
+
+&lt;p&gt;另一方面，如果每一层都把下一层返回的异常包装一下，你可以得到更多的信息：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;myserver: failed to start up: failed to load configuration: failed to connect to database server: failed to connect to 127.0.0.1 port 1234: connect ECONNREFUSED。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;你可能会想跳过其中几层的封装来得到一条不那么充满学究气息的消息：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;myserver: failed to load configuration: connection refused from database at 127.0.0.1 port 1234.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;不过话又说回来，报错的时候详细一点总比信息不够要好。&lt;/p&gt;
+
+&lt;p&gt;如果你决定封装一个异常了，有几件事情要考虑：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;保持原有的异常完整不变，保证当调用者想要直接用的时候底层的异常还可用。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;要么用原有的名字，要么显示地选择一个更有意义的名字。例如，最底层是 NodeJS 报的一个简单的Error，但在步骤1中可以是个 IntializationError 。（但是如果程序可以通过其它的属性区分，不要觉得有责任取一个新的名字）&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;保留原错误的所有属性。在合适的情况下增强&lt;code&gt;message&lt;/code&gt;属性（但是不要在原始的异常上修改）。浅拷贝其它的像是&lt;code&gt;syscall&lt;/code&gt;，&lt;code&gt;errno&lt;/code&gt;这类的属性。最好是直接拷贝除了 &lt;code&gt;name&lt;/code&gt;，&lt;code&gt;message&lt;/code&gt;和&lt;code&gt;stack&lt;/code&gt;以外的所有属性，而不是硬编码等待拷贝的属性列表。不要理会&lt;code&gt;stack&lt;/code&gt;，因为即使是读取它也是相对昂贵的。如果调用者想要一个合并后的堆栈，它应该遍历错误原因并打印每一个错误的堆栈。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;在Joyent，我们使用 &lt;strong&gt;&lt;code&gt;verror&lt;/code&gt;&lt;/strong&gt; 这个模块来封装错误，因为它的语法简洁。写这篇文章的时候，它还不能支持上面的所有功能，但是会被扩展以期支持。&lt;/p&gt;
+
+&lt;h2&gt;例子&lt;/h2&gt;
+
+&lt;p&gt;考虑有这样的一个函数，这个函数会异步地连接到一个IPv4地址的TCP端口。我们通过例子来看文档怎么写：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;* Make a TCP connection to the given IPv4 address.  Arguments:&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    ip4addr        a string representing a valid IPv4 address&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    tcpPort        a positive integer representing a valid TCP port&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    timeout        a positive integer denoting the number of milliseconds&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   to wait for a response from the remote server before&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   considering the connection to have failed.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    callback       invoked when the connection succeeds or fails.  Upon&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   success, callback is invoked as callback(null, socket),&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   where `socket` is a Node net.Socket object.  Upon failure,&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   callback is invoked as callback(err) instead.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;* This function may fail for several reasons:&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    SystemError    For &amp;quot;connection refused&amp;quot; and &amp;quot;host unreachable&amp;quot; and other&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   errors returned by the connect(2) system call.  For these&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   errors, err.errno will be set to the actual errno symbolic&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   name.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*    TimeoutError   Emitted if &amp;quot;timeout&amp;quot; milliseconds elapse without&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*                   successfully completing the connection.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;* All errors will have the conventional &amp;quot;remoteIp&amp;quot; and &amp;quot;remotePort&amp;quot; properties.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;* After any error, any socket that was created will be closed.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*/&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;connect&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ip4addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tcpPort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;timeout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;equal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typeof&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ip4addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;string&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;ip4addr&amp;#39; must be a string&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;net&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;isIPv4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ip4addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;ip4addr&amp;#39; must be a valid IPv4 address&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;equal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typeof&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tcpPort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;number&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;tcpPort&amp;#39; must be a number&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;isNaN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;tcpPort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tcpPort&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;tcpPort&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;65536&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;tcpPort&amp;#39; must be a positive integer between 1 and 65535&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;equal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typeof&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;timeout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;number&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;timeout&amp;#39; must be a number&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;ok&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;isNaN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;timeout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;timeout&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;argument &amp;#39;timeout&amp;#39; must be a positive integer&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;equal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;typeof&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;function&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* do work */&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个例子在概念上很简单，但是展示了上面我们所谈论的一些建议：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;参数，类型以及其它一些约束被清晰的文档化。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;这个函数对于接受的参数是非常严格的，并且会在得到错误参数的时候抛出异常（程序员的失误）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;可能出现的操作失败集合被记录了。通过不同的”name“值可以区分不同的异常，而”errno“被用来获得系统错误的详细信息。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;异常被传递的方式也被记录了（通过失败时调用回调函数）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;返回的错误有”remoteIp“和”remotePort“字段，这样用户就可以定义自己的错误了（比如，一个HTTP客户端的端口号是隐含的）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;虽然很明显，但是连接失败后的状态也被清晰的记录了：所有被打开的套接字此时已经被关闭。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;这看起来像是给一个很容易理解的函数写了超过大部分人会写的的超长注释，但大部分函数实际上没有这么容易理解。所有建议都应该被有选择的吸收，如果事情很简单，你应该自己做出判断，但是记住：用十分钟把预计发生的记录下来可能之后会为你或其他人节省数个小时。&lt;/p&gt;
+
+&lt;h2&gt;总结&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;学习了怎么区分操作失败，即那些可以被预测的哪怕在正确的程序里也无法避免的错误（例如，无法连接到服务器）；而程序的Bug则是程序员失误。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;操作失败可以被处理,也应当被处理。程序员的失误无法被处理或可靠地恢复（本不应该这么做），尝试这么做只会让问题更难调试。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;一个给定的函数，它处理异常的方式要么是同步（用throw方式）要么是异步的（用callback或者EventEmitter），不会两者兼具。用户可以在回调函数里处理错误，也可以使用 &lt;code&gt;try/catch&lt;/code&gt;捕获异常 ，但是不能一起用。实际上，使用throw并且期望调用者使用 &lt;code&gt;try/catch&lt;/code&gt; 是很罕见的，因为 NodeJS 里的同步函数通常不会产生运行失败（主要的例外是类似于&lt;code&gt;JSON.parse&lt;/code&gt;的用户输入验证函数）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;在写新函数的时候，用文档清楚地记录函数预期的参数，包括它们的类型、是否有其它约束（例如必须是有效的IP地址），可能会发生的合理的操作失败（例如无法解析主机名，连接服务器失败，所有的服务器端错误），错误是怎么传递给调用者的（同步，用&lt;code&gt;throw&lt;/code&gt;，还是异步，用 callback 和 EventEmitter）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;缺少参数或者参数无效是程序员的失误，一旦发生总是应该抛出异常。函数的作者认为的可接受的参数可能会有一个灰色地带，但是如果传递的是一个文档里写明接收的参数以外的东西，那就是一个程序员失误。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;传递错误的时候用标准的 Error 类和它标准的属性。尽可能把额外的有用信息放在对应的属性里。如果有可能，用约定的属性名（如下）。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1&gt;附录：Error 对象属性命名约定&lt;/h1&gt;
+
+&lt;p&gt;强烈建议你在发生错误的时候用这些名字来保持和Node核心以及Node插件的一致。这些大部分不会和某个给定的异常对应，但是出现疑问的时候，你应该包含任何看起来有用的信息，即从编程上也从自定义的错误消息上。【表】。&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&quot;text-align: right&quot;&gt;Property name&lt;/th&gt;
+&lt;th style=&quot;text-align: left&quot;&gt;Intended use&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;localHostname&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the local DNS hostname (e.g., that you&amp;#39;re accepting connections at)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;localIp&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the local IP address (e.g., that you&amp;#39;re accepting connections at)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;localPort&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the local TCP port (e.g., that you&amp;#39;re accepting connections at)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;remoteHostname&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the DNS hostname of some other service (e.g., that you tried to connect to)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;remoteIp&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the IP address of some other service (e.g., that you tried to connect to)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;remotePort&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the port of some other service (e.g., that you tried to connect to)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;path&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the name of a file, directory, or Unix Domain Socket (e.g., that you tried to open)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;srcpath&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the name of a path used as a source (e.g., for a rename or copy)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;dstpath&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the name of a path used as a destination (e.g., for a rename or copy)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;hostname&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;a DNS hostname (e.g., that you tried to resolve)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;ip&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;an IP address (e.g., that you tried to reverse-resolve)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;propertyName&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;an object property name, or an argument name (e.g., for a validation error)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;propertyValue&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;an object property value (e.g., for a validation error)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;syscall&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the name of a system call that failed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;errno&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;the symbolic value of errno (e.g., &amp;quot;ENOENT&amp;quot;). Do not use this for errors that don&amp;#39;t actually set the C value of errno.Use &amp;quot;name&amp;quot; to distinguish between types of errors.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;h2&gt;脚注&lt;/h2&gt;
+
+&lt;ol&gt;
+&lt;li&gt;&lt;p&gt;人们有的时候会这么写代码，他们想要在出现异步错误的时候调用 callback 并把错误作为参数传递。他们错误地认为在自己的回调函数（传递给 &lt;code&gt;doSomeAsynchronousOperation&lt;/code&gt; 的函数）里&lt;code&gt;throw&lt;/code&gt; 一个异常，会被外面的catch代码块捕获。&lt;code&gt;try/catch&lt;/code&gt;和异步函数不是这么工作的。回忆一下，异步函数的意义就在于被调用的时候&lt;code&gt;myApiFunc&lt;/code&gt;函数已经返回了。这意味着try代码块已经退出了。这个回调函数是由Node直接调用的，外面并没有try的代码块。如果你用这个反模式，结果就是抛出异常的时候，程序崩溃了。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;在JavaScript里，抛出一个不属于Error的参数从技术上是可行的，但是应该被避免。这样的结果使获得调用堆栈没有可能，代码也无法检查”name“属性，或者其它任何能够说明哪里有问题的属性。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;操作失败和程序员的失误这一概念早在NodeJS之前就已经存在存在了。不严格地对应者Java里的checked和unchecked异常，虽然操作失败被认为是无法避免的，比如 OutOfMemeoryError，被归为uncheked异常。在C语言里有对应的概念，普通异常处理和使用断言。维基百科上关于断言的的文章也有关于什么时候用断言什么时候用普通的错误处理的类似的解释。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;如果这看起来非常具体，那是因为我们在产品环境中遇到这样过这样的问题。这真的很可怕。&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>为何响应时间常被测错</title>
+      <link>/pm/2015/04/09/responsetime/</link>
+      <pubDate>Thu, 09 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/pm/2015/04/09/responsetime</guid>
+      <description>&lt;h2&gt;为何响应时间常被测错&lt;/h2&gt;
+
+&lt;p&gt;响应时间在许多情况下都是性能分析的基础。它们处于预期的界限内时，一切正常；而一旦过高，我们就得开始优化应用。&lt;/p&gt;
+
+&lt;p&gt;因此响应时间在性能监测和分析中扮演着核心角色。在虚拟化和云环境中，它们也是您能得到的最准确的性能指标。但很多情况下，人们却以错误的方式测量并解释响应时间。为此我们有充足的理由来讨论响应时间测量以及如何对其进行解释这一话题。下面我将讨论典型测量手段、相关的误解以及如何改善测量手段等问题。&lt;/p&gt;
+
+&lt;h3&gt;信息被平均丢了&lt;/h3&gt;
+
+&lt;p&gt;在测量响应时间时，我们无法逐个查看测量结果。即便是在非常小的生产系统中，事务数量也多到难以应付。因此测量结果都要在某一时间框架内汇总到一起。按照应用配置的不同，这可能是几秒、几分甚至几小时。&lt;/p&gt;
+
+&lt;p&gt;尽管这种汇总帮助我们轻松理解大型系统中的响应时间，但也意味着我们丢失了信息。最常见的测量汇总方法是采用平均值。这就是说所采集到的测量结果被平均到一起，这样我们处理的就是平均值，而非真实值。
+平均值的问题在于它们在很多情况下并没有反映真实世界中发生的情况。使用平均值时，之所以会引起错误或者误导性结果，主要原因共有两个。&lt;/p&gt;
+
+&lt;p&gt;如果测量结果取值波动较大，那么平均值无法代表实际测量的响应时间。如测量结果的范围介于1 到 4 秒之间，那么平均值可能是在 2 秒左右，这当然并不代表很多用户的感受。
+因此平均值仅对真实世界的性能提供了很少的帮助。所以不应该只使用平均值，而应使用百分位数。如果您与那些在性能领域工作过一段时间的人们交流，他们会告诉你用起来可靠的唯一指标就是百分位数。与平均值相反，百分位数定义了有多少用户体会到的响应时间低于某一门限值。举例来说，如果第 50 百分位数为 2.5 秒，则意味着对于百分之 50 的用户，响应时间都小于或者等于 2.5 秒。可以看出，这种手段与平均值相比更接近于现实。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/responsetime.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;测量结果序列的百分位数和平均值&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;百分位数唯一的潜在缺陷是它们要求的数据存储量要高于平均值。平均值计算仅要求所有测量结果的总和以及数量，而百分位数的计算却更为复杂，它要求整个范围内的测量结果取值。正是由于这个原因，并不是所有性能管理工具都支持百分位数。&lt;/p&gt;
+
+&lt;h3&gt;所有东西都被混到一起&lt;/h3&gt;
+
+&lt;p&gt;数据汇总中另一个重要问题是就是采用哪些数据作为汇总依据。如果把不同事务类型的数据混合到一起，比如起始页、查找和信用卡确认，那么结果就鲜有价值，原因就在于基础数据的差别就像苹果和桔子一样。因此除了确保使用百分位数外，还有必要正确拆分事务类型，以使计算所依据的数据能够匹配到一起。&lt;/p&gt;
+
+&lt;p&gt;按照业务功能来拆分事务的概念通常被称为自定义事务。虽然自定义事务基本理念就是通过一些请求参数来区分应用中的事务，这些参数例如这些事务是干什么的或者来自哪里，或者按照逻辑关系让用户有选择的对事务进行聚合等。比如说“放入购物篮”事务或者某一用户的请求等。&lt;/p&gt;
+
+&lt;h5&gt;只有综合两种手段才能确保所测响应时间构成性能分析的可靠基础。&lt;/h5&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>Ruby中的Profiling工具</title>
+      <link>/ruby/2015/04/08/ruby-profilers/</link>
+      <pubDate>Wed, 08 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/04/08/ruby-profilers</guid>
+      <description>&lt;h2&gt;Ruby内置的profiler&lt;/h2&gt;
+
+&lt;p&gt;内置的profiler实现的很简单，在ruby2.2中只有150行代码，大家可以看看它的实现&lt;a href=&quot;https://github.com/ruby/ruby/blob/trunk/lib/profiler.rb&quot;&gt;profile.rb&lt;/a&gt;
+。内置的profiler使用起来非常的方便，只需要加上&lt;code&gt;-rprofile&lt;/code&gt;参数即可。例如：&lt;/p&gt;
+
+&lt;p&gt;执行：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby -rprofile test.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;输出结果为：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt; %   cumulative   self              self     total
+time   seconds   seconds    calls  ms/call  ms/call  name
+24.24     0.16      0.16    10001     0.02     0.06  Object#m2
+18.18     0.28      0.12        2    60.00   330.00  Integer#times
+18.18     0.40      0.12    10001     0.01     0.06  Object#m1
+15.15     0.50      0.10    10001     0.01     0.01  Class#new
+10.61     0.57      0.07    10000     0.01     0.01  P1.new
+ 6.06     0.61      0.04    20000     0.00     0.00  Fixnum#to_s
+ 4.55     0.64      0.03    10000     0.00     0.00  Struct#initialize
+ 3.03     0.66      0.02    10000     0.00     0.00  P2#initialize
+ 0.00     0.66      0.00        1     0.00     0.00  TracePoint#enable
+ 0.00     0.66      0.00        1     0.00     0.00  Class#initialize
+ 0.00     0.66      0.00        1     0.00     0.00  nil#
+ 0.00     0.66      0.00        1     0.00     0.00  Struct.new
+ 0.00     0.66      0.00        7     0.00     0.00  Module#method_added
+ 0.00     0.66      0.00        3     0.00     0.00  BasicObject#singleton_method_added
+ 0.00     0.66      0.00        2     0.00     0.00  Class#inherited
+ 0.00     0.66      0.00        2     0.00     0.00  IO#set_encoding
+ 0.00     0.66      0.00        1     0.00     0.00  TracePoint#disable
+ 0.00     0.66      0.00        1     0.00   660.00  #toplevel
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;通过打印出的结果能够很明显的看出耗时的方法。内置的profiler很简单，只能打印出这样的结果，没有
+其他输出格式的选项，下面介绍的其他几种都有丰富的格式输出。&lt;/p&gt;
+
+&lt;h2&gt;ruby-prof&lt;/h2&gt;
+
+&lt;p&gt;repo: &lt;a href=&quot;https://github.com/ruby-prof/ruby-prof&quot;&gt;https://github.com/ruby-prof/ruby-prof&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;ruby-prof&lt;/code&gt;具有C扩展，所以它能运行的更快，同时它支持丰富的输出格式，方便我们去查找性能瓶颈。
+&lt;code&gt;ruby-prof&lt;/code&gt;支持输出&lt;code&gt;GraphViz&lt;/code&gt;支持的dot格式，两者的安装方法如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;gem install ruby-prof
+
+ubuntu | sudo apt-get install graphviz
+Mac    | brew install graphviz
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;执行命令很简单，如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof --mode=wall --printer=dot --file=output.dot test.rb 25
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;此命令的详细使用方法请参考帮助信息&lt;code&gt;ruby-prof --help&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;上面命令的执行结果会输出一个graphviz的dot文件，graphviz提供一个格式转换命令，可以将此文件
+转换为一个pdf文件以方便查看，如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;dot -T pdf -o output.pdf output.dot
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这样就可以打开output.pdf查看程序内的方法调用占比了。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/ruby-prof-result.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;perftools.rb&lt;/h2&gt;
+
+&lt;p&gt;repo: &lt;a href=&quot;https://github.com/tmm1/perftools.rb&quot;&gt;https://github.com/tmm1/perftools.rb&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;perftools.rb&lt;/code&gt;是&lt;code&gt;google-perftools&lt;/code&gt;的ruby版本，不过它只支持ruby2.1以下版本，2.1及以上
+版本就需要用到下面的&lt;code&gt;stackprof&lt;/code&gt;了，这两个工具都是一个人写的。鉴于此，我们略过&lt;code&gt;perftools.rb&lt;/code&gt;，
+作者实现&lt;code&gt;stackprof&lt;/code&gt;，就是为了替代&lt;code&gt;perftools.rb&lt;/code&gt;。如果有需求的话，就请参考其github主页。&lt;/p&gt;
+
+&lt;h2&gt;stackprof&lt;/h2&gt;
+
+&lt;p&gt;repo: &lt;a href=&quot;https://github.com/tmm1/stackprof&quot;&gt;https://github.com/tmm1/stackprof&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;stackprof&lt;/code&gt;只支持Ruby2.1+，不过现在ruby的版本发布很快，每一个版本都能带来一些新东西，2.1
+应该很快就能成为很基础的版本，我们就在这个版本上来做一些测试。&lt;/p&gt;
+
+&lt;p&gt;安装：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;gem install stackprof
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这次我们直接在代码中使用stackprof的方法：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;stackprof&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;5_000_000&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;times&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;1_000_000&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;times&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;StackProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;tmp/stackprof.dump&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;我们执行这个ruby程序，&lt;code&gt;ruby test.rb&lt;/code&gt;，会在当前目录的tmp目录中产生一个文件&lt;code&gt;stackprof.dump&lt;/code&gt;,
+然后来分析以下这个文件，&lt;code&gt;stackprof&lt;/code&gt;命令本身可以解析这个文件，执行下面的命令：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;stackprof tmp/stackprof.dump --text
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;则会产生下面的结果，结果应该是很清晰的，很明显在代码中&lt;code&gt;m1&lt;/code&gt;方法要占有绝大部分的运行时间。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;==================================
+  Mode: cpu(1000)
+  Samples: 75 (0.00% miss rate)
+  GC: 0 (0.00%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+        62  (82.7%)          62  (82.7%)     block in Object#m1
+        13  (17.3%)          13  (17.3%)     block in Object#m2
+        75 (100.0%)           0   (0.0%)     &amp;lt;main&amp;gt;
+        75 (100.0%)           0   (0.0%)     block in &amp;lt;main&amp;gt;
+        75 (100.0%)           0   (0.0%)     &amp;lt;main&amp;gt;
+        62  (82.7%)           0   (0.0%)     Object#m1
+        13  (17.3%)           0   (0.0%)     Object#m2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;其他更加丰富的输出方式和分析方式，就请参考&lt;code&gt;stackprof&lt;/code&gt;的github主页，讲解的很全面。&lt;/p&gt;
+
+&lt;p&gt;如果你希望在web前端中展示相关信息，就请看看&lt;code&gt;stackprof-webnav&lt;/code&gt;这个gem，它提供了比较全面的
+展示，操作等等，适合在一些web应用中使用，github地址：&lt;a href=&quot;https://github.com/alisnic/stackprof-webnav&quot;&gt;stackprof-webnav&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2&gt;rack-mini-profiler&lt;/h2&gt;
+
+&lt;p&gt;repo: &lt;a href=&quot;https://github.com/MiniProfiler/rack-mini-profiler&quot;&gt;https://github.com/MiniProfiler/rack-mini-profiler&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;rack-mini-profiler&lt;/code&gt;专门应用于基于&lt;code&gt;rack&lt;/code&gt;的web应用的性能调优，在rails中的使用方法如下：&lt;/p&gt;
+
+&lt;p&gt;首先将gem添加到gemfile中：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;gem&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rack-mini-profiler&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;执行：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;bundle install
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;然后重启你的服务器，访问任意的URl，在页面上的左上角会看到响应时间的毫秒数。如下图所示：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/rack-mini-profiler.png&quot; alt=&quot;rack-mini-profiler&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;点击&lt;code&gt;query time(ms)&lt;/code&gt;列中的&lt;code&gt;1 sql&lt;/code&gt;则可以查看到执行的sql语句及耗时：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/rack-mini-profiler-sql.png&quot; alt=&quot;rack-mini-profiler-sql&quot;&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>NodeJS异常处理uncaughtException篇</title>
+      <link>/nodejs/2015/04/08/nodejs-uncaughtexception/</link>
+      <pubDate>Wed, 08 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/nodejs/2015/04/08/nodejs-uncaughtexception</guid>
+      <description>&lt;p&gt;很多 NodeJS 的开发者在抱怨异常处理太麻烦，我们会通过一些列博客梳理一下NodeJS中常见的异常处理的手段。&lt;/p&gt;
+
+&lt;p&gt;和大多数编程语言一样，在 NodeJS 里可以通过&lt;code&gt;throw&lt;/code&gt;抛出一个异常：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Catch me&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;为了捕获这个异常需要把代码包在&lt;code&gt;Try Catch&lt;/code&gt;中：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Catch me&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;){&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// error captured&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;然而，由于 NodeJS 的异步特性，上述代码只需稍加改造就会失效：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;nextTick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;my_app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(){&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Catch me&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;catch&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;){&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// never called&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在 现实世界里，异常总是会产生在某个模块中。所谓模块就是能完成一个功能的单元，即使是一个简单的函数也可以被看做一个模块。随着项目代码行数增多，异步嵌 套的复杂性加强，经常会有异常没捕获的情况发生。一个没有很强健壮性的 NodeJS 应用，会因为一个未捕获的异常就整个挂掉，导致服务不可用。要改变大家觉得 NodeJS 是脆弱的这个认识，需要开发者加深对这门语言异常处理机制的了解。&lt;/p&gt;
+
+&lt;h2&gt;uncaughtException&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;uncaughtException&lt;/code&gt; 其实是 NodeJS 进程的一个事件。如果进程里产生了一个异常而没有被任何&lt;code&gt;Try Catch&lt;/code&gt;捕获会触发这个事件。为了简化问题，我们还是先看看同步情况下的例子。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;external&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Catch me&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;internal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;external&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;nx&quot;&gt;internal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//error will be thrown&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在命令行里执行这个程序，脚本会在抛出异常的那一行中断。接下来，由于没有&lt;code&gt;Try Catch&lt;/code&gt;，异常会一直冒泡直到事件循环为止，而NodeJS对异常的默认处理非常简单，处理的代码 &lt;em&gt;类似&lt;/em&gt; 于：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;_MyFatalException&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;){&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;emit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;uncaughtException&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)){&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;console&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;emit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;exit&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;NodeJS 对于未捕获异常的默认处理是：
+- 触发 uncaughtException 事件
+- 如果 uncaughtException 没有被监听，那么
+    - 打印异常的堆栈信息
+    - 触发进程的 exit 事件&lt;/p&gt;
+
+&lt;p&gt;如果你正在用 NodeJS 开发服务器，那么你肯定不希望偶然的一个异常让整个服务器挂掉。那么是不是只要监听了 &lt;code&gt;uncaughtException&lt;/code&gt; 就可以阻止服务器的进程退出呢？ 答案是可以，&lt;strong&gt;但是不要这么做！&lt;/strong&gt;。看这个例子：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;express&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;external&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;cb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;nextTick&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;Error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;cb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;sunny&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;express&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;/weather&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;req&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;external&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;Weather of Beijing is &amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;app&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;listen&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8018&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+
+&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;noop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(){}&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;on&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;uncaughtException&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;noop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;上面这个例子假设用户访问站点的时候可以看到当地的天气，我们用 &lt;code&gt;apache2-utils&lt;/code&gt; 来模拟请求&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;ab -n &lt;span class=&quot;m&quot;&gt;1000&lt;/span&gt; -c &lt;span class=&quot;m&quot;&gt;20&lt;/span&gt; http://localhost:8018/weather
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;糟糕！请求一直在等待，内存上涨。原因在于&lt;code&gt;res.end&lt;/code&gt; 永远不会执行，现有的&lt;code&gt;I/O&lt;/code&gt;处于等待的状态，已经开辟的资源不仅不会被释放，而且服务器还在不知疲倦地接受新的用户请求。&lt;/p&gt;
+
+&lt;p&gt;在 NodeJS 中处理异常是代价高昂的，而且一不小心就会导致内存泄露和让应用程序处于不稳定的状态。为了提高健壮性，我们可以用&lt;code&gt;Cluster模式&lt;/code&gt;，由之而来的推荐做法是：
+- 针对发生异常的请求返回一个错误代码
+- 出错的Worker不再接受新的请求
+- 退出关闭Worker进程&lt;/p&gt;
+</description>
+    </item>
+    
+    
+
+  </channel>
+</rss>
