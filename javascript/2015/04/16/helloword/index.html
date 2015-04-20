@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Trace 功能说明，欢迎吐槽 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Session Trace 功能说明，欢迎吐槽 ">
+    <link rel="canonical" href="/javascript/2015/04/16/helloword/">
+    
+    
+    <meta property="og:title" content="Session Trace 功能说明，欢迎吐槽 "/>
+    <meta property="og:url" content="/javascript/2015/04/16/helloword/"/>
+    
+    
+    <meta property="og:description" content="Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug"/>
+    <meta name="description" content="Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Session Trace 功能说明，欢迎吐槽</h1>
+                
+                <div class="meta">
+                    <address>张超</address> &mdash;
+                    <time pubdate datetime="2015-16-April" title="April 16, 2015">April 16, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>张超</address> &mdash;
+                <time pubdate datetime="2015-16-April" title="April 16, 2015">April 16, 2015</time>
+            </div>
+            <h1 class="title">Session Trace 功能说明，欢迎吐槽</h1>
+            
+        </header> -->
+
+        <section>
+            <p>为什么要做Session Trace 这个功能？
+在页面加载 DOM processing 和Page rendering 两个阶段耗时比较长，但之前的Browser Insight 没有展示这两个阶段细节。<br>
+<img src="/images/session/why.jpg" alt="ruby-prof"></p>
+
+<h2>session Trace 源自 chrome developer tools</h2>
+
+<p>现在Browser Insight 可以收集到从用户点击页面页面加载，到用户离开页面页面卸载这个过程中的全部资源的加载时间、ajax请求时间、事件的触发时间、和部分函数执行的时间<br></p>
+
+<p>先看看正在做的截图吧
+对于资源的加载有dns 解析等时间
+<img src="/images/session/session.jpg" alt="ruby-prof">
+对于ajax 有等待时间和回调函数执行的时间<br>
+<img src="/images/session/ajax.png" alt="ruby-prof">
+之前在trace 详情里面，无法查看细节的 dom和page，也可以在这里找到对应的详情，<br>
+<img src="/images/session/trace.jpg" alt="ruby-prof">
+菜单栏里面的按钮 dom 和page 分别可以查看 在dom构建和page渲染两个阶段的详细情况<br>
+<img src="/images/session/dominfo.jpg" alt="ruby-prof">
+页面中加载这么多资源和发起这个多ajax，耗时top5资源和ajax已经找出来了，需要注意的是，这里的top5 是用户在整个页面进行所有操作后，页面所加载的资源和发起的ajax，而不仅仅是页面加载阶段的。<br>
+<img src="/images/session/top.jpg" alt="ruby-prof">
+用户的浏览器信息、地理位置信息、页面加载阶段的DOM processing 耗时和 Page rendering 耗时 和错误的数量 都放在一起展示了<br>
+<img src="/images/session/head.jpg" alt="ruby-prof"></p>
+
+<h2>时间坐标、时间戳、时间段</h2>
+
+<p><img src="/images/session/time.jpg" alt="ruby-prof">
+1 是坐标 会随着鼠标的滚动而变化，不是固定死的，<br>
+2 时间戳 一些事件的触发和执行时间小于1ms 的事件被作为时间戳，用一个小圆点表示<br>
+3 资源和ajax和耗时较长的事件都被作为时间段，用一个长方形表示<br></p>
+
+<h2>Session Trace 下一步解决问题</h2>
+
+<p>重点解决交互过程中的关键操作的耗时
+<img src="/images/session/jiaohu.jpg" alt="ruby-prof"></p>
+
+<h2>Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug</h2>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/webfans.jpg">
+                <p><strong>张超</strong><br>
+                <span class="muted">Browser Insight</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/javascript/2015/04/16/helloword" data-title="Session Trace 功能说明，欢迎吐槽" data-url="http://code.oneapm.com/javascript/2015/04/16/helloword/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

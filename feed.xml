@@ -6,9 +6,55 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Fri, 17 Apr 2015 03:18:49 +0000</pubDate>
-    <lastBuildDate>Fri, 17 Apr 2015 03:18:49 +0000</lastBuildDate>
+    <pubDate>Mon, 20 Apr 2015 11:06:17 +0000</pubDate>
+    <lastBuildDate>Mon, 20 Apr 2015 11:06:17 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Session Trace 功能说明，欢迎吐槽</title>
+      <link>/javascript/2015/04/16/helloword/</link>
+      <pubDate>Thu, 16 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/04/16/helloword</guid>
+      <description>&lt;p&gt;为什么要做Session Trace 这个功能？
+在页面加载 DOM processing 和Page rendering 两个阶段耗时比较长，但之前的Browser Insight 没有展示这两个阶段细节。&lt;br&gt;
+&lt;img src=&quot;/images/session/why.jpg&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;session Trace 源自 chrome developer tools&lt;/h2&gt;
+
+&lt;p&gt;现在Browser Insight 可以收集到从用户点击页面页面加载，到用户离开页面页面卸载这个过程中的全部资源的加载时间、ajax请求时间、事件的触发时间、和部分函数执行的时间&lt;br&gt;&lt;/p&gt;
+
+&lt;p&gt;先看看正在做的截图吧
+对于资源的加载有dns 解析等时间
+&lt;img src=&quot;/images/session/session.jpg&quot; alt=&quot;ruby-prof&quot;&gt;
+对于ajax 有等待时间和回调函数执行的时间&lt;br&gt;
+&lt;img src=&quot;/images/session/ajax.png&quot; alt=&quot;ruby-prof&quot;&gt;
+之前在trace 详情里面，无法查看细节的 dom和page，也可以在这里找到对应的详情，&lt;br&gt;
+&lt;img src=&quot;/images/session/trace.jpg&quot; alt=&quot;ruby-prof&quot;&gt;
+菜单栏里面的按钮 dom 和page 分别可以查看 在dom构建和page渲染两个阶段的详细情况&lt;br&gt;
+&lt;img src=&quot;/images/session/dominfo.jpg&quot; alt=&quot;ruby-prof&quot;&gt;
+页面中加载这么多资源和发起这个多ajax，耗时top5资源和ajax已经找出来了，需要注意的是，这里的top5 是用户在整个页面进行所有操作后，页面所加载的资源和发起的ajax，而不仅仅是页面加载阶段的。&lt;br&gt;
+&lt;img src=&quot;/images/session/top.jpg&quot; alt=&quot;ruby-prof&quot;&gt;
+用户的浏览器信息、地理位置信息、页面加载阶段的DOM processing 耗时和 Page rendering 耗时 和错误的数量 都放在一起展示了&lt;br&gt;
+&lt;img src=&quot;/images/session/head.jpg&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;时间坐标、时间戳、时间段&lt;/h2&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/session/time.jpg&quot; alt=&quot;ruby-prof&quot;&gt;
+1 是坐标 会随着鼠标的滚动而变化，不是固定死的，&lt;br&gt;
+2 时间戳 一些事件的触发和执行时间小于1ms 的事件被作为时间戳，用一个小圆点表示&lt;br&gt;
+3 资源和ajax和耗时较长的事件都被作为时间段，用一个长方形表示&lt;br&gt;&lt;/p&gt;
+
+&lt;h2&gt;Session Trace 下一步解决问题&lt;/h2&gt;
+
+&lt;p&gt;重点解决交互过程中的关键操作的耗时
+&lt;img src=&quot;/images/session/jiaohu.jpg&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug&lt;/h2&gt;
+</description>
+    </item>
+    
     
     
     <item>
