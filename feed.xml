@@ -6,8 +6,8 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Wed, 29 Apr 2015 05:38:40 +0000</pubDate>
-    <lastBuildDate>Wed, 29 Apr 2015 05:38:40 +0000</lastBuildDate>
+    <pubDate>Wed, 29 Apr 2015 08:28:41 +0000</pubDate>
+    <lastBuildDate>Wed, 29 Apr 2015 08:28:41 +0000</lastBuildDate>
 
     
     
@@ -105,7 +105,250 @@ root@Exp-1:/tmp#
     
     
     <item>
-      <title>python - 装饰器使用过程中的误区</title>
+      <title>Ruby中的语句中断和返回</title>
+      <link>/ruby/2015/04/28/ruby-return/</link>
+      <pubDate>Tue, 28 Apr 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/04/28/ruby-return</guid>
+      <description>&lt;p&gt;&lt;strong&gt;return&lt;/strong&gt;，&lt;strong&gt;break&lt;/strong&gt;，&lt;strong&gt;next&lt;/strong&gt; 这几个关键字的使用都涉及到跳出作用域的问题，而他们的不同
+则在于不同的关键字跳出去的目的作用域的不同，因为有代码块则导致有一些地方需要格外注意。&lt;/p&gt;
+
+&lt;h2&gt;&lt;em&gt;return&lt;/em&gt;&lt;/h2&gt;
+
+&lt;h4&gt;常用方式&lt;/h4&gt;
+
+&lt;p&gt;通常情况下的&lt;code&gt;return&lt;/code&gt;语句和大家理解的意思是相同的。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;returned 1&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;s1&quot;&gt;&amp;#39;returned default value&amp;#39;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 根据Ruby语言规范，最后一条执行语句的结果将作为返回值返回，return是可选的&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; returned 1&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; returned default value&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在有异常捕获的&lt;code&gt;ensure&lt;/code&gt;时，情况会稍有不同：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;s1&quot;&gt;&amp;#39;return default&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;ensure&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;I am sure that it will be here!&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; return default&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;像这种情况，在&lt;code&gt;ensure&lt;/code&gt;语句之前，无论是否显示用&lt;code&gt;return&lt;/code&gt;来返回，&lt;code&gt;m1&lt;/code&gt;方法都会返回&lt;code&gt;ensure&lt;/code&gt;之前的值，
+&lt;code&gt;ensure&lt;/code&gt;语句只是确保之后的代码块&lt;code&gt;puts &amp;#39;I am sure that it will be here!&amp;#39;&lt;/code&gt;执行，但是不会从这里返回。
+如果在&lt;code&gt;ensure&lt;/code&gt;语句中显示的用&lt;code&gt;return&lt;/code&gt;来返回值时，情况就不一样了。示例如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;return default&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;ensure&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;I am sure that it will be here!&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; I am sure that it will be here!&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;无论在&lt;code&gt;ensure&lt;/code&gt;之前是否显示返回，都只会返回&lt;code&gt;ensure&lt;/code&gt;之后的值。&lt;/p&gt;
+
+&lt;p&gt;在有代码块干预的情况下，又会有所不同：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;proc&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;block start&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;block end&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;call&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 输出结果：&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;block start&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个应该是在预料之中的，再看下一个：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;block start&amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;block end&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;call&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 输出结果：&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;block start&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end ... &amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里多了一行&lt;code&gt;&amp;quot;end ... &amp;quot;&lt;/code&gt;，原因何在？这就是&lt;code&gt;Proc&lt;/code&gt;和&lt;code&gt;Lambda&lt;/code&gt;最大的区别，在他们之中的&lt;code&gt;return&lt;/code&gt;
+语句跳出去的目的作用域不同，&lt;code&gt;Proc&lt;/code&gt;会直接跳出整个方法的调用，而&lt;code&gt;Lambda&lt;/code&gt;只会跳出自身的作用域，
+返回到方法中继续执行，这一点需要格外注意。（在&lt;code&gt;break&lt;/code&gt;中，&lt;code&gt;Proc&lt;/code&gt;和&lt;code&gt;Lambda&lt;/code&gt;的跳出方式和&lt;code&gt;return&lt;/code&gt;是一样的，后面就不再赘述了。）&lt;/p&gt;
+
+&lt;h2&gt;&lt;em&gt;break&lt;/em&gt;&lt;/h2&gt;
+
+&lt;p&gt;先来看一个简单的小例子：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [2, 4, 6, 8, 10]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个没什么奇怪的，那么看看下面这个，来猜猜它的输出结果是什么？&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# FLAG&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;是&lt;code&gt;[1, 2, 3, nil, nil]&lt;/code&gt;？还是&lt;code&gt;[1, 2, 3]&lt;/code&gt;？还是什么？答案是&lt;code&gt;nil&lt;/code&gt;，因为执行&lt;code&gt;break&lt;/code&gt;后，直接跳到了&lt;em&gt;&lt;code&gt;FLAG&lt;/code&gt;&lt;/em&gt;
+，也就是跳出了&lt;code&gt;map&lt;/code&gt;方法，而&lt;code&gt;map&lt;/code&gt;方法中的语句并没有执行完，导致没有任何返回值，为了验证这个想法是正确的，我们
+可以利用Ruby语言的&lt;code&gt;break&lt;/code&gt;可以带返回值的特性来验证一下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;returned break&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; &amp;quot;returned break&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里可以证明我们的猜测是正确的。虽然上面说明了这个问题，但是应该还不是非常容易理解，我们自己定义
+一个代码块，再来说明一下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 代码块&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in block in m1 ... &amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in block in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m1 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m2 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;call&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m2 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 输出结果：&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m2 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in block in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in block in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in m2 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in m1 ... &amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;然后我们在&lt;code&gt;m1&lt;/code&gt;中的&lt;code&gt;block&lt;/code&gt;中添加&lt;code&gt;break&lt;/code&gt;，来看看执行结果：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 代码块&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in block in m1 ... &amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in block in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m1 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m2 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;call&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m2 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 输出结果：&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m2 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in block in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in m1 ... &amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;可以看到代码块的最后一行代码没有执行，&lt;code&gt;m2&lt;/code&gt;的最后一行也没有执行，就是因为这一行没有执行，导致
+&lt;code&gt;break&lt;/code&gt;的第二个例子中的&lt;code&gt;map&lt;/code&gt;没有返回任何值。总结一下，代码块中的&lt;code&gt;break&lt;/code&gt;会直接跳出调用的方法（m2），
+而在声明代码块的方法（m1）中继续执行此方法（m1）中剩下的语句。&lt;/p&gt;
+
+&lt;h2&gt;&lt;em&gt;next&lt;/em&gt;&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;next&lt;/code&gt;关键字类似其他语言中的&lt;code&gt;continue&lt;/code&gt;，它的工作方式基本和&lt;code&gt;continue&lt;/code&gt;类似。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 代码块&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in block in m1 ... &amp;#39;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;next&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in block in m1 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m1 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;start in m2 ... &amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;block&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;call&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;end in m2 ... &amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 输出结果：&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in m2 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;start in block in m1 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in m2 ... &amp;quot;&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# &amp;quot;end in m1 ... &amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;只是略过了代码块的最后一行代码，这就是&lt;code&gt;next&lt;/code&gt;的工作方式了。我们再来看看&lt;code&gt;break&lt;/code&gt;的那个例子如果
+用&lt;code&gt;next&lt;/code&gt;来写，看看结果是什么？如果你完全理解了上面所写的，相信你已经能在大脑中计算出结果了：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;next&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [2, 4, 6, nil, nil]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;next&lt;/code&gt;语句也能带返回值：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;map&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;next&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;next&amp;#39;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; [2, 4, 6, &amp;quot;next&amp;quot;, &amp;quot;next&amp;quot;]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;&lt;em&gt;其他&lt;/em&gt;&lt;/h2&gt;
+
+&lt;p&gt;对于&lt;code&gt;return&lt;/code&gt;，在方法中，代码块中都可以使用，而&lt;code&gt;break&lt;/code&gt;和&lt;code&gt;next&lt;/code&gt;只能在代码块中使用（循环结构中
+也可以使用，但是一般它也是用代码块的形式来表示），如果在方法中调用两者会提示语法错误，也就是：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# OK&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# Invalid break, compile error (SyntaxError)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;next&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;# Invalid break, compile error (SyntaxError)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;&lt;em&gt;结论&lt;/em&gt;&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;return&lt;/strong&gt; 大部分情况下和其他语言无异，需要注意在&lt;code&gt;ensure&lt;/code&gt;以及&lt;code&gt;Proc&lt;/code&gt;和&lt;code&gt;Lambda&lt;/code&gt;两种不同的
+代码块中的细节问题。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;break&lt;/strong&gt; 在有方法嵌套调用中的代码块中需要注意，它总是返回到调用代码块方法的方法中（有点绕）。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;next&lt;/strong&gt; 最老实，基本不需要注意什么。&lt;/p&gt;
+
+&lt;p&gt;最后就是，不只是&lt;code&gt;return&lt;/code&gt;能返回值，&lt;code&gt;break&lt;/code&gt;和&lt;code&gt;next&lt;/code&gt;都能返回值。&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>Python - 装饰器使用过程中的误区</title>
       <link>/python/2015/04/27/python-decorator-mistake/</link>
       <pubDate>Mon, 27 Apr 2015 00:00:00 +0000</pubDate>
       <author></author>
