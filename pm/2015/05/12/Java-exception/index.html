@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAVA 异常对于性能的影响 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="JAVA 异常对于性能的影响 ">
+    <link rel="canonical" href="/pm/2015/05/12/Java-exception/">
+    
+    
+    <meta property="og:title" content="JAVA 异常对于性能的影响 "/>
+    <meta property="og:url" content="/pm/2015/05/12/Java-exception/"/>
+    
+    
+    <meta property="og:description" content="JAVA 异常对于性能的影响"/>
+    <meta name="description" content="JAVA 异常对于性能的影响"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">JAVA 异常对于性能的影响</h1>
+                
+                <div class="meta">
+                    <address>陶炳哲</address> &mdash;
+                    <time pubdate datetime="2015-12-May" title="May 12, 2015">May 12, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>陶炳哲</address> &mdash;
+                <time pubdate datetime="2015-12-May" title="May 12, 2015">May 12, 2015</time>
+            </div>
+            <h1 class="title">JAVA 异常对于性能的影响</h1>
+            
+        </header> -->
+
+        <section>
+            <div class="highlight"><pre><code class="language-text" data-lang="text">在对OneAPM的客户做技术支持时，我们常常会看到很多客户根本没意识到的异常。在消除了这些异常之后，代码运行速度与以前相比大幅提升。这让我们产生一种猜测，就是在代码里面使用异常会带来显著的性能开销。因为异常是错误情况处理的重要组成部分，摒弃是不太可能的,所以我们需要衡量异常处理对于性能影响，我们可以通过一个实验看看异常处理的对于性能的影响。
+</code></pre></div>
+<h2>实验</h2>
+
+<p>我的实验基于一段随机抛出异常的简单代码。从科学的角度，这并非完全准确的测量，同时我也并不了解 HotSpot 编译器会对运行中的代码做何动作。但无论如何，这段代码应该能够让我们了解一些基本情况。</p>
+
+<p><img src="/images/Javaexception.png" alt="amzon-prof"></p>
+
+<p>结果很有意思：抛出与捕获异常的代价似乎极低。在我的例子里，大约是每个异常 0.02 毫秒。除非你真的抛出太多异常（我们指的是 10 万次或者更多），否则这一点基本都可忽略。
+尽管这些结果显示出异常处理本身并不影响代码性能，但却并未解决下面这个问题：异常对性能的巨大影响该由谁负责？</p>
+
+<h3>我明显遗漏了什么重要的问题。</h3>
+
+<p>重新想了一下，我意识到自己遗漏了异常处理的一个重要部分。我没考虑到异常发生时你做了什么。在多数情况下你很有可能不仅仅是捕获异常！而问题就在这里：一般情况下，你会试图对问题进行补充，并让应用在最终用户那里仍能发挥功能。所以我遗漏的就是：“”为了处理异常而执行的补充代码“”。按照补充代码的不同，性能损失可能会变得相当显著。在某些情况下这可能意味着重试连接到服务器，在另一些情况下则可能意味着使用默认的回滚方案，而这种方案提供的解决办法肯定会带来非常差劲的性能。对于我们在很多情况下看到的行为，这似乎给出了很好的解释。</p>
+
+<p>不过我却不觉得分析到这里已经万事大吉，而是感到这里还遗漏了别的什么东西。</p>
+
+<h2>Stack trace</h2>
+
+<p>对此问题，我仍颇为好奇，为此监视了收集 strack trace 时情况性能有何变化。</p>
+
+<p>经常发生的情况应该是这样的：记下异常及其栈轨迹，尝试找出问题到底在哪。</p>
+
+<p>为此我修改了代码，额外收集了异常的 strack trace 。这让情况显著改变。对异常的 strack trace 的收集，其性能影响要比单纯捕获并抛出异常高出10倍。因此尽管 strack trace 有助于理解哪里发生了问题（有可能还有助于理解为何发生问题），但却存在性能损失。
+由于我们谈论的并非一条 strack trace，所以此处的影响往往非常之大。
+多数情况下，我们都要在多个层次上抛出并捕获异常。
+我们看一个简单的例子： Web 服务客户端连接到服务器。首先，Java 库级别上存在一个连接失败异常。此后会有框架级别上的客户端失败异常，再以后可能还会有应用层次上的业务逻辑调用失败异常。到现在为止，总共要搜集三条strack trace。
+多数情况下，你都能从日志文件或者应用输出中看到这些 strack trace，而写入这些较长的 strack trace 往往也会也带来性能影响。</p>
+
+<h2>结论</h2>
+
+<p>首先因为存在性能影响而把异常弃之不用并非良策。异常有助于提供一种一致的方式来解决运行时问题，并且有助于写出干净的代码。但我们应该对代码中抛出的异常数量进行跟踪，它们可能导致显著的性能影响。所以 OneAPM 默认要对所抛出的异常进行跟踪——在很多情况下人们都会对代码中发生的异常以及在解决这些异常时的性能损耗感到吃惊不已。
+其次尽管使用异常很有裨益，您也应避免捕获过多的 strack trace。异常应该是为异常的情况而设计的，使用时应该牢记这一原则。当然，万一您不想遵从好的编程习惯，Java 语言就会让您知道，那样做可以让您的程序运行得更快，从而鼓励您去那样做。</p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/taobingzhe.png">
+                <p><strong>陶炳哲</strong><br>
+                <span class="muted">会议室看守者</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/pm/2015/05/12/Java-exception" data-title="JAVA 异常对于性能的影响" data-url="http://code.oneapm.com/pm/2015/05/12/Java-exception/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
