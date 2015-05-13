@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby探针的基本实现原理 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Ruby探针的基本实现原理 ">
+    <link rel="canonical" href="/ruby/2015/05/13/knowledge-behind-ruby-agent/">
+    
+    
+    <meta property="og:title" content="Ruby探针的基本实现原理 "/>
+    <meta property="og:url" content="/ruby/2015/05/13/knowledge-behind-ruby-agent/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="Ruby探针都利用了哪些原理，看看这篇就知道了。"/>
+    <meta name="description" content="Ruby探针都利用了哪些原理，看看这篇就知道了。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Ruby探针的基本实现原理</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-13-May" title="May 13, 2015">May 13, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-13-May" title="May 13, 2015">May 13, 2015</time>
+            </div>
+            <h1 class="title">Ruby探针的基本实现原理</h1>
+            
+        </header> -->
+
+        <section>
+            <h2>语言本身</h2>
+
+<p>Ruby语言支持语法级别的系统，框架，甚至语言本身的方法复写，一般叫做元编程（meta programming），
+此基础之上还有一些术语为mixin，方法的动态定义，运行时类改写等等，这些技术和机制可以让语言本身就能实
+现其他语言需要字节码才能实现的功能，例如探针需要hook <code>HttpRequest</code>中的<code>request</code>方法，就可以通过下面的方式实现：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">HttpRequest</span>
+
+  <span class="k">def</span> <span class="nf">request_new</span>
+    <span class="nb">puts</span> <span class="s1">&#39;before request&#39;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">request_old</span>
+    <span class="nb">puts</span> <span class="s1">&#39;after request&#39;</span>
+    <span class="n">result</span>
+  <span class="k">end</span>
+
+  <span class="n">alias_method</span> <span class="ss">:request_old</span><span class="p">,</span> <span class="ss">:request</span>
+  <span class="n">alias_method</span> <span class="ss">:request</span><span class="p">,</span> <span class="ss">:request_new</span>
+
+<span class="k">end</span>
+</code></pre></div>
+<p>这里只是展示其中一种最简单的方法，还有很多其他方法，比如我们想完全放弃原有的方法的话，那就可以直接覆盖掉这个方法了。</p>
+
+<h2>框架</h2>
+
+<p>某些框架如Rails提供pub-sub机制，这种情况下探针只需要订阅特定类型的消息，然后进行数据再加工就可以了。对于Rails，这个比较简单：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">module</span> <span class="nn">ActionController</span>
+  <span class="k">class</span> <span class="nc">PageRequest</span>
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="nb">name</span><span class="p">,</span> <span class="n">started</span><span class="p">,</span> <span class="n">finished</span><span class="p">,</span> <span class="n">unique_id</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+      <span class="no">Rails</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">debug</span> <span class="o">[</span><span class="nb">name</span><span class="p">,</span> <span class="n">started</span><span class="p">,</span> <span class="n">finished</span><span class="p">,</span> <span class="n">unique_id</span><span class="p">,</span> <span class="n">payload</span><span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="no">ActiveSupport</span><span class="o">::</span><span class="no">Notifications</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s1">&#39;process_action.action_controller&#39;</span><span class="p">,</span> <span class="no">ActionController</span><span class="o">::</span><span class="no">PageRequest</span><span class="o">.</span><span class="n">new</span><span class="p">)</span>
+
+<span class="c1"># 每次访问就能够订阅到‘process_action.action_controller’的消息：</span>
+<span class="c1">#</span>
+<span class="c1"># process_action.action_controller 2012-04-13 01:08:35 +0300 2012-04-13 01:08:35 +0300 af358ed7fab884532ec7 {</span>
+<span class="c1">#   controller: &quot;Devise::SessionsController&quot;,</span>
+<span class="c1">#   action: &quot;new&quot;,</span>
+<span class="c1">#   params: {&quot;action&quot;=&gt;&quot;new&quot;, &quot;controller&quot;=&gt;&quot;devise/sessions&quot;},</span>
+<span class="c1">#   format: :html,</span>
+<span class="c1">#   method: &quot;GET&quot;,</span>
+<span class="c1">#   path: &quot;/login/sign_in&quot;,</span>
+<span class="c1">#   status: 200,</span>
+<span class="c1">#   view_runtime: 279.3080806732178,</span>
+<span class="c1">#   db_runtime: 40.053</span>
+<span class="c1"># }</span>
+</code></pre></div>
+<p>这样我们就能拿到这个<code>request</code>的数据了，订阅消息类型还请自己查阅相关框架的文档。</p>
+
+<h2>RACK</h2>
+
+<p>Rack绝对是个好东西，它把几乎所有的web框架和server沟通的接口定义好了，而且是如此的简洁，就是一个call方法。
+一个最简单的Rack应用如下：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># configu.ru</span>
+
+<span class="k">class</span> <span class="nc">App</span>
+
+  <span class="k">def</span> <span class="nf">call</span>
+    <span class="o">[</span><span class="mi">200</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span> <span class="o">=&gt;</span> <span class="s2">&quot;text/html&quot;</span><span class="p">},</span> <span class="o">[</span><span class="s2">&quot;hello world&quot;</span><span class="o">]]</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+
+<span class="n">run</span> <span class="n">app</span>
+
+<span class="c1"># rackup</span>
+</code></pre></div>
+<p>只需要这个call方法就搞定了，而多层的<code>rack middleware</code>也只是嵌套着调用<code>call</code>方法，所有要hook的话，这里就够了，
+不过因为这里基本就是根了，需要注意抓取的数据量及堆栈信息，太长的话会影响性能的。</p>
+
+<h2>数据库</h2>
+
+<p>数据库层基本都是对orm框架的hook，在每个查询的结果输出中都会有执行的时间信息，超过阀值则调用数据库本身的查询
+语句优化工具，并保存输出结果。至于hook的方法就是【1】中或者采用【2】中的方法，如果框架支持的话。</p>
+
+<h2>外部服务</h2>
+
+<p>外部服务就是对访问外部http请求的http_client类似的库进行hook，也就是按照【1】中的方法，对发起request的方法进行hook。</p>
+
+<h2>后台任务</h2>
+
+<p>后台任务机制同上面几项，只不过是在非http server的进程中运行，数据抓取的机制一样，但分类不同，
+需要探针在运行过程中，判断数据抓取的对象状态，即web事务中还是非web事务中，非web事务都统一存
+储到后台任务的数据容器中。</p>
+
+<h2>Thread Profiler</h2>
+
+<p>Thread Profiler就是一个加强版的事务采集器，可以设定采样周期和采样频率，将周期内的事务请求进行数据的聚合处理，
+然后统计出在这个周期内的堆栈调用占比信息，然后可以根据此信息找出时间占比或者调用次数最多的方法，然后有针对性的
+进行优化。</p>
+
+<h2>总结</h2>
+
+<p>以上所述，还只是一些最根本的原理性知识，细节的点还有很多，比如如何进行数据的本地存储和处理，以及线程间的数据冲突处理，
+还有基于fork的多进程server的进程间的数据传输，在以后的文章中，会针对每一项都做出详细的解释，还请大家持续关注。</p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/05/13/knowledge-behind-ruby-agent" data-title="Ruby探针的基本实现原理" data-url="http://code.oneapm.com/ruby/2015/05/13/knowledge-behind-ruby-agent/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
