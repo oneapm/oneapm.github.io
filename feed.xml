@@ -6,9 +6,120 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Wed, 13 May 2015 09:44:18 +0000</pubDate>
-    <lastBuildDate>Wed, 13 May 2015 09:44:18 +0000</lastBuildDate>
+    <pubDate>Mon, 18 May 2015 08:29:41 +0000</pubDate>
+    <lastBuildDate>Mon, 18 May 2015 08:29:41 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Python - 提高Python运行效率的六个窍门</title>
+      <link>/python/2015/05/18/python-performance-tips/</link>
+      <pubDate>Mon, 18 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/python/2015/05/18/python-performance-tips</guid>
+      <description>&lt;p&gt;Python是一门优秀的语言，它能让你在短时间内通过极少量代码就能完成许多操作。不仅如此，它还轻松支持多任务处理，比如多进程。&lt;/p&gt;
+
+&lt;p&gt;不喜欢Python的人经常会吐嘈Python运行太慢。但是，事实并非如此。尝试以下六个窍门，来为你的Python应用提速。&lt;/p&gt;
+
+&lt;h2&gt;窍门一：关键代码使用外部功能包&lt;/h2&gt;
+
+&lt;p&gt;Python简化了许多编程任务，但是对于一些时间敏感的任务，它的表现经常不尽人意。使用C/C++或机器语言的外部功能包处理时间敏感任务，可以有效提高应用的运行效率。这些功能包往往依附于特定的平台，因此你要根据自己所用的平台选择合适的功能包。简而言之，这个窍门要你牺牲应用的可移植性以换取只有通过对底层主机的直接编程才能获得的运行效率。以下是一些你可以选择用来提升效率的功能包：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://cython.org/&quot;&gt;Cython&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://pyinline.sourceforge.net/&quot;&gt;Pylnlne&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://pypy.org/&quot;&gt;PyPy&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/&quot;&gt;Pyrex&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;这些功能包的用处各有不同。比如说，使用C语言的数据类型，可以使涉及内存操作的任务更高效或者更直观。Pyrex就能帮助Python延展出这样的功能。Pylnline能使你在Python应用中直接使用C代码。内联代码是独立编译的，但是它把所有编译文件都保存在某处，并能充分利用C语言提供的高效率。&lt;/p&gt;
+
+&lt;h2&gt;窍门二：在排序时使用键&lt;/h2&gt;
+
+&lt;p&gt;Python含有许多古老的排序规则，这些规则在你创建定制的排序方法时会占用很多时间，而这些排序方法运行时也会拖延程序实际的运行速度。最佳的排序方法其实是尽可能多地使用键和内置的sort()方法。譬如，拿下面的代码来说：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;operator&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;operator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;itemgetter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;#Output = [(1, 5, 8), (6, 2, 4), (9, 7, 5)]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;operator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;itemgetter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;#Output = [(6, 2, 4), (1, 5, 8), (9, 7, 5)]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;key&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;operator&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;itemgetter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;somelist&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;#Output = [(6, 2, 4), (9, 7, 5), (1, 5, 8)],&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在每段例子里，list都是根据你选择的用作关键参数的索引进行排序的。这个方法不仅对数值类型有效，还同样适用于字符串类型。&lt;/p&gt;
+
+&lt;h2&gt;窍门三：针对循环的优化&lt;/h2&gt;
+
+&lt;p&gt;每一种编程语言都强调最优化的循环方案。当使用Python时，你可以借助丰富的技巧让循环程序跑得更快。然而，开发者们经常遗忘的一个技巧是：尽量避免在循环中访问变量的属性。譬如，拿下面的代码来说：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;n&quot;&gt;lowerlist&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;this&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;is&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;lowercase&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;upperlist&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;append&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;upperlist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;word&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lowerlist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;word&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;upperlist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;#Output = [&amp;#39;THIS&amp;#39;, &amp;#39;IS&amp;#39;, &amp;#39;LOWERCASE&amp;#39;]&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;每次你调用str.upper,  Python都会计算这个式子的值。然而，如果你把这个求值赋值给一个变量，那么求值的结果就能提前知道，Python程序就能运行得更快。因此，关键就是尽可能减小Python在循环中的工作量。因为Python解释执行的特性，在上面的例子中会大大减慢它的速度。&lt;/p&gt;
+
+&lt;p&gt;（注意：优化循环的方法还有很多，这只是其中之一。比如，很多程序员会认为，列表推导式是提高循环速度的最佳方法。关键在于，优化循环方案是提高应用程序运行速度的上佳选择。）&lt;/p&gt;
+
+&lt;h2&gt;窍门四：使用较新的Python版本&lt;/h2&gt;
+
+&lt;p&gt;如果你在网上搜索Python，你会发现数不尽的信息都是关于如何升级Python版本。通常，每个版本的Python都会包含优化内容，使其运行速度优于之前的版本。但是，限制因素在于，你最喜欢的函数库有没有同步更新支持新的Python版本。与其争论函数库是否应该更新，关键在于新的Python版本是否足够高效来支持这一更新。&lt;/p&gt;
+
+&lt;p&gt;你要保证自己的代码在新版本里还能运行。你需要使用新的函数库才能体验新的Python版本，然后你需要在做出关键性的改动时检查自己的应用。只有当你完成必要的修正之后，你才能体会新版本的不同。&lt;/p&gt;
+
+&lt;p&gt;然而，如果你只是确保自己的应用在新版本中可以运行，你很可能会错过新版本提供的新特性。一旦你决定更新，请分析你的应用在新版本下的表现，并检查可能出问题的部分，然后优先针对这些部分应用新版本的特性。只有这样，用户才能在更新之初就觉察到应用性能的改观。&lt;/p&gt;
+
+&lt;h2&gt;窍门五：尝试多种编码方法&lt;/h2&gt;
+
+&lt;p&gt;每次创建应用时都使用同一种编码方法几乎无一例外会导致应用的运行效率不尽人意。可以在程序分析时尝试一些试验性的办法。譬如说，在处理字典中的数据项时，你既可以使用安全的方法，先确保数据项已经存在再进行更新，也可以直接对数据项进行更新，把不存在的数据项作为特例分开处理。请看下面第一段代码：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;abcd&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;当一开始myDict为空时，这段代码会跑得比较快。然而，通常情况下，myDict填满了数据，至少填有大部分数据，这时换另一种方法会更有效率。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;abcd&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;%&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;KeyError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;myDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在两种方法中输出结果都是一样的。区别在于输出是如何获得的。跳出常规的思维模式，创建新的编程技巧能使你的应用更有效率。&lt;/p&gt;
+
+&lt;h2&gt;窍门六：交叉编译你的应用&lt;/h2&gt;
+
+&lt;p&gt;开发者有时会忘记计算机其实并不理解用来创建现代应用程序的编程语言。计算机理解的是机器语言。为了运行你的应用，你借助一个应用将你所编的人类可读的代码转换成机器可读的代码。有时，你用一种诸如Python这样的语言编写应用，再以C++这样的语言运行你的应用，这在运行的角度来说，是可行的。关键在于，你想你的应用完成什么事情，而你的主机系统能提供什么样的资源。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://nuitka.net/&quot;&gt;Nuitka&lt;/a&gt;是一款有趣的交叉编译器，能将你的Python代码转化成C++代码。这样，你就可以在native模式下执行自己的应用，而无需依赖于解释器程序。你会发现自己的应用运行效率有了较大的提高，但是这会因平台和任务的差异而有所不同。&lt;/p&gt;
+
+&lt;p&gt;（注意：Nuitka现在还处在测试阶段，所以在实际应用中请多加注意。实际上，当下最好还是把它用于实验。此外，关于交叉编译是否为提高运行效率的最佳方法还存在讨论的空间。开发者已经使用交叉编译多年，用来提高应用的速度。记住，每一种解决办法都有利有弊，在把它用于生产环境之前请仔细权衡。）&lt;/p&gt;
+
+&lt;p&gt;在使用交叉编译器时，记得确保它支持你所用的Python版本。Nuitka支持Python2.6, 2.7, 3.2和3.3。为了让解决方案生效，你需要一个Python解释器和一个C++编译器。Nuitka支持许多C++编译器，其中包括&lt;a href=&quot;http://www.visualstudio.com/&quot;&gt;Microsoft Visual Studio&lt;/a&gt;, &lt;a href=&quot;http://www.mingw.org/&quot;&gt;MinGW&lt;/a&gt; 和 &lt;a href=&quot;http://clang.llvm.org/&quot;&gt;Clang/LLVM&lt;/a&gt;。&lt;/p&gt;
+
+&lt;p&gt;交叉编译可能造成一些严重问题。比如，在使用Nuitka时，你会发现即便是一个小程序也会消耗巨大的驱动空间。因为Nuitka借助一系列的动态链接库（DDLs）来执行Python的功能。因此，如果你用的是一个资源很有限的系统，这种方法或许不太可行。&lt;/p&gt;
+
+&lt;h2&gt;结论&lt;/h2&gt;
+
+&lt;p&gt;前文所述的六个窍门都能帮助你创建运行更有效率的Python应用。但是银弹是不存在的。上述的这些窍门不一定每次都能奏效。在特定的Python的版本下，有的窍门或许比其他的表现更好，但这有时候甚至取决于平台的差异。你需要总结分析你的应用，找到它效率低下的部分，然后尝试这些窍门，找到解决问题的最佳方法。&lt;/p&gt;
+
+&lt;p&gt;本文系&lt;a href=&quot;http://www.oneapm.com/&quot;&gt;OneAPM&lt;/a&gt;工程师编译整理，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>

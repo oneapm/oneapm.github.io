@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python - 提高Python运行效率的六个窍门 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Python - 提高Python运行效率的六个窍门 ">
+    <link rel="canonical" href="/python/2015/05/18/python-performance-tips/">
+    
+    
+    <meta property="og:title" content="Python - 提高Python运行效率的六个窍门 "/>
+    <meta property="og:url" content="/python/2015/05/18/python-performance-tips/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="Python性能问题一直饱受诟病，这篇我们讨论下提升Python应用性能的常见方法。"/>
+    <meta name="description" content="Python性能问题一直饱受诟病，这篇我们讨论下提升Python应用性能的常见方法。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Python - 提高Python运行效率的六个窍门</h1>
+                
+                <div class="meta">
+                    <address>曾灵敏</address> &mdash;
+                    <time pubdate datetime="2015-18-May" title="May 18, 2015">May 18, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>曾灵敏</address> &mdash;
+                <time pubdate datetime="2015-18-May" title="May 18, 2015">May 18, 2015</time>
+            </div>
+            <h1 class="title">Python - 提高Python运行效率的六个窍门</h1>
+            
+        </header> -->
+
+        <section>
+            <p>Python是一门优秀的语言，它能让你在短时间内通过极少量代码就能完成许多操作。不仅如此，它还轻松支持多任务处理，比如多进程。</p>
+
+<p>不喜欢Python的人经常会吐嘈Python运行太慢。但是，事实并非如此。尝试以下六个窍门，来为你的Python应用提速。</p>
+
+<h2>窍门一：关键代码使用外部功能包</h2>
+
+<p>Python简化了许多编程任务，但是对于一些时间敏感的任务，它的表现经常不尽人意。使用C/C++或机器语言的外部功能包处理时间敏感任务，可以有效提高应用的运行效率。这些功能包往往依附于特定的平台，因此你要根据自己所用的平台选择合适的功能包。简而言之，这个窍门要你牺牲应用的可移植性以换取只有通过对底层主机的直接编程才能获得的运行效率。以下是一些你可以选择用来提升效率的功能包：</p>
+
+<ul>
+<li><a href="http://cython.org/">Cython</a></li>
+<li><a href="http://pyinline.sourceforge.net/">Pylnlne</a></li>
+<li><a href="http://pypy.org/">PyPy</a></li>
+<li><a href="http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/">Pyrex</a></li>
+</ul>
+
+<p>这些功能包的用处各有不同。比如说，使用C语言的数据类型，可以使涉及内存操作的任务更高效或者更直观。Pyrex就能帮助Python延展出这样的功能。Pylnline能使你在Python应用中直接使用C代码。内联代码是独立编译的，但是它把所有编译文件都保存在某处，并能充分利用C语言提供的高效率。</p>
+
+<h2>窍门二：在排序时使用键</h2>
+
+<p>Python含有许多古老的排序规则，这些规则在你创建定制的排序方法时会占用很多时间，而这些排序方法运行时也会拖延程序实际的运行速度。最佳的排序方法其实是尽可能多地使用键和内置的sort()方法。譬如，拿下面的代码来说：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="kn">import</span> <span class="nn">operator</span>
+    <span class="n">somelist</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]</span>
+    <span class="n">somelist</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+    <span class="n">somelist</span>
+    <span class="c">#Output = [(1, 5, 8), (6, 2, 4), (9, 7, 5)]</span>
+    <span class="n">somelist</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">somelist</span>
+    <span class="c">#Output = [(6, 2, 4), (1, 5, 8), (9, 7, 5)]</span>
+    <span class="n">somelist</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+    <span class="n">somelist</span>
+    <span class="c">#Output = [(6, 2, 4), (9, 7, 5), (1, 5, 8)],</span>
+</code></pre></div>
+<p>在每段例子里，list都是根据你选择的用作关键参数的索引进行排序的。这个方法不仅对数值类型有效，还同样适用于字符串类型。</p>
+
+<h2>窍门三：针对循环的优化</h2>
+
+<p>每一种编程语言都强调最优化的循环方案。当使用Python时，你可以借助丰富的技巧让循环程序跑得更快。然而，开发者们经常遗忘的一个技巧是：尽量避免在循环中访问变量的属性。譬如，拿下面的代码来说：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="n">lowerlist</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;this&#39;</span><span class="p">,</span> <span class="s">&#39;is&#39;</span><span class="p">,</span> <span class="s">&#39;lowercase&#39;</span><span class="p">]</span>
+    <span class="n">upper</span> <span class="o">=</span> <span class="nb">str</span><span class="o">.</span><span class="n">upper</span>
+    <span class="n">upperlist</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">append</span> <span class="o">=</span> <span class="n">upperlist</span><span class="o">.</span><span class="n">append</span>
+    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">lowerlist</span><span class="p">:</span>
+        <span class="n">append</span><span class="p">(</span><span class="n">upper</span><span class="p">(</span><span class="n">word</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">upperlist</span><span class="p">)</span>
+        <span class="c">#Output = [&#39;THIS&#39;, &#39;IS&#39;, &#39;LOWERCASE&#39;]</span>
+</code></pre></div>
+<p>每次你调用str.upper,  Python都会计算这个式子的值。然而，如果你把这个求值赋值给一个变量，那么求值的结果就能提前知道，Python程序就能运行得更快。因此，关键就是尽可能减小Python在循环中的工作量。因为Python解释执行的特性，在上面的例子中会大大减慢它的速度。</p>
+
+<p>（注意：优化循环的方法还有很多，这只是其中之一。比如，很多程序员会认为，列表推导式是提高循环速度的最佳方法。关键在于，优化循环方案是提高应用程序运行速度的上佳选择。）</p>
+
+<h2>窍门四：使用较新的Python版本</h2>
+
+<p>如果你在网上搜索Python，你会发现数不尽的信息都是关于如何升级Python版本。通常，每个版本的Python都会包含优化内容，使其运行速度优于之前的版本。但是，限制因素在于，你最喜欢的函数库有没有同步更新支持新的Python版本。与其争论函数库是否应该更新，关键在于新的Python版本是否足够高效来支持这一更新。</p>
+
+<p>你要保证自己的代码在新版本里还能运行。你需要使用新的函数库才能体验新的Python版本，然后你需要在做出关键性的改动时检查自己的应用。只有当你完成必要的修正之后，你才能体会新版本的不同。</p>
+
+<p>然而，如果你只是确保自己的应用在新版本中可以运行，你很可能会错过新版本提供的新特性。一旦你决定更新，请分析你的应用在新版本下的表现，并检查可能出问题的部分，然后优先针对这些部分应用新版本的特性。只有这样，用户才能在更新之初就觉察到应用性能的改观。</p>
+
+<h2>窍门五：尝试多种编码方法</h2>
+
+<p>每次创建应用时都使用同一种编码方法几乎无一例外会导致应用的运行效率不尽人意。可以在程序分析时尝试一些试验性的办法。譬如说，在处理字典中的数据项时，你既可以使用安全的方法，先确保数据项已经存在再进行更新，也可以直接对数据项进行更新，把不存在的数据项作为特例分开处理。请看下面第一段代码：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="n">n</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">myDict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="n">char</span> <span class="o">=</span> <span class="s">&#39;abcd&#39;</span><span class="p">[</span><span class="n">i</span><span class="o">%</span><span class="mi">4</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">char</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">myDict</span><span class="p">:</span>
+            <span class="n">myDict</span><span class="p">[</span><span class="n">char</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">myDict</span><span class="p">[</span><span class="n">char</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">myDict</span><span class="p">)</span>
+</code></pre></div>
+<p>当一开始myDict为空时，这段代码会跑得比较快。然而，通常情况下，myDict填满了数据，至少填有大部分数据，这时换另一种方法会更有效率。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="n">n</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">myDict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="n">char</span> <span class="o">=</span> <span class="s">&#39;abcd&#39;</span><span class="p">[</span><span class="n">i</span><span class="o">%</span><span class="mi">4</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">myDict</span><span class="p">[</span><span class="n">char</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">myDict</span><span class="p">[</span><span class="n">char</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">myDict</span><span class="p">)</span>
+</code></pre></div>
+<p>在两种方法中输出结果都是一样的。区别在于输出是如何获得的。跳出常规的思维模式，创建新的编程技巧能使你的应用更有效率。</p>
+
+<h2>窍门六：交叉编译你的应用</h2>
+
+<p>开发者有时会忘记计算机其实并不理解用来创建现代应用程序的编程语言。计算机理解的是机器语言。为了运行你的应用，你借助一个应用将你所编的人类可读的代码转换成机器可读的代码。有时，你用一种诸如Python这样的语言编写应用，再以C++这样的语言运行你的应用，这在运行的角度来说，是可行的。关键在于，你想你的应用完成什么事情，而你的主机系统能提供什么样的资源。</p>
+
+<p><a href="http://nuitka.net/">Nuitka</a>是一款有趣的交叉编译器，能将你的Python代码转化成C++代码。这样，你就可以在native模式下执行自己的应用，而无需依赖于解释器程序。你会发现自己的应用运行效率有了较大的提高，但是这会因平台和任务的差异而有所不同。</p>
+
+<p>（注意：Nuitka现在还处在测试阶段，所以在实际应用中请多加注意。实际上，当下最好还是把它用于实验。此外，关于交叉编译是否为提高运行效率的最佳方法还存在讨论的空间。开发者已经使用交叉编译多年，用来提高应用的速度。记住，每一种解决办法都有利有弊，在把它用于生产环境之前请仔细权衡。）</p>
+
+<p>在使用交叉编译器时，记得确保它支持你所用的Python版本。Nuitka支持Python2.6, 2.7, 3.2和3.3。为了让解决方案生效，你需要一个Python解释器和一个C++编译器。Nuitka支持许多C++编译器，其中包括<a href="http://www.visualstudio.com/">Microsoft Visual Studio</a>, <a href="http://www.mingw.org/">MinGW</a> 和 <a href="http://clang.llvm.org/">Clang/LLVM</a>。</p>
+
+<p>交叉编译可能造成一些严重问题。比如，在使用Nuitka时，你会发现即便是一个小程序也会消耗巨大的驱动空间。因为Nuitka借助一系列的动态链接库（DDLs）来执行Python的功能。因此，如果你用的是一个资源很有限的系统，这种方法或许不太可行。</p>
+
+<h2>结论</h2>
+
+<p>前文所述的六个窍门都能帮助你创建运行更有效率的Python应用。但是银弹是不存在的。上述的这些窍门不一定每次都能奏效。在特定的Python的版本下，有的窍门或许比其他的表现更好，但这有时候甚至取决于平台的差异。你需要总结分析你的应用，找到它效率低下的部分，然后尝试这些窍门，找到解决问题的最佳方法。</p>
+
+<p>本文系<a href="http://www.oneapm.com/">OneAPM</a>工程师编译整理，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/">官方技术博客</a>。</p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/startover.jpg">
+                <p><strong>曾灵敏</strong><br>
+                <span class="muted">Pythoner</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/python/2015/05/18/python-performance-tips" data-title="Python - 提高Python运行效率的六个窍门" data-url="http://code.oneapm.com/python/2015/05/18/python-performance-tips/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
