@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻译 - 元编程动态方法之public_send &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="翻译 - 元编程动态方法之public_send ">
+    <link rel="canonical" href="/ruby/2015/05/20/meta-programming-public-send/">
+    
+    
+    <meta property="og:title" content="翻译 - 元编程动态方法之public_send "/>
+    <meta property="og:url" content="/ruby/2015/05/20/meta-programming-public-send/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="Ruby的元编程中有很多关键的方法，看看这位同行所发现的。"/>
+    <meta name="description" content="Ruby的元编程中有很多关键的方法，看看这位同行所发现的。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">翻译 - 元编程动态方法之public_send</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-20-May" title="May 20, 2015">May 20, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-20-May" title="May 20, 2015">May 20, 2015</time>
+            </div>
+            <h1 class="title">翻译 - 元编程动态方法之public_send</h1>
+            
+        </header> -->
+
+        <section>
+            <p>原文地址：<a href="http://vaidehijoshi.github.io/blog/2015/05/05/metaprogramming-dynamic-methods-using-public-send">Metaprogramming Dynamic Methods: Using Public_send</a></p>
+
+<p>作者：Friends of The Web的开发者Vaidehi，OneAPM官方技术博客编译整理。</p>
+
+<p><img src="http://imgs.xkcd.com/comics/hofstadter.png" alt="pic1 "></p>
+
+<p>在上周，我写了一些让我感到非常骄傲的代码！当时，我正努力解决一个有趣的问题，这个问题也是我最近开发的一款应用中所遇到的。于是我把脑海中想到的第一种解决办法很快付诸了实践。然后，当我回过头来查看文本编辑器，并认真审阅完自己所写的代码时，终于意识到：这些代码真的很赞！</p>
+
+<p>一周以来，我不断回顾那些代码段，沉思到底是什么原因令她如此美丽。而我又做了什么不一样的事情，竟让自己的内心充满了骄傲。我认为是元编程，这是我能够第一时间想到的答案。元编程（Metaprogramming）是指某类计算机程序的编写，这类计算机程序编写或者操纵其他程序（或者自身）作为它们的数据，或者在编译时完成部分本应在运行时完成的工作。当然，其中涉及到很多不同的技巧和方法，我也不是专家。但是我的确学到了一个元方法 public_send ，接下来我分享一下自己的使用心得。</p>
+
+<h2>GOTTA DISPATCH? DO IT DYNAMICALLY.</h2>
+
+<p>其实，不仅仅只是Ruby，编程世界中的一切都只是一种抽象。我们只不过对那些晦涩难懂的机器语言包裹了一层“糖衣”，让程序员的生活变得更为简便，让代码更具美感罢了。但归根结底，这只是对其他事物的一种抽象而已。当我们通过元编程进行重构时，理解的是同样的抽象概念，而且我们必须牢记这一点。同时，当我们试图发现代码中的共性问题时，这也意味着，我们可以封装并抽离那段代码的部分功能。</p>
+
+<p>我最喜欢的抽象实例是method dispatching，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。</p>
+
+<p>其实，send方法在程序中被调用的次数远超过我们的想象。比如，当我们打开操控台，做一些简单的数学运算：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">2.2.0 &gt; 3 + 4
+=&gt; 7
+</code></pre></div>
+<p>而我们真正做事情的是：给整数3这个对象发送一个信息，告诉它与另一个对象（整数4）进行加法动作。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">2.2.0 &gt; 3.send(:+, 4)
+=&gt; 7
+</code></pre></div>
+<p><code>send</code> 方法用字符串或者一个符号为参数，并以此做为方法名。换言之，方法名总是第一个参数，而第二个参数将以自变量的形式传给该方法。</p>
+
+<p>此时，如果你想执行3加4的加法操作，就会变得很容易。但是，谁会一直做如此简单的加法计算呢？显然没有。你很可能还会执行3加5，加6，一直加到无穷等等。</p>
+
+<p>而使用dynamic dispatching 就可以拯救你！</p>
+
+<p><img src="https://media.giphy.com/media/144RafbwKkBDva/giphy.gif" alt="pic 2"></p>
+
+<p>Dynamic dispatching，就如同上面这幅略显奇怪但是相当可爱的动态图，因为涉及向对象发送不同的信息<code>(read: methods)</code> ，同时因情况的差异，还会产生方法不断改变的警告。<code>Dynamic dispatching</code> 允许我们在程序中面向对象发送不同的方法，而且无需告知其他对象所发送信息的内容。如果你需要再一个特定的环境下调用一个方法，但是不清楚该方法是如何执行的，那么此时就是<code>Dynamic dispatching</code>  出场的最佳时机。</p>
+
+<p>我们可以看一下这个例子。</p>
+
+<h2>YOU CAN SEND WHUTEVA YOU LIKE</h2>
+
+<p>你可以使用 <code>send</code> 方法，来向一个对象“send”不同的方法，但这只占据了一半的乐趣，另一半在于搞清楚什么时候去实际的应用它。</p>
+
+<p>此刻，让我来给大家展示一下，最近如何在应用中使用 <code>Dynamic dispatching</code> 来触发特定的方法。在本文中，我使用了一个电子书店的例子，希望大家能够接受。</p>
+
+<p>在我的书店中，拥有一个开放购买的图书列表，列表以页码为单位来进行展示，且每本书在界面中只有有限的展示空间。作为网站的管理员，我必须决定针对不同的书应该如何进行更好的展示。一些书有非常漂亮的封面，我会想用封面的缩略图作为他们主要的“viewable attribute”，因为我使用了 <code>paperclip</code> 插件，这点很容易实现。</p>
+
+<p>然而，有些书压根就没有封面。比如，浩如烟海的莎士比亚戏剧集，如果以“作者”做为“viewable attribute”，能更好地能吸引读者。而《权力的游戏》系列图书若以书名作为“可见属性”，显然更具吸引力。</p>
+
+<p>所以，我该如何处理这个问题呢？首先，让我们看一下有没有任何共性的存在。</p>
+
+<h3>1. Look For Patterns</h3>
+
+<p>诚然，我们都希望界面中的每个 <code>Book</code> 对象都能用它最主要的可见属性来展示。我们遇到的问题是管理员会为每个 <code>Book</code> 对象选择不同的属性，再设置其为“viewable”，因此我们无法预测这个属性是<code>title</code> ，<code>author</code> ，还是是一张图像。但是，我们的确知道每个 <code>book</code> 对象都需要某个“viewable attribute”。</p>
+
+<p>这点很酷！所以这里就发现了一个共性：我们需要展示一个属性，但是我们并不知道它会是什么。或者说，其实我们知道？</p>
+
+<h3>2. Consider The Data</h3>
+
+<p>当下我们为该应用建立一个管理员界面时，我们清楚的知道每本书都有一个<code>title</code>，一个<code>author</code>。书的封面可以是有选择性的(此处我们称其为<code>media</code> )，但另外两个属性则不一定。这意味着我们要对 <code>Book</code> 对象进行一次验证：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">Book</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+  <span class="n">validates_presence_of</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">:author</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>经过验证值之后，我进一步思考<code>Book</code> 对象肯定也会有的其他属性，首先进入我脑海的就是<code>viewable_by</code>属性。我们可以设想一下，管理员必须将某个属性设为“viewable”，当他更新此对象时，“viewable”就可能改变。因此，对每个 <code>Book</code> 对象来说都是独一无二的，这也意味着我们可以放心地将其保存在数据库中。</p>
+
+<p>所以，我们可以通过代码迁移在数据库中增加<code>viewable_by</code>属性，并且设置成不可为<code>null</code>，同时将默认值设为<code>Book’s title</code>：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">AddViewableByToBooks</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Migration</span>
+  <span class="k">def</span> <span class="nf">change</span>
+    <span class="n">add_column</span> <span class="ss">:books</span><span class="p">,</span> <span class="ss">:viewable_by</span><span class="p">,</span> <span class="ss">:string</span><span class="p">,</span> <span class="ss">null</span><span class="p">:</span> <span class="kp">false</span><span class="p">,</span> <span class="ss">default</span><span class="p">:</span> <span class="s2">&quot;title&quot;</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>这个迁移看起来非常简单，但是，but it is its very simplicity that lends itself so elegantly to some serious metaprogramming that we’ll do next.</p>
+
+<h3>3. Encapsulate And Abstract</h3>
+
+<p>最后这部分的确最难理解，但也最炫酷。现在，我们的数据库里多了一列，且字符串类型的值是<code>title</code> ， <code>author</code>，<code>media</code>中的一个，管理员可以随意改变或更新这些值。显而易见，这些值的更改不可避免，但是有一点不变：we’re still going to want to render the value of whatever attribute is marked as “visible” – that is to say, whatever string value is saved as    <code>viewable_by</code> .</p>
+
+<p>此时，我们可以回头想想之前定义的那个共性。我们知道，属性会不断改变，但是我们对它的操作仍然保持了一致性。不论 <code>Book</code> 对象的<code>viewable_by</code>属性是什么，我们都会展示这个属性。而且我们会跟该对象发送信息：“嘿，书先生，你可见的那个属性，不论它是什么，都是你用来展示自己的值！”</p>
+
+<p>And this is where we can use <code>send</code> to encapsulate and abstract this away into a single method call。首先，我们要增加一个方法来检查可见属性是不是一个图象，如果是的话，我们会将其交给<code>paperclip</code>插件来进行展示：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">show_cover?</span>
+  <span class="nb">self</span><span class="o">.</span><span class="n">viewable_by</span> <span class="o">==</span> <span class="s1">&#39;media&#39;</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>如果<code>viewable_by</code>属性的值为<code>media</code>，该方法会返回true，否则返回false。我们可以将这个布尔返回值用在一个条件语句中：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">book_html</span>
+  <span class="k">if</span> <span class="n">show_cover?</span>
+    <span class="c1"># Code here will generate and return</span>
+    <span class="c1"># an html image tag to render in view.</span>
+  <span class="k">else</span>
+    <span class="nb">send</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">viewable_by</span><span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>上面的代码怎么了？如此炫酷！<code>book_html</code>方法要么展示一张缩略图(我们会写别的代码来实现)，要么返回一个<code>title</code> 对象或者<code>author</code>对象。当然，真正炫酷的地方在于，我们可以在表中添加其他属性，像<code>year</code>或者<code>genre</code>，并在此基础上显示html网页，只需要这些属性保存在<code>viewable</code>列中。</p>
+
+<p>这到底是怎么运行的？其实，每次我们在数据库里创建新列时，我们都获得了两个重要的方法：读和写。这意味着我们拥有了<code>title=</code>和 <code>title</code>两个方法。</p>
+
+<p>如果我们回顾一下 <code>send</code> 方法的工作原理，就会知道<code>send</code> 会将一个字符串或一个符号作为参数，该参数也是被调用的方法名。当我们调用 <code>send</code> 方法并将<code>self.viewable_by</code> 的值传给它时，我们实际上是在调用一个<code>Book</code>实例的<code>send(“title”)</code> 方法。这会调用该<code>Book</code>实例的<code>title</code> 属性，并将那本书的书名以字符串的形式返回。</p>
+
+<p>这段代码炫酷的地方在于它非常灵活，同时还能将一种共性抽象为动态的方法调用，只在合适的时间对恰当的对象发起请求。但是，这段代码中还存在一个大问题，接下来让我们把它解决掉。</p>
+
+<h2>TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION</h2>
+
+<p>很多控诉 <code>send</code> 方法的证据都源于此： <code>send</code> 会将private methods发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。</p>
+
+<p>一种快速的修正方法就是使用 <code>pubic_send</code> ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">Book</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
+  <span class="n">validates_presence_of</span> <span class="ss">:title</span><span class="p">,</span> <span class="ss">:author</span>
+
+  <span class="k">def</span> <span class="nf">show_cover?</span>
+    <span class="nb">self</span><span class="o">.</span><span class="n">viewable_by</span> <span class="o">==</span> <span class="s1">&#39;media&#39;</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">book_html</span>
+    <span class="k">if</span> <span class="n">show_cover?</span>
+      <span class="c1"># Code here will generate and return</span>
+      <span class="c1"># an html image tag to render in view.</span>
+    <span class="k">else</span>
+      <span class="n">public_send</span><span class="p">(</span><span class="nb">self</span><span class="o">.</span><span class="n">viewable_by</span><span class="p">)</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>赞！作为我们元编程的首次尝试，这段代码并没有显得很寒碜。</p>
+
+<p>虽然做起来很难，但在重构和元编程方面，你也不必太苛求自己。老实说，随着时间的累积，你可以多加练习，逐渐的增长见识，那么编程能力自然也能够得到提高。最终，你会开始察觉那些出现了一次又一次的共性，并开始学会选择正确的工具来解决这些问题。</p>
+
+<p>尽管需要额外的努力，我认为尝试不同的元编程技巧对未来大有裨益，多读多写代码亦是如此。重写之前的代码来实现一些元编程技巧，你可以修改应用中过于死板的代码，将之变得更为灵活、动态。</p>
+
+<p>如果这些话听起来有些吓人，那是因为事实本就如此！但是这并不是不可能的，正如我最近取得的进展，我也希望正在阅读此文的你也能有所斩获。幸运的是，Ruby提供了很多工具，帮我们将死板的代码实现了元程序化。而问题就在于了解那些工具，并在合适的时机能够使用它。我相信，如果你体验了一次元编程，你肯定会欣喜万分，也许还会像小猫一样发出欢乐的尖叫，我想那将是世上最可爱的事情了。</p>
+
+<p><img src="https://media.giphy.com/media/117j1ldyb838Zi/giphy.gif" alt="pic 3"></p>
+
+<h2>总结一下</h2>
+
+<ul>
+<li>在编写程序时，我们可以使用dynamic dispatching将一个方法传递给对象，而不必指明方法的内容。方法<code>send</code>和 <code>pubic_send</code>都能实现这一点，它们以字符串或符号为参数，并以此参数作为接受对象调用的方法名。</li>
+<li><a href="http://ruby-metaprogramming.rubylearning.com/html/ruby_metaprogramming_2.html">点击这里</a>学习元编程的基本要素，并查看<code>send</code>和<code>pubic_send</code>方法的相关文档。</li>
+<li>如果你还好奇其他的动态方法？可以阅读一下<a href="http://ruby.about.com/od/oo/ss/Dynamic-Method-Calls.htm">这篇博文</a>，其中深度介绍了一部分方法。</li>
+</ul>
+
+<p><strong>本文由<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/05/20/meta-programming-public-send" data-title="翻译 - 元编程动态方法之public_send" data-url="http://code.oneapm.com/ruby/2015/05/20/meta-programming-public-send/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

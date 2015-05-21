@@ -6,9 +6,267 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 18 May 2015 08:29:41 +0000</pubDate>
-    <lastBuildDate>Mon, 18 May 2015 08:29:41 +0000</lastBuildDate>
+    <pubDate>Thu, 21 May 2015 03:01:11 +0000</pubDate>
+    <lastBuildDate>Thu, 21 May 2015 03:01:11 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>影响网页渲染的关键！</title>
+      <link>/javascript/2015/05/21/render/</link>
+      <pubDate>Thu, 21 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/05/21/render</guid>
+      <description>&lt;p&gt;经常有站长、开发者、运维疑惑：为什么我们的后台服务器很快，但是用户要看网页里面的内容却需要很长时间？我们在上一篇文章《怪兽大作战: 解析网站打开慢的原因》【http://news.yesky.com/prnews/420/58034920.shtml】中简单介绍了影响网站打开速度的几个指标，感兴趣的同学可以再读一下。今天我们主要讲一下，是哪些因素拖慢了我们的首屏加载时间，也就是用户看到网页中内容时所等待的时间。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/render/1.png&quot; alt=&quot;ruby-prof&quot;&gt;
+用过OneAPM的读者对这幅图肯定不陌生，一般来讲，如果服务器很快，机房所在线路很快，那么影响用户看到网页内容的主要时间，就是最后两个时间阶段：DOM处理以及网页渲染，在这两个阶段中，浏览器需要解析网页中的各种资源并进行渲染，最终形成用户页面。这个过程是否流畅，直接影响到用户需要等待的时间，从更深层次而言，直接会影响最终的用户体验，现在大家也普遍接受一个观点“延迟就是故障”，所以你需要重视网站的加载速度。&lt;/p&gt;
+
+&lt;h2&gt;打造轻量级的资源路径--关键渲染路&lt;/h2&gt;
+
+&lt;p&gt;网页加载速度中最重要的概念是关键渲染路径。如果能理解好这个概念，的确可以让用户更快看到网页中的内容。&lt;/p&gt;
+
+&lt;p&gt;轻量级资源和路径，可以缩短复杂网页的构建和渲染时间，甚至比简单网页还要快！
+由于大多数网页都包含许多不同的组成部分，仅仅移除部分资源并不能保证更快的加载速度。
+如果你曾经想过：“为了提高网页的加载速度，我还能做什么？”或者“新浪、QQ、网易是如何做到在一秒钟内加载那么多网页内容的？”那么关键渲染路径这个概念正是你需要了解的。&lt;/p&gt;
+
+&lt;h2&gt;什么是关键渲染路径？&lt;/h2&gt;
+
+&lt;p&gt;清楚起见，让我们先定义一些概念：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;关键：绝对需要
+渲染：显示或者展示（在我们的情境中，网页经过渲染才能呈现给用户）
+路径：使我们的网页展示在浏览器中的一系列事件
+首屏：是用户滚动页面之前就能看见的部分。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;因此，换言之，渲染路径就是一系列使你的网页呈现在浏览器中的事件。而关键渲染路径是呈现网页首屏所需的那些事件。因为几乎所有网站在渲染网页时都包含了不必要的步骤，而减少这些不必要的路径，能使你的网页加载速度提高几秒钟，这也是提高网页速度的最快方法。&lt;/p&gt;
+
+&lt;h2&gt;路径&lt;/h2&gt;
+
+&lt;p&gt;为了显示一张网页，浏览器必须获取网页所需的所有资源。一个简单的例子：一个网页需要一张图片，一个CSS文件，一个JavaScript文件。&lt;/p&gt;
+
+&lt;p&gt;我们来看看这张网页在展示之前经历的路径：&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt; 浏览器下载html文件&lt;/li&gt;
+&lt;li&gt; 浏览器读取html文件，发现里面涉及一个CSS文件，一个JavaScript文件和一张图片&lt;/li&gt;
+&lt;li&gt; 浏览器开始下载这张图片&lt;/li&gt;
+&lt;li&gt; 浏览器发现不获取CSS和JavaScript文件就无法显示网页&lt;/li&gt;
+&lt;li&gt; 浏览器下载CSS文件并读取之，确保除此之外没有别的文件需要被访问&lt;/li&gt;
+&lt;li&gt; 浏览器发现不获取JavaScript文件还是无法显示网页&lt;/li&gt;
+&lt;li&gt; 浏览器下载JavaScript文件并读取之，确保除此之外没有别的文件需要被访问&lt;/li&gt;
+&lt;li&gt; 浏览器发现现在可以显示网页了&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;上面的路径是简单网页的加载过程。现在，试想一下你的网页加载路径会怎么样？你很可能会有几个交互按钮，数个CSS和JavaScript文件，很多图片和小插件，甚至可能还有音频或者视频文件。这意味着，你的渲染路径很可能会像一个大迷宫。大多数网站的渲染路径都极其复杂，因为浏览器在显示网页之前需要加载的文件太多。这就是你可以超过他人的地方。如果你让自己的网页加载得比竞争者的快，你就能获得访问者的青睐（百度就喜欢这样的开发者），例如新浪微博的路径就是这样的：
+&lt;img src=&quot;/images/render/2.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;渲染过程&lt;/h2&gt;
+
+&lt;p&gt;在展示网页所需的众多资源中，存在一些资源会阻塞网页的渲染过程。最常见的两种资源就是CSS文件和JavaScript文件。不管你需要多少个这样的文件，浏览器必须逐一下载并分析这些文件，然后才能给用户展示内容。让我们来看一个最常见不过的场景：&lt;/p&gt;
+
+&lt;p&gt;WordPress博客使用主题。几乎每一个WordPress主题都包含多个CSS文件。&lt;/p&gt;
+
+&lt;p&gt;许多主题包含六七个CSS文件。所有的CSS文件都可以合并到一个文件中，但是当你添加主题时，会包含多个CSS文件。因此，在你的博客显示哪怕一个字之前，浏览器都不得不经过六七次的与服务器交互，把这些文件一个个地下载下来，并分析读取，之后才能开始显示。&lt;/p&gt;
+
+&lt;p&gt;在加载的过程中，访问者都只能看到一篇空白的屏幕。因为只有当关键步骤完成以后，才会有东西显示。&lt;/p&gt;
+
+&lt;p&gt;但是，即便下载完这些CSS文件，你的博客还是不能完成渲染。因为WordPress主题还需要几个JavaScript文件。&lt;/p&gt;
+
+&lt;p&gt;因此，渲染一页典型的WordPress博客网页，需要浏览器与服务器交互大约20次，才能将主要的CSS和JavaScript文件下载完毕。但是，等等，现在你还需要交互按钮，小插件……噢，不，针对每一个这样的部件，你还要下载几个CSS，JavaScript文件。&lt;/p&gt;
+
+&lt;p&gt;你可能要下载几十个文件，才能让自己的博客展示在用户面前。真是麻烦！（去查查你的网页都要加载什么文件，可以使用OneAPM 的SessionTrace 功能看看网页加载资源在用户那里的速度）&lt;/p&gt;
+
+&lt;p&gt;但是事情不仅限于WordPress，本文只是拿它举个例子而已。通常创建网页的初始视图都很多资源，因此会产生多个请求。
+&lt;img src=&quot;/images/render/3.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;关键&lt;/h2&gt;
+
+&lt;p&gt;目前我只是描绘了一张非常朦胧的蓝图。好消息是：你可以为你的网页请求一百万个资源，其中包括12000张图像，200个JavaScript文件，而这些都可能在一秒钟内加载完成。&lt;/p&gt;
+
+&lt;p&gt;这是如何实现的呢？&lt;/p&gt;
+
+&lt;p&gt;只要理解对你的网站而言，显示首屏的内容所需的关键步骤，就能实现。&lt;/p&gt;
+
+&lt;p&gt;最优化渲染路径，实际上只要聚焦三件事情：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;最小化关键资源的数量
+最小化关键字节数
+最小化关键路径的长度
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;理解页面加载速度的测量办法&lt;/h2&gt;
+
+&lt;p&gt;当百度谈论页面加载速度时，他们并不是指加载一个网页的总时间。他们说的是用户看到首屏所需的时间，以及用户可以开始与页面内容进行交互所需的时间。&lt;/p&gt;
+
+&lt;p&gt;百度之所以开始采用页面加载速度作为影响要素，是基于他们用户的满意度。当用户使用百度搜索时，他们要是被带到加载时间很长的页面，无疑是很糟糕的经历。&lt;/p&gt;
+
+&lt;p&gt;人们向百度抱怨，他们说：“为什么将我带到一个加载如此缓慢的页面？”显然，人们感知到了速度的差别。&lt;/p&gt;
+
+&lt;p&gt;如果一个用户要盯着一个空白的网页10秒之久等待它加载内容，这无疑是很差的体验。百度不想在他们的结果中出现这样的页面。如果那个页面能在1秒内显示内容，这就是极好的用户体验，这才是百度想要的结果。&lt;/p&gt;
+
+&lt;p&gt;我们讨论网页速度时最关注的就是将初首屏的内容尽早地显示给用户。
+通过OneAPM SessionTrace 功能可以查看各个资源的加载速度，方便调整加载资源的策略，例如
+&lt;img src=&quot;/images/render/4.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;后续：&lt;/h2&gt;
+
+&lt;p&gt;其实，优化网页渲染路还有很多小技巧、插件、方法等待，未来我们将在后续的文章中一一和大家分享。&lt;/p&gt;
+
+&lt;p&gt;本文系OneAPM工程师张超编译整理，想阅读更多技术文章，请访问OneAPM官方技术博客&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>翻译 - 元编程动态方法之public_send</title>
+      <link>/ruby/2015/05/20/meta-programming-public-send/</link>
+      <pubDate>Wed, 20 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/05/20/meta-programming-public-send</guid>
+      <description>&lt;p&gt;原文地址：&lt;a href=&quot;http://vaidehijoshi.github.io/blog/2015/05/05/metaprogramming-dynamic-methods-using-public-send&quot;&gt;Metaprogramming Dynamic Methods: Using Public_send&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;作者：Friends of The Web的开发者Vaidehi，OneAPM官方技术博客编译整理。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://imgs.xkcd.com/comics/hofstadter.png&quot; alt=&quot;pic1 &quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;在上周，我写了一些让我感到非常骄傲的代码！当时，我正努力解决一个有趣的问题，这个问题也是我最近开发的一款应用中所遇到的。于是我把脑海中想到的第一种解决办法很快付诸了实践。然后，当我回过头来查看文本编辑器，并认真审阅完自己所写的代码时，终于意识到：这些代码真的很赞！&lt;/p&gt;
+
+&lt;p&gt;一周以来，我不断回顾那些代码段，沉思到底是什么原因令她如此美丽。而我又做了什么不一样的事情，竟让自己的内心充满了骄傲。我认为是元编程，这是我能够第一时间想到的答案。元编程（Metaprogramming）是指某类计算机程序的编写，这类计算机程序编写或者操纵其他程序（或者自身）作为它们的数据，或者在编译时完成部分本应在运行时完成的工作。当然，其中涉及到很多不同的技巧和方法，我也不是专家。但是我的确学到了一个元方法 public_send ，接下来我分享一下自己的使用心得。&lt;/p&gt;
+
+&lt;h2&gt;GOTTA DISPATCH? DO IT DYNAMICALLY.&lt;/h2&gt;
+
+&lt;p&gt;其实，不仅仅只是Ruby，编程世界中的一切都只是一种抽象。我们只不过对那些晦涩难懂的机器语言包裹了一层“糖衣”，让程序员的生活变得更为简便，让代码更具美感罢了。但归根结底，这只是对其他事物的一种抽象而已。当我们通过元编程进行重构时，理解的是同样的抽象概念，而且我们必须牢记这一点。同时，当我们试图发现代码中的共性问题时，这也意味着，我们可以封装并抽离那段代码的部分功能。&lt;/p&gt;
+
+&lt;p&gt;我最喜欢的抽象实例是method dispatching，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。&lt;/p&gt;
+
+&lt;p&gt;其实，send方法在程序中被调用的次数远超过我们的想象。比如，当我们打开操控台，做一些简单的数学运算：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;2.2.0 &amp;gt; 3 + 4
+=&amp;gt; 7
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;而我们真正做事情的是：给整数3这个对象发送一个信息，告诉它与另一个对象（整数4）进行加法动作。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;2.2.0 &amp;gt; 3.send(:+, 4)
+=&amp;gt; 7
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;send&lt;/code&gt; 方法用字符串或者一个符号为参数，并以此做为方法名。换言之，方法名总是第一个参数，而第二个参数将以自变量的形式传给该方法。&lt;/p&gt;
+
+&lt;p&gt;此时，如果你想执行3加4的加法操作，就会变得很容易。但是，谁会一直做如此简单的加法计算呢？显然没有。你很可能还会执行3加5，加6，一直加到无穷等等。&lt;/p&gt;
+
+&lt;p&gt;而使用dynamic dispatching 就可以拯救你！&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://media.giphy.com/media/144RafbwKkBDva/giphy.gif&quot; alt=&quot;pic 2&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;Dynamic dispatching，就如同上面这幅略显奇怪但是相当可爱的动态图，因为涉及向对象发送不同的信息&lt;code&gt;(read: methods)&lt;/code&gt; ，同时因情况的差异，还会产生方法不断改变的警告。&lt;code&gt;Dynamic dispatching&lt;/code&gt; 允许我们在程序中面向对象发送不同的方法，而且无需告知其他对象所发送信息的内容。如果你需要再一个特定的环境下调用一个方法，但是不清楚该方法是如何执行的，那么此时就是&lt;code&gt;Dynamic dispatching&lt;/code&gt;  出场的最佳时机。&lt;/p&gt;
+
+&lt;p&gt;我们可以看一下这个例子。&lt;/p&gt;
+
+&lt;h2&gt;YOU CAN SEND WHUTEVA YOU LIKE&lt;/h2&gt;
+
+&lt;p&gt;你可以使用 &lt;code&gt;send&lt;/code&gt; 方法，来向一个对象“send”不同的方法，但这只占据了一半的乐趣，另一半在于搞清楚什么时候去实际的应用它。&lt;/p&gt;
+
+&lt;p&gt;此刻，让我来给大家展示一下，最近如何在应用中使用 &lt;code&gt;Dynamic dispatching&lt;/code&gt; 来触发特定的方法。在本文中，我使用了一个电子书店的例子，希望大家能够接受。&lt;/p&gt;
+
+&lt;p&gt;在我的书店中，拥有一个开放购买的图书列表，列表以页码为单位来进行展示，且每本书在界面中只有有限的展示空间。作为网站的管理员，我必须决定针对不同的书应该如何进行更好的展示。一些书有非常漂亮的封面，我会想用封面的缩略图作为他们主要的“viewable attribute”，因为我使用了 &lt;code&gt;paperclip&lt;/code&gt; 插件，这点很容易实现。&lt;/p&gt;
+
+&lt;p&gt;然而，有些书压根就没有封面。比如，浩如烟海的莎士比亚戏剧集，如果以“作者”做为“viewable attribute”，能更好地能吸引读者。而《权力的游戏》系列图书若以书名作为“可见属性”，显然更具吸引力。&lt;/p&gt;
+
+&lt;p&gt;所以，我该如何处理这个问题呢？首先，让我们看一下有没有任何共性的存在。&lt;/p&gt;
+
+&lt;h3&gt;1. Look For Patterns&lt;/h3&gt;
+
+&lt;p&gt;诚然，我们都希望界面中的每个 &lt;code&gt;Book&lt;/code&gt; 对象都能用它最主要的可见属性来展示。我们遇到的问题是管理员会为每个 &lt;code&gt;Book&lt;/code&gt; 对象选择不同的属性，再设置其为“viewable”，因此我们无法预测这个属性是&lt;code&gt;title&lt;/code&gt; ，&lt;code&gt;author&lt;/code&gt; ，还是是一张图像。但是，我们的确知道每个 &lt;code&gt;book&lt;/code&gt; 对象都需要某个“viewable attribute”。&lt;/p&gt;
+
+&lt;p&gt;这点很酷！所以这里就发现了一个共性：我们需要展示一个属性，但是我们并不知道它会是什么。或者说，其实我们知道？&lt;/p&gt;
+
+&lt;h3&gt;2. Consider The Data&lt;/h3&gt;
+
+&lt;p&gt;当下我们为该应用建立一个管理员界面时，我们清楚的知道每本书都有一个&lt;code&gt;title&lt;/code&gt;，一个&lt;code&gt;author&lt;/code&gt;。书的封面可以是有选择性的(此处我们称其为&lt;code&gt;media&lt;/code&gt; )，但另外两个属性则不一定。这意味着我们要对 &lt;code&gt;Book&lt;/code&gt; 对象进行一次验证：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Book&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;validates_presence_of&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:author&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;经过验证值之后，我进一步思考&lt;code&gt;Book&lt;/code&gt; 对象肯定也会有的其他属性，首先进入我脑海的就是&lt;code&gt;viewable_by&lt;/code&gt;属性。我们可以设想一下，管理员必须将某个属性设为“viewable”，当他更新此对象时，“viewable”就可能改变。因此，对每个 &lt;code&gt;Book&lt;/code&gt; 对象来说都是独一无二的，这也意味着我们可以放心地将其保存在数据库中。&lt;/p&gt;
+
+&lt;p&gt;所以，我们可以通过代码迁移在数据库中增加&lt;code&gt;viewable_by&lt;/code&gt;属性，并且设置成不可为&lt;code&gt;null&lt;/code&gt;，同时将默认值设为&lt;code&gt;Book’s title&lt;/code&gt;：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;AddViewableByToBooks&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Migration&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;change&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;add_column&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:books&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:viewable_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;default&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;title&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个迁移看起来非常简单，但是，but it is its very simplicity that lends itself so elegantly to some serious metaprogramming that we’ll do next.&lt;/p&gt;
+
+&lt;h3&gt;3. Encapsulate And Abstract&lt;/h3&gt;
+
+&lt;p&gt;最后这部分的确最难理解，但也最炫酷。现在，我们的数据库里多了一列，且字符串类型的值是&lt;code&gt;title&lt;/code&gt; ， &lt;code&gt;author&lt;/code&gt;，&lt;code&gt;media&lt;/code&gt;中的一个，管理员可以随意改变或更新这些值。显而易见，这些值的更改不可避免，但是有一点不变：we’re still going to want to render the value of whatever attribute is marked as “visible” – that is to say, whatever string value is saved as    &lt;code&gt;viewable_by&lt;/code&gt; .&lt;/p&gt;
+
+&lt;p&gt;此时，我们可以回头想想之前定义的那个共性。我们知道，属性会不断改变，但是我们对它的操作仍然保持了一致性。不论 &lt;code&gt;Book&lt;/code&gt; 对象的&lt;code&gt;viewable_by&lt;/code&gt;属性是什么，我们都会展示这个属性。而且我们会跟该对象发送信息：“嘿，书先生，你可见的那个属性，不论它是什么，都是你用来展示自己的值！”&lt;/p&gt;
+
+&lt;p&gt;And this is where we can use &lt;code&gt;send&lt;/code&gt; to encapsulate and abstract this away into a single method call。首先，我们要增加一个方法来检查可见属性是不是一个图象，如果是的话，我们会将其交给&lt;code&gt;paperclip&lt;/code&gt;插件来进行展示：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;show_cover?&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;viewable_by&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;media&amp;#39;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;如果&lt;code&gt;viewable_by&lt;/code&gt;属性的值为&lt;code&gt;media&lt;/code&gt;，该方法会返回true，否则返回false。我们可以将这个布尔返回值用在一个条件语句中：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;book_html&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;show_cover?&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# Code here will generate and return&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# an html image tag to render in view.&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;viewable_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;上面的代码怎么了？如此炫酷！&lt;code&gt;book_html&lt;/code&gt;方法要么展示一张缩略图(我们会写别的代码来实现)，要么返回一个&lt;code&gt;title&lt;/code&gt; 对象或者&lt;code&gt;author&lt;/code&gt;对象。当然，真正炫酷的地方在于，我们可以在表中添加其他属性，像&lt;code&gt;year&lt;/code&gt;或者&lt;code&gt;genre&lt;/code&gt;，并在此基础上显示html网页，只需要这些属性保存在&lt;code&gt;viewable&lt;/code&gt;列中。&lt;/p&gt;
+
+&lt;p&gt;这到底是怎么运行的？其实，每次我们在数据库里创建新列时，我们都获得了两个重要的方法：读和写。这意味着我们拥有了&lt;code&gt;title=&lt;/code&gt;和 &lt;code&gt;title&lt;/code&gt;两个方法。&lt;/p&gt;
+
+&lt;p&gt;如果我们回顾一下 &lt;code&gt;send&lt;/code&gt; 方法的工作原理，就会知道&lt;code&gt;send&lt;/code&gt; 会将一个字符串或一个符号作为参数，该参数也是被调用的方法名。当我们调用 &lt;code&gt;send&lt;/code&gt; 方法并将&lt;code&gt;self.viewable_by&lt;/code&gt; 的值传给它时，我们实际上是在调用一个&lt;code&gt;Book&lt;/code&gt;实例的&lt;code&gt;send(“title”)&lt;/code&gt; 方法。这会调用该&lt;code&gt;Book&lt;/code&gt;实例的&lt;code&gt;title&lt;/code&gt; 属性，并将那本书的书名以字符串的形式返回。&lt;/p&gt;
+
+&lt;p&gt;这段代码炫酷的地方在于它非常灵活，同时还能将一种共性抽象为动态的方法调用，只在合适的时间对恰当的对象发起请求。但是，这段代码中还存在一个大问题，接下来让我们把它解决掉。&lt;/p&gt;
+
+&lt;h2&gt;TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION&lt;/h2&gt;
+
+&lt;p&gt;很多控诉 &lt;code&gt;send&lt;/code&gt; 方法的证据都源于此： &lt;code&gt;send&lt;/code&gt; 会将private methods发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。&lt;/p&gt;
+
+&lt;p&gt;一种快速的修正方法就是使用 &lt;code&gt;pubic_send&lt;/code&gt; ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Book&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;validates_presence_of&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:title&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:author&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;show_cover?&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;viewable_by&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;media&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;book_html&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;show_cover?&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;# Code here will generate and return&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;# an html image tag to render in view.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;public_send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;viewable_by&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;赞！作为我们元编程的首次尝试，这段代码并没有显得很寒碜。&lt;/p&gt;
+
+&lt;p&gt;虽然做起来很难，但在重构和元编程方面，你也不必太苛求自己。老实说，随着时间的累积，你可以多加练习，逐渐的增长见识，那么编程能力自然也能够得到提高。最终，你会开始察觉那些出现了一次又一次的共性，并开始学会选择正确的工具来解决这些问题。&lt;/p&gt;
+
+&lt;p&gt;尽管需要额外的努力，我认为尝试不同的元编程技巧对未来大有裨益，多读多写代码亦是如此。重写之前的代码来实现一些元编程技巧，你可以修改应用中过于死板的代码，将之变得更为灵活、动态。&lt;/p&gt;
+
+&lt;p&gt;如果这些话听起来有些吓人，那是因为事实本就如此！但是这并不是不可能的，正如我最近取得的进展，我也希望正在阅读此文的你也能有所斩获。幸运的是，Ruby提供了很多工具，帮我们将死板的代码实现了元程序化。而问题就在于了解那些工具，并在合适的时机能够使用它。我相信，如果你体验了一次元编程，你肯定会欣喜万分，也许还会像小猫一样发出欢乐的尖叫，我想那将是世上最可爱的事情了。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://media.giphy.com/media/117j1ldyb838Zi/giphy.gif&quot; alt=&quot;pic 3&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;总结一下&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;在编写程序时，我们可以使用dynamic dispatching将一个方法传递给对象，而不必指明方法的内容。方法&lt;code&gt;send&lt;/code&gt;和 &lt;code&gt;pubic_send&lt;/code&gt;都能实现这一点，它们以字符串或符号为参数，并以此参数作为接受对象调用的方法名。&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://ruby-metaprogramming.rubylearning.com/html/ruby_metaprogramming_2.html&quot;&gt;点击这里&lt;/a&gt;学习元编程的基本要素，并查看&lt;code&gt;send&lt;/code&gt;和&lt;code&gt;pubic_send&lt;/code&gt;方法的相关文档。&lt;/li&gt;
+&lt;li&gt;如果你还好奇其他的动态方法？可以阅读一下&lt;a href=&quot;http://ruby.about.com/od/oo/ss/Dynamic-Method-Calls.htm&quot;&gt;这篇博文&lt;/a&gt;，其中深度介绍了一部分方法。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
