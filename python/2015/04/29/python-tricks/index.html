@@ -85,9 +85,9 @@
 <h3>json 字符串格式化</h3>
 
 <p>在开发 web 应用的时候经常会用到 json 字符串，但是一段比较长的 json 字符串是可读性较差的，不容易看出来里面结构的。 这时候就可以用 python 来把 json 字符串漂亮的打印出来。</p>
-<div class="highlight"><pre><code class="language-bash" data-lang="bash">root@Exp-1:/tmp# cat json.txt 
+<div class="highlight"><pre><code class="language-bash" data-lang="bash">root@Exp-1:/tmp# cat json.txt
 <span class="o">{</span><span class="s2">&quot;menu&quot;</span>: <span class="o">{</span><span class="s2">&quot;breakfast&quot;</span>: <span class="o">{</span><span class="s2">&quot;English Muffin&quot;</span>: <span class="o">{</span><span class="s2">&quot;price&quot;</span>: 7.5<span class="o">}</span>, <span class="s2">&quot;Bread Basket&quot;</span>: <span class="o">{</span><span class="s2">&quot;price&quot;</span>: 20, <span class="s2">&quot;desc&quot;</span>: <span class="s2">&quot;Assortment of fresh baked fruit breads and muffins&quot;</span><span class="o">}</span>, <span class="s2">&quot;Fruit Breads&quot;</span>: <span class="o">{</span><span class="s2">&quot;price&quot;</span>: 8<span class="o">}}</span>, <span class="s2">&quot;drink&quot;</span>: <span class="o">{</span><span class="s2">&quot;Hot Tea&quot;</span>: <span class="o">{</span><span class="s2">&quot;price&quot;</span>: 5<span class="o">}</span>, <span class="s2">&quot;Juice&quot;</span>: <span class="o">{</span><span class="s2">&quot;price&quot;</span>: 10, <span class="s2">&quot;type&quot;</span>: <span class="o">[</span><span class="s2">&quot;apple&quot;</span>, <span class="s2">&quot;watermelon&quot;</span>, <span class="s2">&quot;orange&quot;</span><span class="o">]}}}}</span>
-root@Exp-1:/tmp# 
+root@Exp-1:/tmp#
 root@Exp-1:/tmp# cat json.txt <span class="p">|</span> python -m json.tool
 <span class="o">{</span>
     <span class="s2">&quot;menu&quot;</span>: <span class="o">{</span>
@@ -118,7 +118,7 @@ root@Exp-1:/tmp# cat json.txt <span class="p">|</span> python -m json.tool
         <span class="o">}</span>
     <span class="o">}</span>
 <span class="o">}</span>
-root@Exp-1:/tmp# 
+root@Exp-1:/tmp#
 </code></pre></div>
 <h3>else 的妙用</h3>
 
@@ -163,6 +163,8 @@ root@Exp-1:/tmp#
 <span class="o">...</span>
 <span class="n">dyna_routes</span><span class="p">[</span><span class="n">method</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">whole_rule</span><span class="p">)</span>
 </code></pre></div>
+<p><strong>本文由<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
             
         </section>
 

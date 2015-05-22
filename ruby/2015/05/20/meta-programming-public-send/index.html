@@ -94,7 +94,7 @@
 
 <p>其实，不仅仅只是Ruby，编程世界中的一切都只是一种抽象。我们只不过对那些晦涩难懂的机器语言包裹了一层“糖衣”，让程序员的生活变得更为简便，让代码更具美感罢了。但归根结底，这只是对其他事物的一种抽象而已。当我们通过元编程进行重构时，理解的是同样的抽象概念，而且我们必须牢记这一点。同时，当我们试图发现代码中的共性问题时，这也意味着，我们可以封装并抽离那段代码的部分功能。</p>
 
-<p>我最喜欢的抽象实例是method dispatching，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。</p>
+<p>我最喜欢的抽象实例是<code>method dispatching</code>，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。</p>
 
 <p>其实，send方法在程序中被调用的次数远超过我们的想象。比如，当我们打开操控台，做一些简单的数学运算：</p>
 <div class="highlight"><pre><code class="language-text" data-lang="text">2.2.0 &gt; 3 + 4
@@ -108,7 +108,7 @@
 
 <p>此时，如果你想执行3加4的加法操作，就会变得很容易。但是，谁会一直做如此简单的加法计算呢？显然没有。你很可能还会执行3加5，加6，一直加到无穷等等。</p>
 
-<p>而使用dynamic dispatching 就可以拯救你！</p>
+<p>而使用<code>dynamic dispatching</code> 就可以拯救你！</p>
 
 <p><img src="https://media.giphy.com/media/144RafbwKkBDva/giphy.gif" alt="pic 2"></p>
 
@@ -183,7 +183,7 @@
 
 <h2>TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION</h2>
 
-<p>很多控诉 <code>send</code> 方法的证据都源于此： <code>send</code> 会将private methods发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。</p>
+<p>很多控诉 <code>send</code> 方法的证据都源于此： <code>send</code> 会将<code>private methods</code>发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。</p>
 
 <p>一种快速的修正方法就是使用 <code>pubic_send</code> ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：</p>
 <div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">Book</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>

@@ -6,8 +6,8 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Thu, 21 May 2015 03:01:11 +0000</pubDate>
-    <lastBuildDate>Thu, 21 May 2015 03:01:11 +0000</lastBuildDate>
+    <pubDate>Fri, 22 May 2015 06:53:55 +0000</pubDate>
+    <lastBuildDate>Fri, 22 May 2015 06:53:55 +0000</lastBuildDate>
 
     
     
@@ -110,7 +110,7 @@
 
 &lt;p&gt;其实，优化网页渲染路还有很多小技巧、插件、方法等待，未来我们将在后续的文章中一一和大家分享。&lt;/p&gt;
 
-&lt;p&gt;本文系OneAPM工程师张超编译整理，想阅读更多技术文章，请访问OneAPM官方技术博客&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -136,7 +136,7 @@
 
 &lt;p&gt;其实，不仅仅只是Ruby，编程世界中的一切都只是一种抽象。我们只不过对那些晦涩难懂的机器语言包裹了一层“糖衣”，让程序员的生活变得更为简便，让代码更具美感罢了。但归根结底，这只是对其他事物的一种抽象而已。当我们通过元编程进行重构时，理解的是同样的抽象概念，而且我们必须牢记这一点。同时，当我们试图发现代码中的共性问题时，这也意味着，我们可以封装并抽离那段代码的部分功能。&lt;/p&gt;
 
-&lt;p&gt;我最喜欢的抽象实例是method dispatching，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。&lt;/p&gt;
+&lt;p&gt;我最喜欢的抽象实例是&lt;code&gt;method dispatching&lt;/code&gt;，通过这种方法我们将信息传递给一个对象，当然，这也是我们经常做的事情。因为Ruby中的所有事物都是一个对象，只要你想调用某个对象完成某件任务，你就不得不向它发送信息。我们应该庆幸，因为Ruby是如此强大，我们用来发送信息的方法就刚好就叫做：send。&lt;/p&gt;
 
 &lt;p&gt;其实，send方法在程序中被调用的次数远超过我们的想象。比如，当我们打开操控台，做一些简单的数学运算：&lt;/p&gt;
 &lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;2.2.0 &amp;gt; 3 + 4
@@ -150,7 +150,7 @@
 
 &lt;p&gt;此时，如果你想执行3加4的加法操作，就会变得很容易。但是，谁会一直做如此简单的加法计算呢？显然没有。你很可能还会执行3加5，加6，一直加到无穷等等。&lt;/p&gt;
 
-&lt;p&gt;而使用dynamic dispatching 就可以拯救你！&lt;/p&gt;
+&lt;p&gt;而使用&lt;code&gt;dynamic dispatching&lt;/code&gt; 就可以拯救你！&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;https://media.giphy.com/media/144RafbwKkBDva/giphy.gif&quot; alt=&quot;pic 2&quot;&gt;&lt;/p&gt;
 
@@ -225,7 +225,7 @@
 
 &lt;h2&gt;TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION&lt;/h2&gt;
 
-&lt;p&gt;很多控诉 &lt;code&gt;send&lt;/code&gt; 方法的证据都源于此： &lt;code&gt;send&lt;/code&gt; 会将private methods发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。&lt;/p&gt;
+&lt;p&gt;很多控诉 &lt;code&gt;send&lt;/code&gt; 方法的证据都源于此： &lt;code&gt;send&lt;/code&gt; 会将&lt;code&gt;private methods&lt;/code&gt;发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。&lt;/p&gt;
 
 &lt;p&gt;一种快速的修正方法就是使用 &lt;code&gt;pubic_send&lt;/code&gt; ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：&lt;/p&gt;
 &lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Book&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
@@ -374,7 +374,7 @@
 
 &lt;p&gt;前文所述的六个窍门都能帮助你创建运行更有效率的Python应用。但是银弹是不存在的。上述的这些窍门不一定每次都能奏效。在特定的Python的版本下，有的窍门或许比其他的表现更好，但这有时候甚至取决于平台的差异。你需要总结分析你的应用，找到它效率低下的部分，然后尝试这些窍门，找到解决问题的最佳方法。&lt;/p&gt;
 
-&lt;p&gt;本文系&lt;a href=&quot;http://www.oneapm.com/&quot;&gt;OneAPM&lt;/a&gt;工程师编译整理，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -482,6 +482,8 @@
 
 &lt;p&gt;以上所述，还只是一些最根本的原理性知识，细节的点还有很多，比如如何进行数据的本地存储和处理，以及线程间的数据冲突处理，
 还有基于fork的多进程server的进程间的数据传输，在以后的文章中，会针对每一项都做出详细的解释，还请大家持续关注。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -526,6 +528,8 @@
 
 &lt;p&gt;首先因为存在性能影响而把异常弃之不用并非良策。异常有助于提供一种一致的方式来解决运行时问题，并且有助于写出干净的代码。但我们应该对代码中抛出的异常数量进行跟踪，它们可能导致显著的性能影响。所以 OneAPM 默认要对所抛出的异常进行跟踪——在很多情况下人们都会对代码中发生的异常以及在解决这些异常时的性能损耗感到吃惊不已。
 其次尽管使用异常很有裨益，您也应避免捕获过多的 strack trace。异常应该是为异常的情况而设计的，使用时应该牢记这一原则。当然，万一您不想遵从好的编程习惯，Java 语言就会让您知道，那样做可以让您的程序运行得更快，从而鼓励您去那样做。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -542,9 +546,9 @@
 &lt;h3&gt;json 字符串格式化&lt;/h3&gt;
 
 &lt;p&gt;在开发 web 应用的时候经常会用到 json 字符串，但是一段比较长的 json 字符串是可读性较差的，不容易看出来里面结构的。 这时候就可以用 python 来把 json 字符串漂亮的打印出来。&lt;/p&gt;
-&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;root@Exp-1:/tmp# cat json.txt 
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-bash&quot; data-lang=&quot;bash&quot;&gt;root@Exp-1:/tmp# cat json.txt
 &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;menu&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;breakfast&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;English Muffin&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;price&amp;quot;&lt;/span&gt;: 7.5&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;Bread Basket&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;price&amp;quot;&lt;/span&gt;: 20, &lt;span class=&quot;s2&quot;&gt;&amp;quot;desc&amp;quot;&lt;/span&gt;: &lt;span class=&quot;s2&quot;&gt;&amp;quot;Assortment of fresh baked fruit breads and muffins&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;Fruit Breads&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;price&amp;quot;&lt;/span&gt;: 8&lt;span class=&quot;o&quot;&gt;}}&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;drink&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;Hot Tea&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;price&amp;quot;&lt;/span&gt;: 5&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;Juice&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;price&amp;quot;&lt;/span&gt;: 10, &lt;span class=&quot;s2&quot;&gt;&amp;quot;type&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;apple&amp;quot;&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;watermelon&amp;quot;&lt;/span&gt;, &lt;span class=&quot;s2&quot;&gt;&amp;quot;orange&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]}}}}&lt;/span&gt;
-root@Exp-1:/tmp# 
+root@Exp-1:/tmp#
 root@Exp-1:/tmp# cat json.txt &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; python -m json.tool
 &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
     &lt;span class=&quot;s2&quot;&gt;&amp;quot;menu&amp;quot;&lt;/span&gt;: &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
@@ -575,7 +579,7 @@ root@Exp-1:/tmp# cat json.txt &lt;span class=&quot;p&quot;&gt;|&lt;/span&gt; pyt
         &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
     &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
 &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-root@Exp-1:/tmp# 
+root@Exp-1:/tmp#
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;h3&gt;else 的妙用&lt;/h3&gt;
 
@@ -619,7 +623,9 @@ root@Exp-1:/tmp#
 &lt;span class=&quot;n&quot;&gt;dyna_routes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collections&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;defaultdict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
 &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;dyna_routes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;whole_rule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description>
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
     </item>
     
     
@@ -862,6 +868,8 @@ root@Exp-1:/tmp#
 &lt;p&gt;&lt;strong&gt;next&lt;/strong&gt; 最老实，基本不需要注意什么。&lt;/p&gt;
 
 &lt;p&gt;最后就是，不只是&lt;code&gt;return&lt;/code&gt;能返回值，&lt;code&gt;break&lt;/code&gt;和&lt;code&gt;next&lt;/code&gt;都能返回值。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -894,7 +902,7 @@ root@Exp-1:/tmp#
 &lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
         &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
             &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt;
 
     &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
     &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
@@ -919,38 +927,38 @@ root@Exp-1:/tmp#
 &lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
         &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
             &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt;
 
     &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
     &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
 
     &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__name__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
     &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;python标准库提供了&lt;code&gt;functools.wraps()&lt;/code&gt;，来解决这个问题。&lt;/p&gt;
-&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;functools&lt;/span&gt; 
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;functools&lt;/span&gt;
 
     &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
         &lt;span class=&quot;nd&quot;&gt;@functools.wraps&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
         &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
             &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_wrapper&lt;/span&gt;
 
     &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
     &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
 
     &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__name__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
     &lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;然而，当我们想要获取被包装函数的参数（&lt;code&gt;argument&lt;/code&gt;）或源代码（&lt;code&gt;source code&lt;/code&gt;）时，同样不能得到我们想要的结果。&lt;/p&gt;
-&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;inspect&lt;/span&gt; 
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;    &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;inspect&lt;/span&gt;
 
     &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function_wrapper&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wrapped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
 
     &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt; 
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
 
     &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inspect&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getargspec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
     &lt;span class=&quot;n&quot;&gt;ArgSpec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;varargs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;args&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;keywords&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;kwargs&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;defaults&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
@@ -967,7 +975,7 @@ root@Exp-1:/tmp#
         &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
         &lt;span class=&quot;nd&quot;&gt;@classmethod&lt;/span&gt;
         &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;cmethod&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt; 
+            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
 
     &lt;span class=&quot;n&quot;&gt;Traceback&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;most&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;recent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;call&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
       &lt;span class=&quot;n&quot;&gt;File&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
@@ -984,9 +992,9 @@ root@Exp-1:/tmp#
         &lt;span class=&quot;nd&quot;&gt;@function_wrapper&lt;/span&gt;
         &lt;span class=&quot;nd&quot;&gt;@classmethod&lt;/span&gt;
         &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;cmethod&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt; 
+            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
 
-    &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmethod&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; 
+    &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmethod&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
     &lt;span class=&quot;n&quot;&gt;Traceback&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;most&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;recent&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;call&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;last&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
       &lt;span class=&quot;n&quot;&gt;File&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;classmethod.py&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;15&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt;
         &lt;span class=&quot;n&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cmethod&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
@@ -1003,6 +1011,8 @@ root@Exp-1:/tmp#
 &lt;p&gt;如同上面我们所看到的，&lt;code&gt;functools.wraps()&lt;/code&gt;可以帮我们解决&lt;code&gt;__name__&lt;/code&gt;和&lt;code&gt;__doc__&lt;/code&gt; 的问题，但对于获取函数的参数（&lt;code&gt;argument&lt;/code&gt;）或源代码（&lt;code&gt;source code&lt;/code&gt;）则束手无策。&lt;/p&gt;
 
 &lt;p&gt;以上问题，&lt;a href=&quot;https://github.com/GrahamDumpleton/wrapt&quot;&gt;wrapt&lt;/a&gt;都可以帮忙解决，详细用法可参考其官方文档：&lt;a href=&quot;http://wrapt.readthedocs.org&quot;&gt;http://wrapt.readthedocs.org&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1049,6 +1059,8 @@ root@Exp-1:/tmp#
 &lt;img src=&quot;/images/session/jiaohu.jpg&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
 
 &lt;h2&gt;Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1092,6 +1104,8 @@ root@Exp-1:/tmp#
 以先把这部分内容附到&lt;code&gt;__END__&lt;/code&gt;后，然后用&lt;code&gt;DATA&lt;/code&gt;来读取，因为它是标准的IO对象，我们可以像处理普通
 文件一样处理&lt;code&gt;__END__&lt;/code&gt;后的内容，如上面的代码所示，用来存储&lt;code&gt;ERB&lt;/code&gt;内容作为模版，然后再进行处理，非常的
 方便。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1601,6 +1615,8 @@ root@Exp-1:/tmp#
 &lt;li&gt;&lt;p&gt;操作失败和程序员的失误这一概念早在NodeJS之前就已经存在存在了。不严格地对应者Java里的checked和unchecked异常，虽然操作失败被认为是无法避免的，比如 OutOfMemeoryError，被归为uncheked异常。在C语言里有对应的概念，普通异常处理和使用断言。维基百科上关于断言的的文章也有关于什么时候用断言什么时候用普通的错误处理的类似的解释。&lt;/p&gt;&lt;/li&gt;
 &lt;li&gt;&lt;p&gt;如果这看起来非常具体，那是因为我们在产品环境中遇到这样过这样的问题。这真的很可怕。&lt;/p&gt;&lt;/li&gt;
 &lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1746,6 +1762,8 @@ Mac    | brew install graphviz
 &lt;p&gt;点击&lt;code&gt;query time(ms)&lt;/code&gt;列中的&lt;code&gt;1 sql&lt;/code&gt;则可以查看到执行的sql语句及耗时：&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;/images/rack-mini-profiler-sql.png&quot; alt=&quot;rack-mini-profiler-sql&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1838,6 +1856,8 @@ Mac    | brew install graphviz
 - 针对发生异常的请求返回一个错误代码
 - 出错的Worker不再接受新的请求
 - 退出关闭Worker进程&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     

@@ -101,7 +101,7 @@
 <div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="k">def</span> <span class="nf">function_wrapper</span><span class="p">(</span><span class="n">wrapped</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_wrapper</span> 
+        <span class="k">return</span> <span class="n">_wrapper</span>
 
     <span class="nd">@function_wrapper</span>
     <span class="k">def</span> <span class="nf">function</span><span class="p">():</span>
@@ -126,38 +126,38 @@
 <div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="k">def</span> <span class="nf">function_wrapper</span><span class="p">(</span><span class="n">wrapped</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_wrapper</span> 
+        <span class="k">return</span> <span class="n">_wrapper</span>
 
     <span class="nd">@function_wrapper</span>
     <span class="k">def</span> <span class="nf">function</span><span class="p">():</span>
-        <span class="k">pass</span> 
+        <span class="k">pass</span>
 
     <span class="o">&gt;&gt;&gt;</span> <span class="k">print</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
     <span class="n">_wrapper</span>
 </code></pre></div>
 <p>python标准库提供了<code>functools.wraps()</code>，来解决这个问题。</p>
-<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="kn">import</span> <span class="nn">functools</span> 
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="kn">import</span> <span class="nn">functools</span>
 
     <span class="k">def</span> <span class="nf">function_wrapper</span><span class="p">(</span><span class="n">wrapped</span><span class="p">):</span>
         <span class="nd">@functools.wraps</span><span class="p">(</span><span class="n">wrapped</span><span class="p">)</span>
         <span class="k">def</span> <span class="nf">_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">wrapped</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">_wrapper</span> 
+        <span class="k">return</span> <span class="n">_wrapper</span>
 
     <span class="nd">@function_wrapper</span>
     <span class="k">def</span> <span class="nf">function</span><span class="p">():</span>
-        <span class="k">pass</span> 
+        <span class="k">pass</span>
 
     <span class="o">&gt;&gt;&gt;</span> <span class="k">print</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
     <span class="n">function</span>
 </code></pre></div>
 <p>然而，当我们想要获取被包装函数的参数（<code>argument</code>）或源代码（<code>source code</code>）时，同样不能得到我们想要的结果。</p>
-<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="kn">import</span> <span class="nn">inspect</span> 
+<div class="highlight"><pre><code class="language-python" data-lang="python">    <span class="kn">import</span> <span class="nn">inspect</span>
 
     <span class="k">def</span> <span class="nf">function_wrapper</span><span class="p">(</span><span class="n">wrapped</span><span class="p">):</span> <span class="o">...</span>
 
     <span class="nd">@function_wrapper</span>
-    <span class="k">def</span> <span class="nf">function</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span> <span class="k">pass</span> 
+    <span class="k">def</span> <span class="nf">function</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span> <span class="k">pass</span>
 
     <span class="o">&gt;&gt;&gt;</span> <span class="k">print</span><span class="p">(</span><span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">function</span><span class="p">))</span>
     <span class="n">ArgSpec</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="p">[],</span> <span class="n">varargs</span><span class="o">=</span><span class="s">&#39;args&#39;</span><span class="p">,</span> <span class="n">keywords</span><span class="o">=</span><span class="s">&#39;kwargs&#39;</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
@@ -174,7 +174,7 @@
         <span class="nd">@function_wrapper</span>
         <span class="nd">@classmethod</span>
         <span class="k">def</span> <span class="nf">cmethod</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-            <span class="k">pass</span> 
+            <span class="k">pass</span>
 
     <span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
       <span class="n">File</span> <span class="s">&quot;&lt;stdin&gt;&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">1</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
@@ -191,9 +191,9 @@
         <span class="nd">@function_wrapper</span>
         <span class="nd">@classmethod</span>
         <span class="k">def</span> <span class="nf">cmethod</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-            <span class="k">pass</span> 
+            <span class="k">pass</span>
 
-    <span class="o">&gt;&gt;&gt;</span> <span class="n">Class</span><span class="o">.</span><span class="n">cmethod</span><span class="p">()</span> 
+    <span class="o">&gt;&gt;&gt;</span> <span class="n">Class</span><span class="o">.</span><span class="n">cmethod</span><span class="p">()</span>
     <span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">):</span>
       <span class="n">File</span> <span class="s">&quot;classmethod.py&quot;</span><span class="p">,</span> <span class="n">line</span> <span class="mi">15</span><span class="p">,</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span>
         <span class="n">Class</span><span class="o">.</span><span class="n">cmethod</span><span class="p">()</span>
@@ -210,6 +210,8 @@
 <p>如同上面我们所看到的，<code>functools.wraps()</code>可以帮我们解决<code>__name__</code>和<code>__doc__</code> 的问题，但对于获取函数的参数（<code>argument</code>）或源代码（<code>source code</code>）则束手无策。</p>
 
 <p>以上问题，<a href="https://github.com/GrahamDumpleton/wrapt">wrapt</a>都可以帮忙解决，详细用法可参考其官方文档：<a href="http://wrapt.readthedocs.org">http://wrapt.readthedocs.org</a></p>
+
+<p><strong>本文由<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
 
             
         </section>
