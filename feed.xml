@@ -6,13 +6,13 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Fri, 22 May 2015 06:53:55 +0000</pubDate>
-    <lastBuildDate>Fri, 22 May 2015 06:53:55 +0000</lastBuildDate>
+    <pubDate>Fri, 22 May 2015 07:08:17 +0000</pubDate>
+    <lastBuildDate>Fri, 22 May 2015 07:08:17 +0000</lastBuildDate>
 
     
     
     <item>
-      <title>影响网页渲染的关键！</title>
+      <title>翻译 - 影响网页渲染的关键！</title>
       <link>/javascript/2015/05/21/render/</link>
       <pubDate>Thu, 21 May 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -270,7 +270,7 @@
     
     
     <item>
-      <title>Python - 提高Python运行效率的六个窍门</title>
+      <title>翻译 - 提高Python运行效率的六个窍门</title>
       <link>/python/2015/05/18/python-performance-tips/</link>
       <pubDate>Mon, 18 May 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -483,7 +483,7 @@
 &lt;p&gt;以上所述，还只是一些最根本的原理性知识，细节的点还有很多，比如如何进行数据的本地存储和处理，以及线程间的数据冲突处理，
 还有基于fork的多进程server的进程间的数据传输，在以后的文章中，会针对每一项都做出详细的解释，还请大家持续关注。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -529,7 +529,7 @@
 &lt;p&gt;首先因为存在性能影响而把异常弃之不用并非良策。异常有助于提供一种一致的方式来解决运行时问题，并且有助于写出干净的代码。但我们应该对代码中抛出的异常数量进行跟踪，它们可能导致显著的性能影响。所以 OneAPM 默认要对所抛出的异常进行跟踪——在很多情况下人们都会对代码中发生的异常以及在解决这些异常时的性能损耗感到吃惊不已。
 其次尽管使用异常很有裨益，您也应避免捕获过多的 strack trace。异常应该是为异常的情况而设计的，使用时应该牢记这一原则。当然，万一您不想遵从好的编程习惯，Java 语言就会让您知道，那样做可以让您的程序运行得更快，从而鼓励您去那样做。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -624,7 +624,7 @@ root@Exp-1:/tmp#
 &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;dyna_routes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;whole_rule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -869,7 +869,7 @@ root@Exp-1:/tmp#
 
 &lt;p&gt;最后就是，不只是&lt;code&gt;return&lt;/code&gt;能返回值，&lt;code&gt;break&lt;/code&gt;和&lt;code&gt;next&lt;/code&gt;都能返回值。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1012,7 +1012,7 @@ root@Exp-1:/tmp#
 
 &lt;p&gt;以上问题，&lt;a href=&quot;https://github.com/GrahamDumpleton/wrapt&quot;&gt;wrapt&lt;/a&gt;都可以帮忙解决，详细用法可参考其官方文档：&lt;a href=&quot;http://wrapt.readthedocs.org&quot;&gt;http://wrapt.readthedocs.org&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1060,7 +1060,7 @@ root@Exp-1:/tmp#
 
 &lt;h2&gt;Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug&lt;/h2&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1105,7 +1105,7 @@ root@Exp-1:/tmp#
 文件一样处理&lt;code&gt;__END__&lt;/code&gt;后的内容，如上面的代码所示，用来存储&lt;code&gt;ERB&lt;/code&gt;内容作为模版，然后再进行处理，非常的
 方便。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1763,7 +1763,7 @@ Mac    | brew install graphviz
 
 &lt;p&gt;&lt;img src=&quot;/images/rack-mini-profiler-sql.png&quot; alt=&quot;rack-mini-profiler-sql&quot;&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1857,7 +1857,7 @@ Mac    | brew install graphviz
 - 出错的Worker不再接受新的请求
 - 退出关闭Worker进程&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
