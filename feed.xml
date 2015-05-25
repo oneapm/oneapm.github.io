@@ -6,23 +6,25 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 25 May 2015 06:19:55 +0000</pubDate>
-    <lastBuildDate>Mon, 25 May 2015 06:19:55 +0000</lastBuildDate>
+    <pubDate>Mon, 25 May 2015 10:25:37 +0000</pubDate>
+    <lastBuildDate>Mon, 25 May 2015 10:25:37 +0000</lastBuildDate>
 
     
     
     <item>
-      <title>翻译 - 影响网页渲染的关键！</title>
+      <title>【译】影响网页渲染的关键！</title>
       <link>/javascript/2015/05/21/render/</link>
       <pubDate>Thu, 21 May 2015 00:00:00 +0000</pubDate>
       <author></author>
       <guid>/javascript/2015/05/21/render</guid>
-      <description>&lt;p&gt;经常有站长、开发者、运维疑惑：为什么我们的后台服务器很快，但是用户要看网页里面的内容却需要很长时间？我们在上一篇文章《怪兽大作战: 解析网站打开慢的原因》【http://news.yesky.com/prnews/420/58034920.shtml】中简单介绍了影响网站打开速度的几个指标，感兴趣的同学可以再读一下。今天我们主要讲一下，是哪些因素拖慢了我们的首屏加载时间，也就是用户看到网页中内容时所等待的时间。&lt;/p&gt;
+      <description>&lt;p&gt;原文地址：&lt;a href=&quot;http://www.feedthebot.com/pagespeed/critical-render-path.html&quot;&gt;Critical rendering path&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;经常有站长、开发者、运维疑惑：为什么我们的后台服务器很快，但是用户要看网页里面的内容却需要很长时间？我们在上一篇文章《怪兽大作战: 解析网站打开慢的原因》【http://news.yesky.com/prnews/420/58034920.shtml】中简单介绍了影响网站打开速度的几个指标，感兴趣的同学可以再读一下。今天我们主要讲一下，是哪些因素拖慢了我们的首屏加载时间，也就是用户看到网页中内容时所等待的时间。&lt;/p&gt;
 
 &lt;p&gt;&lt;img src=&quot;/images/render/1.png&quot; alt=&quot;ruby-prof&quot;&gt;
 用过OneAPM的读者对这幅图肯定不陌生，一般来讲，如果服务器很快，机房所在线路很快，那么影响用户看到网页内容的主要时间，就是最后两个时间阶段：DOM处理以及网页渲染，在这两个阶段中，浏览器需要解析网页中的各种资源并进行渲染，最终形成用户页面。这个过程是否流畅，直接影响到用户需要等待的时间，从更深层次而言，直接会影响最终的用户体验，现在大家也普遍接受一个观点“延迟就是故障”，所以你需要重视网站的加载速度。&lt;/p&gt;
 
-&lt;h2&gt;打造轻量级的资源路径--关键渲染路&lt;/h2&gt;
+&lt;h2&gt;打造轻量级的资源路径--关键渲染路径&lt;/h2&gt;
 
 &lt;p&gt;网页加载速度中最重要的概念是关键渲染路径。如果能理解好这个概念，的确可以让用户更快看到网页中的内容。&lt;/p&gt;
 
@@ -117,7 +119,7 @@
     
     
     <item>
-      <title>翻译 - 元编程动态方法之public_send</title>
+      <title>【译】元编程动态方法之public_send</title>
       <link>/ruby/2015/05/20/meta-programming-public-send/</link>
       <pubDate>Wed, 20 May 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -270,7 +272,7 @@
     
     
     <item>
-      <title>翻译 - 提高Python运行效率的六个窍门</title>
+      <title>【译】提高Python运行效率的六个窍门</title>
       <link>/python/2015/05/18/python-performance-tips/</link>
       <pubDate>Mon, 18 May 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -490,7 +492,7 @@
     
     
     <item>
-      <title>JAVA 异常对于性能的影响</title>
+      <title>【译】JAVA 异常对于性能的影响</title>
       <link>/pm/2015/05/12/Java-exception/</link>
       <pubDate>Tue, 12 May 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -1112,7 +1114,7 @@ root@Exp-1:/tmp#
     
     
     <item>
-      <title>翻译 - NodeJS错误处理最佳实践</title>
+      <title>【译】NodeJS错误处理最佳实践</title>
       <link>/nodejs/2015/04/13/nodejs-errorhandling/</link>
       <pubDate>Mon, 13 Apr 2015 00:00:00 +0000</pubDate>
       <author></author>
