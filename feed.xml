@@ -6,8 +6,8 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 25 May 2015 04:02:00 +0000</pubDate>
-    <lastBuildDate>Mon, 25 May 2015 04:02:00 +0000</lastBuildDate>
+    <pubDate>Mon, 25 May 2015 06:19:55 +0000</pubDate>
+    <lastBuildDate>Mon, 25 May 2015 06:19:55 +0000</lastBuildDate>
 
     
     
@@ -110,7 +110,7 @@
 
 &lt;p&gt;其实，优化网页渲染路还有很多小技巧、插件、方法等待，未来我们将在后续的文章中一一和大家分享。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -225,7 +225,7 @@
 
 &lt;h2&gt;TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION&lt;/h2&gt;
 
-&lt;p&gt;很多控诉 &lt;code&gt;send&lt;/code&gt; 方法的证据都源于此： &lt;code&gt;send&lt;/code&gt; 会将&lt;code&gt;private methods&lt;/code&gt;发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。&lt;/p&gt;
+&lt;p&gt;很多控诉 &lt;code&gt;send&lt;/code&gt; 方法的证据都源于此： &lt;code&gt;send&lt;/code&gt; 会将&lt;code&gt;private methods&lt;/code&gt;发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击���显得相当脆弱。&lt;/p&gt;
 
 &lt;p&gt;一种快速的修正方法就是使用 &lt;code&gt;pubic_send&lt;/code&gt; ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：&lt;/p&gt;
 &lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Book&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;ActiveRecord&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Base&lt;/span&gt;
@@ -263,7 +263,7 @@
 &lt;li&gt;如果你还好奇其他的动态方法？可以阅读一下&lt;a href=&quot;http://ruby.about.com/od/oo/ss/Dynamic-Method-Calls.htm&quot;&gt;这篇博文&lt;/a&gt;，其中深度介绍了一部分方法。&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -374,7 +374,7 @@
 
 &lt;p&gt;前文所述的六个窍门都能帮助你创建运行更有效率的Python应用。但是银弹是不存在的。上述的这些窍门不一定每次都能奏效。在特定的Python的版本下，有的窍门或许比其他的表现更好，但这有时候甚至取决于平台的差异。你需要总结分析你的应用，找到它效率低下的部分，然后尝试这些窍门，找到解决问题的最佳方法。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -483,7 +483,7 @@
 &lt;p&gt;以上所述，还只是一些最根本的原理性知识，细节的点还有很多，比如如何进行数据的本地存储和处理，以及线程间的数据冲突处理，
 还有基于fork的多进程server的进程间的数据传输，在以后的文章中，会针对每一项都做出详细的解释，还请大家持续关注。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -529,7 +529,7 @@
 &lt;p&gt;首先因为存在性能影响而把异常弃之不用并非良策。异常有助于提供一种一致的方式来解决运行时问题，并且有助于写出干净的代码。但我们应该对代码中抛出的异常数量进行跟踪，它们可能导致显著的性能影响。所以 OneAPM 默认要对所抛出的异常进行跟踪——在很多情况下人们都会对代码中发生的异常以及在解决这些异常时的性能损耗感到吃惊不已。
 其次尽管使用异常很有裨益，您也应避免捕获过多的 strack trace。异常应该是为异常的情况而设计的，使用时应该牢记这一原则。当然，万一您不想遵从好的编程习惯，Java 语言就会让您知道，那样做可以让您的程序运行得更快，从而鼓励您去那样做。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -624,7 +624,7 @@ root@Exp-1:/tmp#
 &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;
 &lt;span class=&quot;n&quot;&gt;dyna_routes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;method&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;whole_rule&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -869,7 +869,7 @@ root@Exp-1:/tmp#
 
 &lt;p&gt;最后就是，不只是&lt;code&gt;return&lt;/code&gt;能返回值，&lt;code&gt;break&lt;/code&gt;和&lt;code&gt;next&lt;/code&gt;都能返回值。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1012,7 +1012,7 @@ root@Exp-1:/tmp#
 
 &lt;p&gt;以上问题，&lt;a href=&quot;https://github.com/GrahamDumpleton/wrapt&quot;&gt;wrapt&lt;/a&gt;都可以帮忙解决，详细用法可参考其官方文档：&lt;a href=&quot;http://wrapt.readthedocs.org&quot;&gt;http://wrapt.readthedocs.org&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1060,7 +1060,7 @@ root@Exp-1:/tmp#
 
 &lt;h2&gt;Session Trace 将于近期上线，欢迎再评论里面反馈问题和bug&lt;/h2&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1105,7 +1105,7 @@ root@Exp-1:/tmp#
 文件一样处理&lt;code&gt;__END__&lt;/code&gt;后的内容，如上面的代码所示，用来存储&lt;code&gt;ERB&lt;/code&gt;内容作为模版，然后再进行处理，非常的
 方便。&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1229,7 +1229,7 @@ root@Exp-1:/tmp#
 &lt;li&gt;&lt;p&gt;&lt;strong&gt;直接处理&lt;/strong&gt;。有的时候该做什么很清楚。如果你在尝试打开日志文件的时候得到了一个&lt;code&gt;ENOENT&lt;/code&gt;错误，很有可能你是第一次打开这个文件，你要做的就是首先创建它。更有意思的例子是，你维护着到服务器（比如数据库）的持久连接，然后遇到了一个“socket hang-up”的异常。这通常意味着要么远端要么本地的网络失败了。很多时候这种错误是暂时的，所以大部分情况下你得重新连接来解决问题。（这和接下来的重试不大一样，因为在你得到这个错误的时候不一定有操作正在进行）&lt;/p&gt;&lt;/li&gt;
 &lt;li&gt;&lt;p&gt;&lt;strong&gt;把出错扩散到客户端&lt;/strong&gt;。如果你不知道怎么处理这个异常，最简单的方式就是放弃你正在执行的操作，清理所有开始的，然后把错误传递给客户端。（怎么传递异常是另外一回事了，接下来会讨论）。这种方式适合错误短时间内无法解决的情形。比如，用户提交了不正确的JSON，你再解析一次是没什么帮助的。&lt;/p&gt;&lt;/li&gt;
 &lt;li&gt;&lt;p&gt;&lt;strong&gt;重试操作&lt;/strong&gt;。对于那些来自网络和远程服务的错误，有的时候重试操作就可以解决问题。比如，远程服务返回了503（服务不可用错误），你可能会在几秒种后重试。&lt;strong&gt;如果确定要重试，你应该清晰的用文档记录下将会多次重试，重试多少次直到失败,以及两次重试的间隔。&lt;/strong&gt; 另外，不要每次都假设需要重试。如果在栈中很深的地方（比如，被一个客户端调用，而那个客户端被另外一个由用户操作的客户端控制），这种情形下快速失败让客户端去重试会更好。如果栈中的每一层都觉得需要重试，用户最终会等待更长的时间，因为每一层都没有意识到下层同时也在尝试。&lt;/p&gt;&lt;/li&gt;
-&lt;li&gt;&lt;p&gt;&lt;strong&gt;直接崩溃&lt;/strong&gt;。对于那些本不可能发生的错误，或者由程序员失误导致的错误（比如无法连接到同一程序里的本地套接字），可以记录一个错误日志然后直接崩溃。其它的比如内存不足这种错误，是JavaScript这样的脚本语言无法处理的，崩溃是十分合理的。（即便如此，在&lt;code&gt;child_process.exec&lt;/code&gt;这样的分离的操作里，得到&lt;code&gt;ENOMEM&lt;/code&gt;错误，或者那些你可以合理处理的错误时，你应该考虑这么做）。在你无计可施需要让管理员做修复的时候，你也可以直接崩溃。如果你用光了所有的文件描述符或者没有访问配置文件的权限，这种情况下你什么都做不了，只能等某个用户登录系统把东西修好。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;&lt;strong&gt;直接崩溃&lt;/strong&gt;。对于那些本不可能发生的错误，或者由程序员失误导致的错误（比如无法连接到同一程序里的本地套接字），可以记录一个错误日志然后直接崩溃。其它的比如内存不足这种错误，是JavaScript这样的脚本语言无法处理的，崩溃是十分合理的。（即便如此，在&lt;code&gt;child_process.exec&lt;/code&gt;这样的分离的操作里，得到&lt;code&gt;ENOMEM&lt;/code&gt;错误，或者那些你可以合理处理的错误时，你应该考虑这么做）。在你无计可施需要让管理员做修复的时候，你也可以直接崩溃。如果你用光了所有的文件描述符或者没有访问配置文件的权限，这种情况下你���么都做不了，只能等某个用户登录系统把东西修好。&lt;/p&gt;&lt;/li&gt;
 &lt;li&gt;&lt;p&gt;&lt;strong&gt;记录错误，其他什么都不做&lt;/strong&gt;。有的时候你什么都做不了，没有操作可以重试或者放弃，没有任何理由崩溃掉应用程序。举个例子吧，你用DNS跟踪了一组远程服务，结果有一个DNS失败了。除了记录一条日志并且继续使用剩下的服务以外，你什么都做不了。但是，你至少得记录点什么（凡事都有例外。如果这种情况每秒发生几千次，而你又没法处理，那每次发生都记录可能就不值得了，但是要周期性的记录）。&lt;/p&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
@@ -1458,7 +1458,7 @@ root@Exp-1:/tmp#
 &lt;li&gt;&lt;p&gt;保留原错误的所有属性。在合适的情况下增强&lt;code&gt;message&lt;/code&gt;属性（但是不要在原始的异常上修改）。浅拷贝其它的像是&lt;code&gt;syscall&lt;/code&gt;，&lt;code&gt;errno&lt;/code&gt;这类的属性。最好是直接拷贝除了 &lt;code&gt;name&lt;/code&gt;，&lt;code&gt;message&lt;/code&gt;和&lt;code&gt;stack&lt;/code&gt;以外的所有属性，而不是硬编码等待拷贝的属性列表。不要理会&lt;code&gt;stack&lt;/code&gt;，因为即使是读取它也是相对昂贵的。如果调用者想要一个合并后的堆栈，它应该遍历错误原因并打印每一个错误的堆栈。&lt;/p&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;在Joyent，我们使用 &lt;strong&gt;&lt;code&gt;verror&lt;/code&gt;&lt;/strong&gt; 这个模块来封装错误，因为它的语法简洁。写这篇文章的时候，它还不能支持上面的所有功能，但是会被扩展以期支持。&lt;/p&gt;
+&lt;p&gt;在Joyent，我们使用 &lt;strong&gt;&lt;code&gt;verror&lt;/code&gt;&lt;/strong&gt; 这个模块来封装错误，因为它的语法简洁。写这篇文章的时候，它还不能支持上面的所有功能，但是会被扩���以期支持。&lt;/p&gt;
 
 &lt;h2&gt;例子&lt;/h2&gt;
 
@@ -1616,7 +1616,7 @@ root@Exp-1:/tmp#
 &lt;li&gt;&lt;p&gt;如果这看起来非常具体，那是因为我们在产品环境中遇到这样过这样的问题。这真的很可怕。&lt;/p&gt;&lt;/li&gt;
 &lt;/ol&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1803,7 +1803,7 @@ Mac    | brew install graphviz
 
 &lt;p&gt;&lt;img src=&quot;/images/rack-mini-profiler-sql.png&quot; alt=&quot;rack-mini-profiler-sql&quot;&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
@@ -1897,7 +1897,7 @@ Mac    | brew install graphviz
 - 出错的Worker不再接受新的请求
 - 退出关闭Worker进程&lt;/p&gt;
 
-&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     

@@ -183,7 +183,7 @@
 
 <h2>TO SEND OR TO PUBLIC SEND? THAT IS THE QUESTION</h2>
 
-<p>很多控诉 <code>send</code> 方法的证据都源于此： <code>send</code> 会将<code>private methods</code>发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击时显得相当脆弱。</p>
+<p>很多控诉 <code>send</code> 方法的证据都源于此： <code>send</code> 会将<code>private methods</code>发送给对象。这在应用内部是相当危险的，而且也让应用在应对外部恶意攻击���显得相当脆弱。</p>
 
 <p>一种快速的修正方法就是使用 <code>pubic_send</code> ，它的功能与你所想的完全一致：只将公共可读取的方法发送给它的接收对象，所以我们最终的代码如下：</p>
 <div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">class</span> <span class="nc">Book</span> <span class="o">&lt;</span> <span class="no">ActiveRecord</span><span class="o">::</span><span class="no">Base</span>
@@ -221,7 +221,7 @@
 <li>如果你还好奇其他的动态方法？可以阅读一下<a href="http://ruby.about.com/od/oo/ss/Dynamic-Method-Calls.htm">这篇博文</a>，其中深度介绍了一部分方法。</li>
 </ul>
 
-<p><strong>本文由<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
 
             
         </section>
