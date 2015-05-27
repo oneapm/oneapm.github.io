@@ -6,9 +6,1165 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Tue, 26 May 2015 07:09:14 +0000</pubDate>
-    <lastBuildDate>Tue, 26 May 2015 07:09:14 +0000</lastBuildDate>
+    <pubDate>Wed, 27 May 2015 05:59:21 +0000</pubDate>
+    <lastBuildDate>Wed, 27 May 2015 05:59:21 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>【译】从底层理解 Python 的执行</title>
+      <link>/python/2015/05/27/python-understand/</link>
+      <pubDate>Wed, 27 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/python/2015/05/27/python-understand</guid>
+      <description>&lt;p&gt;原文地址：&lt;a href=&quot;http://blog.hakril.net/articles/2-understanding-python-execution-tracer.html&quot;&gt;Understanding Python execution from inside: A Python assembly tracer&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;最近我在学习 Python 的运行模型。我对 Python 的一些内部机制很是好奇，比如 Python 是怎么实现类似 YIELD&lt;em&gt;VALUE、YIELD&lt;/em&gt;FROM 这样的操作码的；对于 递推式构造列表(List Comprehensions)、生成器表达式(generator expressions)以及其他一些有趣的 Python 特性是怎么编译的；从字节码的层面来看，当异常抛出的时候都发生了什么事情。翻阅 CPython 的代码对于解答这些问题当然是很有帮助的，但我仍然觉得以这样的方式来做的话对于理解字节码的执行和堆栈的变化还是缺少点神马。GDB 是个好选择，但是我懒而且只想使用一些比较高阶的接口写点 Python 代码来完成这件事。&lt;/p&gt;
+
+&lt;p&gt;所以呢，我的目标就是创建一个字节码级别的追踪 API，类似 sys.setrace 所提供的那样，但相对而言会有更好的粒度。这充分锻炼了我编写 Python 实现的 C 代码的编码能力。&lt;/p&gt;
+
+&lt;p&gt;我们所需要的有如下几项&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;一个新的 Cpython 解释器操作码&lt;/li&gt;
+&lt;li&gt;一种将操作码注入到 Python 字节码的方法&lt;/li&gt;
+&lt;li&gt;一些用于处理操作码的 Python 代码&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;在这篇文章中所用的 Python 版本为 3.5&lt;/p&gt;
+
+&lt;h2&gt;一个新的 Cpython 操作码&lt;/h2&gt;
+
+&lt;h3&gt;新操作码：DEBUG_OP&lt;/h3&gt;
+
+&lt;p&gt;这个新的操作码 DEBUG_OP 是我第一次尝试写 CPython 实现的 C 代码，我将尽可能的让它保持简单。
+我们想要达成的目的是当我们的操作码被执行的时候我能有一种方式来调用一些 Python 代码。同时，我们也想能够追踪一些与执行上下文有关的数据。我们的操作码会把这些信息当作参数传递给我们的回调函数。通过操作码能辨识出的有用信息如下：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;堆栈的内容&lt;/li&gt;
+&lt;li&gt;执行 DEBUG_OP 的帧对象信息&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;所以呢，我们的操作码需要做的事情是&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;找到回调函数&lt;/li&gt;
+&lt;li&gt;创建一个包含堆栈内容的列表&lt;/li&gt;
+&lt;li&gt;调用回调函数，并将包含堆栈内容的列表和当前帧作为参数传递给它&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;听起来挺简单的，现在开始动手吧！
+&lt;strong&gt;声明&lt;/strong&gt;：下面所有的解释说明和代码是经过了大量段错误调试之后总结得到的结论
+首先要做的是给操作码定义一个名字和相应的值，因此我们需要在 &lt;a href=&quot;https://github.com/python/cpython/blob/master/Include/opcode.h&quot;&gt;Include/opcode.h&lt;/a&gt; 中添加代码。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c&quot; data-lang=&quot;c&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** My own comments begin by &amp;#39;**&amp;#39; **/&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/** From: Includes/opcode.h **/&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/* Instruction opcodes for compiled code */&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/** We just have to define our opcode with a free value&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;    0 was the first one I found **/&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define DEBUG_OP                0&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#define POP_TOP                 1&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define ROT_TWO                 2&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define ROT_THREE               3&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这部分工作就完成了，现在我们去编写操作码真正干活的代码。&lt;/p&gt;
+
+&lt;h3&gt;实现 DEBUG_OP&lt;/h3&gt;
+
+&lt;p&gt;在考虑如何实现 &lt;code&gt;DEBUG_OP&lt;/code&gt; 之前我们需要了解的是 &lt;code&gt;DEBUG_OP&lt;/code&gt; 提供的接口将长什么样。
+拥有一个可以调用其他代码的新操作码是相当酷眩叼炸天的，但是究竟它将调用哪些代码捏？这个操作码如何找到回调函数的捏？我选择了一种最简单的方法：在帧的全局区域写死函数名。&lt;/p&gt;
+
+&lt;p&gt;那么问题就变成了，我该怎么从字典中找到一个固定的 C 字符串？&lt;/p&gt;
+
+&lt;p&gt;为了回答这个问题我们来看看在 Python 的 main loop 中使用到的和上下文管理相关的标识符 &lt;code&gt;__enter__&lt;/code&gt; 和 &lt;code&gt;__exit__&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;我们可以看到这两标识符被使用在操作码 &lt;code&gt;SETUP_WITH&lt;/code&gt; 中&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** From: Python/ceval.c **/&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;TARGET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SETUP_WITH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;_Py_IDENTIFIER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__exit__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;_Py_IDENTIFIER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__enter__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mgr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exit&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;special_lookup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mgr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyId___exit__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;enter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在，看一眼宏 &lt;code&gt;_Py_IDENTIFIER&lt;/code&gt; 的定义&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** From: Include/object.h **/&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;/********************* String Literals ****************************************/&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/* This structure helps managing static strings. The basic usage goes like this:&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;   Instead of doing&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;       r = PyObject_CallMethod(o, &amp;quot;foo&amp;quot;, &amp;quot;args&amp;quot;, ...);&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;   do&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;       _Py_IDENTIFIER(foo);&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;       ...&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;       r = _PyObject_CallMethodId(o, &amp;amp;PyId_foo, &amp;quot;args&amp;quot;, ...);&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;   PyId_foo is a static variable, either on block level or file level. On first&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;   usage, the string &amp;quot;foo&amp;quot; is interned, and the structures are linked. On interpreter&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;   shutdown, all strings are released (through _PyUnicode_ClearStaticStrings).&lt;/span&gt;
+
+&lt;span class=&quot;cm&quot;&gt;   Alternatively, _Py_static_string allows to choose the variable name.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;   _PyUnicode_FromId returns a borrowed reference to the interned string.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;   _PyObject_{Get,Set,Has}AttrId are __getattr__ versions using _Py_Identifier*.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;*/&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_Py_Identifier&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_Py_Identifier&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_Py_Identifier&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#define _Py_static_string_init(value) { 0, value, 0 }&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define _Py_static_string(varname, value)  static _Py_Identifier varname = _Py_static_string_init(value)&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define _Py_IDENTIFIER(varname) _Py_static_string(PyId_##varname, #varname)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;嗯，注释部分已经说明得很清楚了。通过一番查找，我们发现了可以用来从字典找固定字符串的函数 &lt;code&gt;_PyDict_GetItemId&lt;/code&gt;
+所以我们操作码的查找部分的代码就是长这样滴&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt; &lt;span class=&quot;cm&quot;&gt;/** Our callback function will be named op_target **/&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;_Py_IDENTIFIER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_PyDict_GetItemId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_globals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyId_op_target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_PyErr_OCCURRED&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyErr_ExceptionMatches&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyExc_KeyError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyErr_Clear&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DISPATCH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;为了方便理解，对这一段代码做一些说明&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;f&lt;/code&gt; 是当前的帧，&lt;code&gt;f-&amp;gt;f_globals&lt;/code&gt; 是它的全局区域&lt;/li&gt;
+&lt;li&gt;如果我们没有找到 &lt;code&gt;op_target&lt;/code&gt;，我们将会检查这个异常是不是 &lt;code&gt;KeyError&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;goto error;&lt;/code&gt;是一种在 main loop 中抛出异常的方法&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;PyErr_Clear()&lt;/code&gt;抑制了当前异常的抛出，而&lt;code&gt;DISPATCH()&lt;/code&gt;触发了下一个操作码的执行&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;下一步就是收集我们想要的堆栈信息。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** This code create a list with all the values on the current stack **/&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyList_New&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STACK_LEVEL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PEEK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Py_None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyList_Append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;最后一步就是调用我们的回调函数！我们用 &lt;code&gt;call_function&lt;/code&gt;来搞定这件事，我们通过研究操作码&lt;code&gt;CALL_FUNCTION&lt;/code&gt;的实现来学习怎么使用&lt;code&gt;call_function&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** From: Python/ceval.c **/&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;TARGET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CALL_FUNCTION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/** stack_pointer is a local of the main loop.&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;        It&amp;#39;s the pointer to the stacktop of our frame **/&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stack_pointer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;call_function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;oparg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/** call_function handles the args it consummed on the stack for us **/&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;stack_pointer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/** Standard exception handling **/&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DISPATCH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;有了上面这些信息，我们终于可以捣鼓出一个操作码&lt;code&gt;DEBUG_OP&lt;/code&gt;的草稿了&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;n&quot;&gt;TARGET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DEBUG_OP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PyObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;_Py_IDENTIFIER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_PyDict_GetItemId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_globals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyId_op_target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_PyErr_OCCURRED&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyErr_ExceptionMatches&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PyExc_KeyError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;PyErr_Clear&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;DISPATCH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;value&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PyList_New&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Py_INCREF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STACK_LEVEL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PEEK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Py_None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;PyList_Append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;value&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Py_INCREF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stack_pointer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;call_function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;stack_pointer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;error&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Py_DECREF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DISPATCH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在编写 CPython 实现的 C 代码方面我确实没有什么经验，有可能我漏掉了些细节。如果您有什么建议还请您纠正，我期待您的反馈。&lt;/p&gt;
+
+&lt;p&gt;编译它，成了！&lt;/p&gt;
+
+&lt;p&gt;一切看起来很顺利但是当我们尝试去使用我们定义的操作码&lt;code&gt;DEBUG_OP&lt;/code&gt;的时候却失败了。自从 2008 年之后，Python 使用预先写好的&lt;a href=&quot;http://bugs.python.org/issue4753&quot;&gt;goto&lt;/a&gt;(你也可以从&lt;a href=&quot;http://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables&quot;&gt;这里&lt;/a&gt;获取更多的讯息)。故，我们需要更新下 goto jump table，我们在 Python/opcode_targets.h 中做如下修改&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-C&quot; data-lang=&quot;C&quot;&gt;&lt;span class=&quot;cm&quot;&gt;/** From: Python/opcode_targets.h **/&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/** Easy change since DEBUG_OP is the opcode number 1 **/&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode_targets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;256&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;//&amp;amp;&amp;amp;_unknown_opcode,&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TARGET_DEBUG_OP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TARGET_POP_TOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;cm&quot;&gt;/** ... **/&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这就完事了，我们现在就有了一个可以工作的新操作码。唯一的问题就是这货虽然存在但是没有被人调用过。接下来，我们将&lt;code&gt;DEBUG_OP&lt;/code&gt;注入到函数的字节码中。&lt;/p&gt;
+
+&lt;h2&gt;在 Python 字节码中注入操作码 DEBUG_OP&lt;/h2&gt;
+
+&lt;p&gt;有很多方式可以在 Python 字节码中注入新的操作码&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;使用 peephole optimizer，&lt;a href=&quot;http://blog.quarkslab.com/building-an-obfuscated-python-interpreter-we-need-more-opcodes.html&quot;&gt;Quarkslab&lt;/a&gt;就是这么干的&lt;/li&gt;
+&lt;li&gt;在生成字节码的代码中动些手脚&lt;/li&gt;
+&lt;li&gt;在运行时直接修改函数的字节码(这就是我们将要干的事儿)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;为了创造出一个新操作码，有了上面的那一堆 C 代码就够了。现在让我们回到原点，开始理解奇怪甚至神奇的 Python！&lt;/p&gt;
+
+&lt;p&gt;我们将要做的事儿有&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;得到我们想要追踪函数的 code object&lt;/li&gt;
+&lt;li&gt;重写字节码来注入&lt;code&gt;DEBUG_OP&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;将新生成的 code object 替换回去&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3&gt;和 code object 有关的小贴士&lt;/h3&gt;
+
+&lt;p&gt;如果你从没听说过 code object，这里有一个简单的&lt;a href=&quot;http://blog.hakril.net/articles/0-understanding-python-by-breaking-it.html&quot;&gt;介绍&lt;/a&gt;
+网路上也有一些相关的&lt;a href=&quot;https://docs.python.org/3.4/reference/datamodel.html&quot;&gt;文档&lt;/a&gt;可供查阅,可以直接 &lt;code&gt;Ctrl+F&lt;/code&gt; 查找 code object&lt;/p&gt;
+
+&lt;p&gt;还有一件事情需要注意的是在这篇文章所指的环境中 code object 是&lt;strong&gt;不可变&lt;/strong&gt;的&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Python 3.4.2 (default, Oct  8 2014, 10:45:20)
+[GCC 4.9.1] on linux
+Type &amp;quot;help&amp;quot;, &amp;quot;copyright&amp;quot;, &amp;quot;credits&amp;quot; or &amp;quot;license&amp;quot; for more information.
+&amp;gt;&amp;gt;&amp;gt; x = lambda y : 2
+&amp;gt;&amp;gt;&amp;gt; x.__code__
+&amp;lt;code object &amp;lt;lambda&amp;gt; at 0x7f481fd88390, file &amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;, line 1&amp;gt;
+&amp;gt;&amp;gt;&amp;gt; x.__code__.co_name
+&amp;#39;&amp;lt;lambda&amp;gt;&amp;#39;
+&amp;gt;&amp;gt;&amp;gt; x.__code__.co_name = &amp;#39;truc&amp;#39;
+Traceback (most recent call last):
+  File &amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;, line 1, in &amp;lt;module&amp;gt;
+AttributeError: readonly attribute
+&amp;gt;&amp;gt;&amp;gt; x.__code__.co_consts = (&amp;#39;truc&amp;#39;,)
+Traceback (most recent call last):
+  File &amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;, line 1, in &amp;lt;module&amp;gt;
+AttributeError: readonly attribute
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;但是不用担心，我们将会找到方法绕过这个问题的&lt;/p&gt;
+
+&lt;h2&gt;使用的工具&lt;/h2&gt;
+
+&lt;p&gt;为了修改字节码我们需要一些工具&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;https://docs.python.org/3.4/library/dis.html&quot;&gt;dis&lt;/a&gt; 模块用来反编译和分析字节码&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;dis.Bytecode&lt;/code&gt;Python 3.4 新增的一个特性，对于反编译和分析字节码特别有用&lt;/li&gt;
+&lt;li&gt;一个能够简单修改 code object 的方法&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;用&lt;code&gt;dis.Bytecode&lt;/code&gt;反编译 code bject 能告诉我们一些有关操作码、参数和上下文的信息&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;# Python3.4
+&amp;gt;&amp;gt;&amp;gt; import dis
+&amp;gt;&amp;gt;&amp;gt; f = lambda x: x + 3
+&amp;gt;&amp;gt;&amp;gt; for i in dis.Bytecode(f.__code__): print (i)
+...
+Instruction(opname=&amp;#39;LOAD_FAST&amp;#39;, opcode=124, arg=0, argval=&amp;#39;x&amp;#39;, argrepr=&amp;#39;x&amp;#39;, offset=0, starts_line=1, is_jump_target=False)
+Instruction(opname=&amp;#39;LOAD_CONST&amp;#39;, opcode=100, arg=1, argval=3, argrepr=&amp;#39;3&amp;#39;, offset=3, starts_line=None, is_jump_target=False)
+Instruction(opname=&amp;#39;BINARY_ADD&amp;#39;, opcode=23, arg=None, argval=None, argrepr=&amp;#39;&amp;#39;, offset=6, starts_line=None, is_jump_target=False)
+Instruction(opname=&amp;#39;RETURN_VALUE&amp;#39;, opcode=83, arg=None, argval=None, argrepr=&amp;#39;&amp;#39;, offset=7, starts_line=None, is_jump_target=False)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;为了能够修改 code object 我定义了一个很小的类用来复制 code object 同时能够按我们的需求修改相应的值，然后重新生成一个新的 code object&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MutableCodeObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;args_name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;co_argcount&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_kwonlyargcount&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_nlocals&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_stacksize&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_flags&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_code&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                  &lt;span class=&quot;s&quot;&gt;&amp;quot;co_consts&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_names&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_varnames&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_filename&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_name&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_firstlineno&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+                   &lt;span class=&quot;s&quot;&gt;&amp;quot;co_lnotab&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_freevars&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;co_cellvars&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initial_code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initial_code&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initial_code&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_name&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initial_code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;tuple&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;nb&quot;&gt;setattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_name&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;getattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;isinstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;tuple&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initial_code&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__class__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个类用起来很方便，解决了上面提到的 code object 不可变的问题&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&amp;gt;&amp;gt;&amp;gt; x = lambda y : 2
+&amp;gt;&amp;gt;&amp;gt; m = MutableCodeObject(x.__code__)
+&amp;gt;&amp;gt;&amp;gt; m
+&amp;lt;new_code.MutableCodeObject object at 0x7f3f0ea546a0&amp;gt;
+&amp;gt;&amp;gt;&amp;gt; m.co_consts
+[None, 2]
+&amp;gt;&amp;gt;&amp;gt; m.co_consts[1] = &amp;#39;3&amp;#39;
+&amp;gt;&amp;gt;&amp;gt; m.co_name = &amp;#39;truc&amp;#39;
+&amp;gt;&amp;gt;&amp;gt; m.get_code()
+&amp;lt;code object truc at 0x7f3f0ea2bc90, file &amp;quot;&amp;lt;stdin&amp;gt;&amp;quot;, line 1&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;测试我们的新操作码&lt;/h2&gt;
+
+&lt;p&gt;我们现在拥有了注入&lt;code&gt;DEBUG_OP&lt;/code&gt;的所有工具，让我们来验证下我们的实现是否可用。&lt;/p&gt;
+
+&lt;p&gt;我们将我们的操作码注入到一个最简单的函数中&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;from new_code import MutableCodeObject
+
+def op_target(*args):
+    print(&amp;quot;WOOT&amp;quot;)
+    print(&amp;quot;op_target called with args &amp;lt;{0}&amp;gt;&amp;quot;.format(args))
+
+def nop():
+    pass
+
+new_nop_code = MutableCodeObject(nop.__code__)
+new_nop_code.co_code = b&amp;quot;\x00&amp;quot; + new_nop_code.co_code[0:3] + b&amp;quot;\x00&amp;quot; + new_nop_code.co_code[-1:]
+new_nop_code.co_stacksize += 3
+
+nop.__code__ = new_nop_code.get_code()
+
+import dis
+dis.dis(nop)
+nop()
+
+
+# Don&amp;#39;t forget that ./python is our custom Python implementing DEBUG_OP
+hakril@computer ~/python/CPython3.5 % ./python proof.py
+  8           0 &amp;lt;0&amp;gt;
+              1 LOAD_CONST               0 (None)
+              4 &amp;lt;0&amp;gt;
+              5 RETURN_VALUE
+WOOT
+op_target called with args &amp;lt;([], &amp;lt;frame object at 0x7fde9eaebdb0&amp;gt;)&amp;gt;
+WOOT
+op_target called with args &amp;lt;([None], &amp;lt;frame object at 0x7fde9eaebdb0&amp;gt;)&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;看起来它成功了！有一行代码需要说明一下&lt;code&gt;new_nop_code.co_stacksize += 3&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;co_stacksize 表示 code object 所需要的堆栈的大小&lt;/li&gt;
+&lt;li&gt;操作码&lt;code&gt;DEBUG_OP&lt;/code&gt;往堆栈中增加了三项，所以我们需要为这些增加的项预留些空间&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;现在我们可以将我们的操作码注入到每一个 Python 函数中了！&lt;/p&gt;
+
+&lt;h2&gt;重写字节码&lt;/h2&gt;
+
+&lt;p&gt;正如我们在上面的例子中所看到的那样，重写 Pyhton 的字节码似乎 so easy。为了在每一个操作码之间注入我们的操作码，我们需要获取每一个操作码的偏移量，然后将我们的操作码注入到这些位置上(把我们操作码注入到参数上是有坏处大大滴)。这些偏移量也很容易获取，使用&lt;code&gt;dis.Bytecode&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;就像这样&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;add_debug_op_everywhere&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code_obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# We get every instruction offset in the code object&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;offsets&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dis&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Bytecode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code_obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# And insert a DEBUG_OP at every offset&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;insert_op_debug_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code_obj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offsets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;insert_op_debug_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offsets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# We insert the DEBUG_OP one by one&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;off&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;sorted&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offsets&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)):&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;# Need to ajust the offsets by the number of opcodes already inserted before&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;# That&amp;#39;s why we sort our offsets!&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;insert_op_debug&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;off&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# Last problem: what does insert_op_debug looks like?&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;基于上面的例子，有人可能会想我们的&lt;code&gt;insert_op_debug&lt;/code&gt;会在指定的偏移量增加一个&lt;code&gt;&amp;quot;\x00&amp;quot;&lt;/code&gt;，这尼玛是个坑啊！我们第一个&lt;code&gt;DEBUG_OP&lt;/code&gt;注入的例子中被注入的函数是没有任何的分支的，为了能够实现完美一个函数注入函数&lt;code&gt;insert_op_debug&lt;/code&gt;我们需要考虑到存在分支操作码的情况。&lt;/p&gt;
+
+&lt;p&gt;Python 的分支一共有两种&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;绝对分支：看起来是类似这样子的&lt;code&gt;Instruction_Pointer = argument(instruction)&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;相对分支：看起来是类似这样子的&lt;code&gt;Instruction_Pointer += argument(instruction)&lt;/code&gt;
+
+&lt;ul&gt;
+&lt;li&gt;相对分支总是向前的&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;我们希望这些分支在我们插入操作码之后仍然能够正常工作，为此我们需要修改一些指令参数。以下是其逻辑流程&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;对于每一个在插入偏移量之前的相对分支而言
+
+&lt;ul&gt;
+&lt;li&gt;如果目标地址是严格大于我们的插入偏移量的话，将指令参数增加 1&lt;/li&gt;
+&lt;li&gt;如果相等，则不需要增加 1 就能够在跳转操作和目标地址之间执行我们的操作码&lt;code&gt;DEBUG_OP&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;如果小于，插入我们的操作码的话并不会影响到跳转操作和目标地址之间的距离&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;li&gt;对于 code object 中的每一个绝对分支而言
+
+&lt;ul&gt;
+&lt;li&gt;如果目标地址是严格大于我们的插入偏移量的话，将指令参数增加 1&lt;br&gt;&lt;/li&gt;
+&lt;li&gt;如果相等，那么不需要任何修改，理由和相对分支部分是一样的&lt;/li&gt;
+&lt;li&gt;如果小于，插入我们的操作码的话并不会影响到跳转操作和目标地址之间的距离&lt;/li&gt;
+&lt;/ul&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;下面是实现&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;c&quot;&gt;# Helper&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;bytecode_to_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bytecode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;lt;Bh&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;struct&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;lt;B&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# Dummy class for bytecode_to_string&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;DummyInstr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;insert_op_debug&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;opcode_jump_rel&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;FOR_ITER&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;JUMP_FORWARD&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SETUP_LOOP&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SETUP_WITH&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SETUP_EXCEPT&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;SETUP_FINALLY&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;opcode_jump_abs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;POP_JUMP_IF_TRUE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;POP_JUMP_IF_FALSE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;#39;JUMP_ABSOLUTE&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;inserted&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;False&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dis&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Bytecode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;b&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x00&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;inserted&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;opcode_jump_rel&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inserted&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;#relative jump are always forward&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;c&quot;&gt;# inserted beetwen jump and dest: add 1 to dest (3 for size)&lt;/span&gt;
+                &lt;span class=&quot;c&quot;&gt;#If equal: jump on DEBUG_OP to get info before exec instr&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode_to_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DummyInstr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;opcode_jump_abs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode_to_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DummyInstr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;continue&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytecode_to_string&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;c&quot;&gt;# replace_bytecode just replaces the original code co_code&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;replace_bytecode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res_codestring&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;让我们看一下效果如何&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&amp;gt;&amp;gt;&amp;gt; def lol(x):
+...     for i in range(10):
+...         if x == i:
+...             break
+
+&amp;gt;&amp;gt;&amp;gt; dis.dis(lol)
+101           0 SETUP_LOOP              36 (to 39)
+              3 LOAD_GLOBAL              0 (range)
+              6 LOAD_CONST               1 (10)
+              9 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+             12 GET_ITER
+        &amp;gt;&amp;gt;   13 FOR_ITER                22 (to 38)
+             16 STORE_FAST               1 (i)
+
+102          19 LOAD_FAST                0 (x)
+             22 LOAD_FAST                1 (i)
+             25 COMPARE_OP               2 (==)
+             28 POP_JUMP_IF_FALSE       13
+
+103          31 BREAK_LOOP
+             32 JUMP_ABSOLUTE           13
+             35 JUMP_ABSOLUTE           13
+        &amp;gt;&amp;gt;   38 POP_BLOCK
+        &amp;gt;&amp;gt;   39 LOAD_CONST               0 (None)
+             42 RETURN_VALUE
+&amp;gt;&amp;gt;&amp;gt; lol.__code__ = transform_code(lol.__code__, add_debug_op_everywhere, add_stacksize=3)
+
+
+&amp;gt;&amp;gt;&amp;gt; dis.dis(lol)
+101           0 &amp;lt;0&amp;gt;
+              1 SETUP_LOOP              50 (to 54)
+              4 &amp;lt;0&amp;gt;
+              5 LOAD_GLOBAL              0 (range)
+              8 &amp;lt;0&amp;gt;
+              9 LOAD_CONST               1 (10)
+             12 &amp;lt;0&amp;gt;
+             13 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+             16 &amp;lt;0&amp;gt;
+             17 GET_ITER
+        &amp;gt;&amp;gt;   18 &amp;lt;0&amp;gt;
+
+102          19 FOR_ITER                30 (to 52)
+             22 &amp;lt;0&amp;gt;
+             23 STORE_FAST               1 (i)
+             26 &amp;lt;0&amp;gt;
+             27 LOAD_FAST                0 (x)
+             30 &amp;lt;0&amp;gt;
+
+103          31 LOAD_FAST                1 (i)
+             34 &amp;lt;0&amp;gt;
+             35 COMPARE_OP               2 (==)
+             38 &amp;lt;0&amp;gt;
+             39 POP_JUMP_IF_FALSE       18
+             42 &amp;lt;0&amp;gt;
+             43 BREAK_LOOP
+             44 &amp;lt;0&amp;gt;
+             45 JUMP_ABSOLUTE           18
+             48 &amp;lt;0&amp;gt;
+             49 JUMP_ABSOLUTE           18
+        &amp;gt;&amp;gt;   52 &amp;lt;0&amp;gt;
+             53 POP_BLOCK
+        &amp;gt;&amp;gt;   54 &amp;lt;0&amp;gt;
+             55 LOAD_CONST               0 (None)
+             58 &amp;lt;0&amp;gt;
+             59 RETURN_VALUE
+
+# Setup the simplest handler EVER
+&amp;gt;&amp;gt;&amp;gt; def op_target(stack, frame):
+...     print (stack)
+
+# GO
+&amp;gt;&amp;gt;&amp;gt; lol(2)
+[]
+[]
+[&amp;lt;class &amp;#39;range&amp;#39;&amp;gt;]
+[10, &amp;lt;class &amp;#39;range&amp;#39;&amp;gt;]
+[range(0, 10)]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[0, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[0, 2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[False, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[1, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[1, 2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[False, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[2, 2, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[True, &amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[&amp;lt;range_iterator object at 0x7f1349afab80&amp;gt;]
+[]
+[None]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;甚好！现在我们知道了如何获取堆栈信息和 Python 中每一个操作对应的帧信息。上面结果所展示的结果目前而言并不是很实用。在最后一部分中让我们对注入做进一步的封装。&lt;/p&gt;
+
+&lt;h2&gt;增加 Python 封装&lt;/h2&gt;
+
+&lt;p&gt;正如您所见到的，所有的底层接口都是好用的。我们最后要做的一件事是让 op_target 更加方便使用(这部分相对而言比较空泛一些，毕竟在我看来这不是整个项目中最有趣的部分)&lt;/p&gt;
+
+&lt;p&gt;首先我们来看一下帧的参数所能提供的信息，如下所示&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;f_code&lt;/code&gt;当前帧将执行的 code object&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;f_lasti&lt;/code&gt;当前的操作(code object 中的字节码字符串的索引)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;经过我们的处理我们可以得知&lt;code&gt;DEBUG_OP&lt;/code&gt;之后要被执行的操作码，这对我们聚合数据并展示是相当有用的。&lt;/p&gt;
+
+&lt;p&gt;新建一个用于追踪函数内部机制的类&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;改变函数自身的 &lt;code&gt;co_code&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;设置回调函数作为&lt;code&gt;op_debug&lt;/code&gt;的目标函数&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;一旦我们知道下一个操作，我们就可以分析它并修改它的参数。举例来说我们可以增加一个&lt;code&gt;auto-follow-called-functions&lt;/code&gt;的特性&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exc&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;l&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Trace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;call&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_func_to_trace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;# Activate Trace callback for the func call&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;args&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;**&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kwargs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;ne&quot;&gt;Exception&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;e&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;callback&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;res&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;add_func_to_trace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;# Is it code? is it already transformed?&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;hasattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;op_debug&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;hasattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;__code__&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__code__&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;transform_code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__code__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;transform&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_everywhere&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;add_stacksize&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ADD_STACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__globals__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;#39;op_target&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;op_target&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;op_debug&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;True&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_auto_follow&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;c&quot;&gt;# Nothing fancy: FrameAnalyser is just the wrapper that gives the next executed instruction&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;next_instr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FrameAnalyser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_instr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;CALL&amp;quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;next_instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;f_index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xff&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;called_func&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+            &lt;span class=&quot;c&quot;&gt;# If call target is not traced yet: do it&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;hasattr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;called_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&amp;quot;op_debug&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+                &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_func_to_trace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;called_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在我们实现一个 Trace 的子类，在这个子类中增加 callback 和 do&lt;em&gt;report 这两个方法。callback 方法将在每一个操作之后被调用。do&lt;/em&gt;report 方法将我们收集到的信息打印出来。&lt;/p&gt;
+
+&lt;p&gt;这是一个伪函数追踪器实现&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-python&quot; data-lang=&quot;python&quot;&gt;&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;DummyTrace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Trace&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;collections&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OrderedDict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last_frame&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;known_frame&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;exc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;known_frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;known_frame&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot; === Entering New Frame {0} ({1}) ===&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_code&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;co_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last_frame&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last_frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot; === Returning to Frame {0} {1}===&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_code&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;co_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;id&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+            &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;last_frame&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;
+
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FrameAnalyser&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next_instr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rjust&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ljust&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ljust&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;{0}  {1} {2} {3}&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;offset&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;opname&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;instr&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argval&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;do_auto_follow&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;frame&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_report&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;join&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;report&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里有一些实现的例子和使用方法。格式有些不方便观看，毕竟我并不擅长于搞这种对用户友好的报告的事儿&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://hakril.net/python/article/example_dummy_trace.html&quot;&gt;例1&lt;/a&gt; 自动追踪堆栈信息和已经执行的指令&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://hakril.net/python/article/example_dummy_contextmanager.html&quot;&gt;例2&lt;/a&gt;上下文管理&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;递推式构造列表(List Comprehensions)的追踪示例&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://hakril.net/python/article/example_list_comp_dummy.html&quot;&gt;例3&lt;/a&gt;伪追踪器的输出&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://hakril.net/python/article/example_list_comp_stacktrace.html&quot;&gt;例4&lt;/a&gt;输出收集的堆栈信息&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;总结&lt;/h2&gt;
+
+&lt;p&gt;这个小项目是一个了解 Python 底层的良好途径，包括解释器的 main loop，Python 实现的 C 代码编程、Python 字节码。通过这个小工具我们可以看到 Python 一些有趣构造函数的字节码行为，例如生成器、上下文管理和递推式构造列表。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://hakril.net/blog_data/assembly_tracer_code.zip&quot;&gt;这里&lt;/a&gt;是这个小项目的完整代码。&lt;/p&gt;
+
+&lt;p&gt;更进一步的，我们还可以做的是修改我们所追踪的函数的堆栈。我虽然不确定这个是否有用，但是可以肯定是这一过程是相当有趣的。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>【译】 沙箱中的间谍 - 可行的 JavaScript 高速缓存区攻击</title>
+      <link>/nodejs/2015/05/27/nodejs-cache_attack_in_javascript/</link>
+      <pubDate>Wed, 27 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/nodejs/2015/05/27/nodejs-cache_attack_in_javascript</guid>
+      <description>&lt;p&gt;原文连接 &lt;a href=&quot;http://arxiv.org/pdf/1502.07373v2.pdf&quot;&gt;The Spy in the Sandbox – Practical Cache Attacks in Javascript&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;相关论文可在 &lt;a href=&quot;https://github.com/wyvernnot/cache_attack_in_javascript&quot;&gt;https://github.com/wyvernnot/cache_attack_in_javascript&lt;/a&gt; 下载&lt;/p&gt;
+
+&lt;h2&gt;作者和单位&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Yossef Oren (yos AT cs.columbia.edu)&lt;/li&gt;
+&lt;li&gt;Vasileios P. Kemerlis (vpk AT cs.columbia.edu)&lt;/li&gt;
+&lt;li&gt;Simha Sethumadhavan (simha AT cs.columbia.edu)&lt;/li&gt;
+&lt;li&gt;Angelos D. Keromytis (angelos AT cs.columbia.edu)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;哥伦比亚大学计算机系&lt;/p&gt;
+
+&lt;h2&gt;摘要&lt;/h2&gt;
+
+&lt;p&gt;我们将展示首个完全运行在浏览器里的针对微架构的边信道攻击手段。与这个领域里的其它研究成果不同，这一手段不需要攻击者在受害者的电脑上安装任何的
+应用程序来展开攻击，受害者只需要打开一个由攻击者控制的恶意网页。这种攻击模型可伸缩性高，易行，贴近当今的网络环境，特别是由于绝大多数桌面浏览器连接到 Internet
+因此几乎无法防御。这种攻击手段基于 Yarom 等人在 文[23] 提出的 LLC 攻击，可以让攻击者远程获得属于其它进程、用户甚至是虚拟机的信息，
+只要它们和受害者的浏览器运行在运行在同一台物理主机上。我们将阐述这种攻击背后的基本原理，然后用一种高带宽的隐藏通道验证它的效果，最后
+用它打造了一个覆盖整个系统的鼠标和网络活动记录器。抵御这种攻击是可能的，但是所需的反制措施对浏览器和电脑的正常使用所产生的代价有点不实际。&lt;/p&gt;
+
+&lt;h2&gt;1 引言&lt;/h2&gt;
+
+&lt;p&gt;边信道分析是里一种非常强大的密码分析攻击。攻击者通过分析安全设备内部在进行安全运算时所产生的的物理信号（功率，辐射，热量等）来取得秘密信息[15]。
+据说在二战中便有情报部门在使用，Kocher 等人在1996年首次在学术情境下讨论了这个问题[14]。边信道分析被证实可以用来侵入无数的现实世界中的系统，从汽车报警器
+到高安全性的密码协处理器[8][18]。缓存攻击（Cache Attack）是和个人电脑相关的一种边信道攻击，因为高速缓冲区被不同的进程和用户使用而导致了信息的泄露[17][11]。&lt;/p&gt;
+
+&lt;p&gt;虽然边信道攻击的能力无可置疑，但是要实际应用到系统上还是相对受限的。影响边信道攻击可行性的一个主要因素是对不确定的&lt;strong&gt;攻击模型&lt;/strong&gt;的假设：除了基于网络的
+时序攻击，大部分的边信道攻击都要求攻击者非常接近受害者。缓存攻击一般会假设攻击者能够在受害者的机器上执行任意的二进制的代码。虽然这个假设
+适用于像 Amazon 云计算平台这样的 IaaS 或者 PaaS 环境，但是对于其它环境就不那么贴切了。&lt;/p&gt;
+
+&lt;p&gt;在这篇报告里，我们用一种约束更少、更可行的攻击者模型挑战了这一限制性的安全假设。在我们的攻击模型里，受害者只需要&lt;strong&gt;访问一个网页&lt;/strong&gt;，这个网页
+由攻击者所拥有。我们会展示，即使在这么简单的攻击者模型里，攻击者依然能够在可行的时间周期里，从被攻击的系统中提取出有意义的信息。为了和这样的
+计算设定保持一致，我们把注意力集中在了&lt;strong&gt;跟踪用户行为&lt;/strong&gt;而不是获取密匙上。报告中的攻击方式因此是高度可行的：对于攻击者的假设和限定是
+实际的；运行的时间是实际的；给攻击者带来的好处也是实际的。据我们了解，这是首个可以轻松扩展至上百万个目标的边信道攻击方式。&lt;/p&gt;
+
+&lt;p&gt;我们假设攻击中受害者使用的个人电脑配备有较新型号的的 Intel CPU ，并进一步假设用户用支持 HTML5 的浏览器访问网页。这覆盖了绝大部分连接到 Internet 的
+个人电脑，见 章节5.1 。用户被强迫访问一个页面，这个页面上有一个由攻击者控制的元素比如广告。攻击代码自己会执行基于 JavaScript 的
+缓存攻击，见 章节2，持续地访问被攻击系统的 LLC 。因为所有的 CPU 内核，用户，进程，保护环等共享同一个高速缓存区，所以可为攻击者提供被攻击用户和系统的详细信息。&lt;/p&gt;
+
+&lt;h3&gt;1.1 现代 Intel CPU 的内存架构&lt;/h3&gt;
+
+&lt;p&gt;现代的计算机系统通常会采用一个高速的中央处理器（CPU）和一个容量大但是速度较慢的随机存取器（RAM）。为了克服这两个模块的性能鸿沟，现代的计算机系统会采用
+高速缓存 - 一种容量小但是速度更快的内存结构，里面保存了 RAM 中最近被 CPU 访问过的子集。高速缓存通常会采用 &lt;strong&gt;分层&lt;/strong&gt; 设计，即在 CPU 和 RAM
+之间 &lt;strong&gt;分层&lt;/strong&gt; 放置一些列逐渐变大和变慢的内存结构。图1 取自 文[22]，展示了 Intel Ivy Bridge 的缓存结构，包括：较小的 &lt;strong&gt;level 1(L1) cache&lt;/strong&gt;，大一些的
+&lt;strong&gt;level 2 (L2) cache&lt;/strong&gt; ，最下方是最大的 &lt;strong&gt;level 3 (L3) cache&lt;/strong&gt; 并和 RAM 相连。Intel 目前代号为 Haswell 的新一代 CPU 采用了另一种嵌入式的
+DRAM(eDRAM) 设计，所以不在本文讨论范围内。如果 CPU 需要访问的数据当前不在缓存里，会触发一个 &lt;strong&gt;未命中&lt;/strong&gt; ，当前缓存里的一项必须被 &lt;strong&gt;淘汰&lt;/strong&gt;
+来给新元素腾出空间。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure1.png&quot; alt=&quot;图1&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt; 图1：Intel Ivy Bridge &lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;Intel 的缓存微架构是 &lt;strong&gt;嵌套的&lt;/strong&gt; - 所有一级缓存里的数据必须同时存在二级和三级缓存里。倒过来，如果某个元素在三级缓存里被淘汰，那它也会立刻被
+从二级和一级缓存里移走。需要注意的是 AMD 缓存微架构的设计是非嵌套的，所以本文描述的方法并不能立刻应用到该平台上。&lt;/p&gt;
+
+&lt;p&gt;本文重点关注第三级缓存，通常也被称为 LLC。由于 LLC 较大，CPU 访问内存的时候如果把整个 LLC 的内容都搜索一遍效率会很低。
+为了避免这个问题，LLC 通常被分成不同的 &lt;strong&gt;组&lt;/strong&gt;，每一组都对应者内存空间的一个固定的子集。每个组包含若干缓存线。例如，Intel Haswell 系列中的
+Core i7-3720QM 处理器拥有 8192 = 2^13 个组，每个组有 12 条 64 = 2^6 字节的缓存线，共同组成 8192 x 12 x 64 = 6 MB 的高速缓存。
+CPU 如果要检查一个给定的物理地址是否在三级缓存里，会先计算出组，然后只检查组内的缓存线。结果就是，某个物理地址的缓存未命中，会导致同一个组的
+为数不多的缓存线中的一条被淘汰，这个事实会被我们的攻击反复运用。由64比特长度的物理地址到13比特长度的组索引的映射方法已经被 Hund 等人在2013年
+通过逆向工程得出来[12]。在表示物理地址的64个比特位里，5到0被忽略，16到6被直接用来作为组索引的低11位，63到17散列后得到组索引的高2位。
+LLC 被所有的内核、线程、进程、用户，乃至运行在同一块 CPU 芯片上的虚拟机所共享，而不论特权环或其它类似的保护措施。&lt;/p&gt;
+
+&lt;p&gt;现代的个人电脑采用了一种 &lt;strong&gt;虚拟内存机制&lt;/strong&gt;，在这种机制里，用户进程一般无法直接得到或访问系统的物理内存。取而代之的是，进程会被分配不同的虚拟内存&lt;strong&gt;页&lt;/strong&gt;。
+如果某个虚拟内存页被当前执行的进程访问，操作系统会在物理内存里动态地分配一个&lt;strong&gt;页框&lt;/strong&gt;。CPU 的内存管理单元（MMU）负责把不同进程对虚拟内存地址的访问
+映射到物理内存。Intel 处理器的页和页框大小一般是4KB，并且页和页框的是按照&lt;strong&gt;页对齐&lt;/strong&gt;的 - 每页的开始地址是页大小的倍数。这意味着，任何虚拟地址
+的低12位和对应的虚拟地址是一一对应的，这一事实也在我们的攻击中用到。&lt;/p&gt;
+
+&lt;h3&gt;1.2 缓存攻击&lt;/h3&gt;
+
+&lt;p&gt;缓存攻击是针对微架构的攻击手段中一个典型的代表， Aciamez 在他的出色的调查中将这类攻击定义为利用 “信任架构边界下方的底层处理器结构” 从不同的安全系统中
+获取秘密信息。缓存攻击基于这样的事实：尽管在上层有诸多像沙箱、虚拟内存、特权环，宿主这样的保障机制，安全和不安全进程通过高速缓存区的共用可以互相影响。
+攻击者构造一个“间谍”进程后可以通过被共用的缓存来测量和干扰其它安全进程的内部状态。Hu 在1992年的首次发现[11]，在随后的一些研究成果里显示了边信道攻击可被用来获取
+AES密匙[17][4]，RSA密匙[19]，甚至可以允许一台虚拟机侵入宿主上的其它机器。&lt;/p&gt;
+
+&lt;p&gt;我们的攻击建立在 &lt;strong&gt;填充+探测&lt;/strong&gt; 模型的基础上，这个方法由 Osvik 在[17]中首次描述，不过是针对一级缓存的。之后由 Yarom 等人在[23]中扩展到启用了
+较大内存页系统的 LLC。我们把这个方法扩展了一下支持更加常见的 4K 的页大小。总的来说，&lt;strong&gt;填充+探测&lt;/strong&gt; 有四个步骤。第一步，攻击者建立一个
+或多个 &lt;strong&gt;移除集&lt;/strong&gt;。移除集是内存中的一系列地址，这些地址被访问的时候会占据受害者进程使用的一条缓存线。第二步，攻击者通过访问移除集&lt;strong&gt;填充&lt;/strong&gt;整个组。
+这会强制受害者的代码或指令被从组中淘汰，并使组进入一个已知的状态。第三步，攻击者触发或只是等待受害者执行和可能使用组。最后，攻击者通过再次访问移除集
+来&lt;strong&gt;探测&lt;/strong&gt;组。如果访问的延迟比较低，意味着攻击者的指令或数据还在缓存里。否则，较高的访问延迟意味着受害者的代码用到了组，因此攻击者可以了解受害者的内部状态。
+实际的时间测量是用非特权的汇编指令&lt;code&gt;RDTSC&lt;/code&gt;进行的，这个指令可以得到处理器非常准确的周期数。再次遍历链表还有第二个目的，那就是强制组进入
+受攻击者控制的状态，为下一轮的测量做好准备。&lt;/p&gt;
+
+&lt;h3&gt;1.3 Web 运行环境&lt;/h3&gt;
+
+&lt;p&gt;JavaScript 是一种拥有动态类型，基于对象的运行时求值的脚本语言，它支撑着现代互联网的客户端。JavaScript 代码以源码的形式传到浏览器端，由浏览器 &lt;strong&gt;即时编译(JIT)&lt;/strong&gt;
+机制来编译和优化。不同浏览器厂商之间的激烈竞争使不断改进 JavaScript 性能备受关注。结果就是，在某些场景下，JavaScript 执行的效率已经
+可以和机器语言相媲美。&lt;/p&gt;
+
+&lt;p&gt;JavaScript 语言的核心功能是由 ECMA 产业协会在 ECMA-262 标准中定义的。语言标准由万维网协会（W3C）定义的一系 API 所补充，因此适合开发 Web 内容。
+JavaScript API 的集合是不断演进的，浏览器厂商依照自己的开发计划不断增加新的 API 支持。我们的工作中用到两个具体的API:
+第一个是类型数组的定义&lt;a href=&quot;https://www.khronos.org/registry/typedarray/specs/latest/&quot;&gt;9&lt;/a&gt;，通过它可以高效地访问非结构化的二进制数组。
+第二个是高精度时间API&lt;a href=&quot;http://www.w3.org/TR/hr-time/&quot;&gt;16&lt;/a&gt;，让应用程序可以进行毫秒以下时间的测量。
+如 章节5.1 所示，大部分当今主流的浏览器都同时支持这两个API。&lt;/p&gt;
+
+&lt;p&gt;JavaScript 代码运行在高度&lt;strong&gt;沙箱化&lt;/strong&gt;的环境里 - 用 JavaScript 交付的代码对系统的访问非常受限。例如，JavaScript 代码如果没有用户的允许不能打开和读取文件。
+JavaScript 代码不能执行机器语言或者加载本地的代码库。
+最值得注意的是，JavaScript 代码&lt;strong&gt;没有指针的概念&lt;/strong&gt;，所以你连一个 JavaScript 变量虚拟地址都没法知道。&lt;/p&gt;
+
+&lt;h3&gt;1.4 我们的工作&lt;/h3&gt;
+
+&lt;p&gt;我们的目的是构造一个可以通过 Web 部署的 LLC 攻击。这个过程是充满挑战的，因为 JavaScript 代码没法加载共享库或者执行本机语言的程序，
+并且由于无法直接调用专用的汇编指令而被迫调用脚本语言的函数进行时间的测量。尽管有这些挑战，我们还是成功地把缓存攻击扩展到了基于 Web 环境：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;我们展示了一种用来在 LLC 上的建立 &lt;strong&gt;非典型移除集&lt;/strong&gt; 特别方法。与[23]不同，我们的方法不要求系统配置成支持较大的内存页，所以能够很快的
+应用到广泛的桌面和服务器系统。我们展示了该方法虽然是使用 JavaScript 实现的，但是依然可以在实际的时间周期里完成。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;我们展示了一种 &lt;strong&gt;功能完善的用无需特权的 JavaScript 发动 LLC 攻击&lt;/strong&gt; 的方法。我们用隐藏通道的方式，评估了它的性能，包括在同一个机器、不同进程之间
+和在虚拟机与它的主机之间。基于 JavaScript 的通道与[23]中用机器语言实现的方法类似，都可以达到每秒几百 kb 的速度。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;我们展示了怎么利用基于缓存的方法来有效地&lt;strong&gt;跟踪用户行为&lt;/strong&gt;。缓存攻击的这一应用与我们的攻击模型更相关，这与密码分析在其它成果中的应用不同。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;最后，我们分析了针对攻击&lt;strong&gt;可能的反制措施&lt;/strong&gt;和整个系统的代价。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;文档结构&lt;/strong&gt;：
+第二章，攻击方法不同阶段的设计与实现。
+第三章，基于攻击方法建立起来的隐藏通道，这个通道也被用来验证方法的性能。
+第四章，缓存攻击如何被用来跟踪用户在浏览器内外的行为。
+第五章，总结，提出反制措施和仍未解决的研究挑战。&lt;/p&gt;
+
+&lt;h2&gt;2 攻击方法&lt;/h2&gt;
+
+&lt;p&gt;正如前文所诉，一次成功的 填充+探测 攻击包含几个步骤：为一个或多个相关组建立移除集，填充缓存，触发受害者的操作，最后再次探测组。
+虽然填充和探测实现起来很简单，但是要找到对应于某个系统操作的组并且为它建立移除集就不那么容易了。在本章里，我们描述了这几个步骤用
+JavaScript 如何实现。&lt;/p&gt;
+
+&lt;h3&gt;2.1 建立一个移除集&lt;/h3&gt;
+
+&lt;h3&gt;2.1.1 设计&lt;/h3&gt;
+
+&lt;p&gt;正如[23]写到，&lt;strong&gt;填充+探测&lt;/strong&gt;攻击方法的第一步是为某个与被攻击进程共享的组建立一个移除集。这个移除集包含一系列的变量，而且这些变量都被 CPU 映射到相同的
+组里。根据 文[20] 的建议，使用链表可以避免 CPU 的内存预读和流水线优化。我们首先展示如何为任意一个组建立一个移除集，然后解决寻找与受害者共享组的问题。&lt;/p&gt;
+
+&lt;p&gt;文[17]指出，一级缓存是依据虚拟地址的低位的比特来决定组分配的。假设攻击者知道变量的虚拟地址，那么在基于一级缓存的攻击模型里建立移除集很容易。
+但是，LLC 里变量的组分配是依照物理内存的地址进行的，而且一般情况下，非特权进程无法知道。文[23]的作者为了规避这个问题，假设系统用的是
+页较大的模型，在这个模型里，物理地址和虚拟地址的低21位是相同的，并通过迭代算法来获得组索引的高位。&lt;/p&gt;
+
+&lt;p&gt;在我们所考虑的攻击模型里，系统运行在 4K 的页大小模型下，物理地址和虚拟地址只有最低的12位是相同的。然而更大的难题是，JavaScript没有指针的概念，
+所以即使是自己定义的变量，虚拟地址也是不知道的。&lt;/p&gt;
+
+&lt;p&gt;从64位物理地址到13位的组索引的映射关系已经被 Hund 等人研究过[12]。他们发现，当访问物理内存里一段连续的、8MB大小的 “淘汰缓冲区” 时会让三级缓存里的所有组
+都失效。虽然我们在用户态下没有办法分配这样的一个“淘汰缓冲区” （实际上，文章[12]是通过内核模式的驱动实现的），我们用 JavaScript 在
+虚拟内存里分配了一个 8MB 大小的数组（这其实是由系统分配的随机、不连续的 4K 大小物理内存页的集合），然后测量遍历这个缓冲区在全系统造成的影响。
+我们发现在迭代访问了这个淘汰缓冲区后如果立即访问内存中其它不相关的变量，访问的延迟会显著的增加。
+另外一个发现是，即使不访问整个缓冲区而是每隔64字节去访问它，这个现象依然存在。但是，我们所访问的 131K 个偏移值到8192个可能的组的映射关系
+并没有立刻清晰起来，因为我们不知道缓冲区里各个页在物理内存中的地址。&lt;/p&gt;
+
+&lt;p&gt;解决这个问题一个不太靠谱的做法是，给定一个任意的“受害者”在内存中的地址，通过暴力手段从 131K 个偏移值中找到12个与这个地址共享组的地址。要完成这点，
+我们可以从 131K 个偏移量中选取几个作为子集，在迭代了所有的偏移量后再测量下访问的延迟有没有变化。如果延迟增加了，意味着含有12个地址的子集与
+受害者地址共享相同的组。如果延迟没有变化，那子集里的12个地址中的任何一个都不在组里，这样受害者地址就还在缓存里。把这个过程重复8192遍，每次用
+一个不同的受害者地址，我们就可以识别每个组并且建立自己的数据结构。&lt;/p&gt;
+
+&lt;p&gt;受此启发而立刻写出来的程序会运行非常长的时间。幸运的是， Intel MMU 的页帧大小（章节1.1）非常有帮助，因为虚拟地址是页对齐的，每个虚拟地址的
+低12位和每个物理地址的低12位是一致的。据 Hund 等人所称，12个比特中的6个被用来唯一决定组索引。因此，淘汰缓冲区中的一个偏移会和其它 8K 个偏移
+共享12到6位，而不是所有 131K 个。此外，只要找到一个组就能立刻知道其它的63个在相同页帧里的组的位置。再加上 JavaScript 分配大的数据缓存区的时是
+和页帧的边界对齐的，所以可以用算法1中的贪心算法。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;算法1&lt;/strong&gt; Profiling a cache set
+Let S be the set of unmapped pages, and address x be an arbitrary page-aligned address in memory&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;1. Repeat k times:
+
+(a) Iteratively access all members of S
+(b) Measure t1 , the time it takes to access x
+(c) Select a random page s from S and remove it
+(d) Iteratively access all members of S\s
+(e) Measure t2 , the time it takes to access x
+(f) If removing page s caused the memory access to speed up considerably (i.e., t1 − t2 &amp;gt; thres),
+then this page is part of the same set as x. Place it back into S.
+(g) If removing page s did not cause memory access to speed up considerably,
+then this address is not part of the same set as x.
+2. If |S| = 12, return S. Otherwise report failure.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;通过多次运行 算法1，我们可以逐渐的建立一个移除集并覆盖大部分的缓存，除了那些被 JavaScript 运行时本身所使用的。我们注意到，
+与[23]中的算法建立的淘汰缓冲区不同，我们的移除集是&lt;strong&gt;非典型&lt;/strong&gt;的 - 因为 JavaScript 没有指针的概念，所以如果我们发现了一个移除集
+我们并没有办法知道它对应着 CPU 高速缓存的哪个组。此外，在相同的机器上每次运行这个算法都会得到不同的映射。这也许是因为用了传统的 4K 页大小
+而不是 2MB 的页大小的原因，这个问题即使不用 JavaScript 用机器语言也存在。&lt;/p&gt;
+
+&lt;h3&gt;2.1.2 验证&lt;/h3&gt;
+
+&lt;p&gt;我们用 JavaScript 实现了 算法1 并且在安装了 Ivy Bridge， Sandy Bridge，Haswell 系列 CPU 的机器上进行验证，机器上装有 Safari 和 Firefox
+对应运行在 Mac OS Yosemite 和 Ubuntu 14.04 LTS 操作系统上。系统并没有被配置使用大的页而是用默认的 4K 页大小。列表1 显示了实现 算法1.d
+和 算法1.e 的代码，展示了 JavaScript 下怎么遍历链表和测量时间。算法如果要运行在 Chrome 和 Internet Explorer 下，需要额外的几个步骤，在 章节5.1 中。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;列表1&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span class=&quot;c1&quot;&gt;// Invalidate the cache set&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;currentEntry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;startAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;currentEntry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;probeView&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getUint32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;currentEntry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;currentEntry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;startAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// Measure access time&lt;/span&gt;
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;startTime&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;performance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;now&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;nx&quot;&gt;currentEntry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;primeView&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;getUint32&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;variableToAccess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;endTime&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;window&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;performance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;now&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure2.png&quot; alt=&quot;图2&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图2 性能分析算法的累积表现&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;图2显示了性能分析的结果，运行在 Intel i7-3720QM CPU 上， 装有 Firefox 35.0.1 和 Mac OS 10.10.2 。我们很高兴地发现在30秒内就
+映射了超过25%的组，1分钟内就达到了50%。这个算法想要并行运行是非常简单的，因为大部分的执行时间花在了数据结构的维护上，只有一小部分花在让缓存失效和
+测量上。整个算法用不到500行 JavaScript 代码就可以完成。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure3.png&quot; alt=&quot;图3&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图3 Haswell 上两种方法访问延迟的概率分布&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;为了验证我们的算法能够辨别不同的组，我们设计了一个实验来比较一个变量被 flush 前后的访问延迟。图3 显示了两种方式访问变量的概率分布函数。
+灰色的代表用我们的方式从缓存中 flush 出去的变量的访问时间；而黑色是驻留在缓存里的变量的访问时间。时间的测量用到 JavaScript 的高精度计时器，
+所以还包括了 JavaScript 运行时的延迟。两者的不同是显而易见的。图4 显示的是在较早版本的 Sandy Bridge CPU 上捕捉到的结果，该型号每个组有16个条目。&lt;/p&gt;
+
+&lt;p&gt;通过选取一些列的组，并且不断的测量它们的访问延迟，攻击者可以获得缓存实时活动非常详细的图。我们把这种视觉呈现称作 “内存谱图”，因为它看起来很像声音的谱图。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure4.png&quot; alt=&quot;图4&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图4 Sandy Bridge 上两种方法访问延迟的概率分布&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure5.png&quot; alt=&quot;图5&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图5 内存谱图示例&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;图5显示的是每隔400ms抓取一次的内存谱图。其中X轴对应时间，Y轴对应不同的组。例子中的时间分辨率是250微秒，检测了一共128个组。每个点的密度
+代表了这个组在这个时间的访问延迟。黑色代表延迟较低，意味从上次测量到现在没有其它进程访问过这个组。白色意味着攻击者的数据在上次测量之后被淘汰了。&lt;/p&gt;
+
+&lt;p&gt;细看这个内存谱图可以得到几个显而易见的事实。首先，虽然没用机器语言指令而是用了 JavaScript 的计时器，测量的抖动很小，活跃和不活跃的组
+很容易被区分。图中有几条明显的垂直的线，意味着同一时间间隔里有多个相邻的组被访问。因为连续的组对应的物理内存的地址也是连续的，所以我们
+相信这个信号代表着一个超过 64 字节的汇编指令。还有一些聚在一起的组被同时访问。我们推断这代表着变量的访问。最后，横着的白线预示着一个变量
+被不断地访问。这个变量可能是属于测量代码的或属于当前的 JavaScript 运行时。从一个没有任何特权的网页能得到这么多信息真是太了不起了。&lt;/p&gt;
+
+&lt;h3&gt;2.2 在缓存里识别意思的区域&lt;/h3&gt;
+
+&lt;p&gt;移除集让攻击者能够监控任意一个组的活动。因为我们得到的移除集是非典型的，因此攻击者必须想办法把分析过的组和受害者的数据或是代码的地址
+关联起来。这个学习/分类的问题已经由 Zhang 和 Yarom 分别在 文章[25] 和 文章[23] 里提出了，他们采用了不同的诸如 SVM 的机器学习的算法试图从
+缓存延迟的测量数据里找到规律。&lt;/p&gt;
+
+&lt;p&gt;为了有效地展开学习过程，攻击者需要诱导受害者做一些操作，然后检查哪些组被这个操作访问到，详见 算法2。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Let Si be the data structure matched to eviction set i
+1. For each set i:
+    (a) Iteratively access all members of Si to prime the cache set
+    (b) Measure the time it takes to iteratively access all members of Si
+    (c) Perform an interesting operation
+    (d) Measure once more the time it takes to iteratively access all members of Si
+    (e) If performing the interesting operation caused the access time to slow down considerably, then the operation was
+    associated with cache set i.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;因为 JavaScript 受到一系列的权限限制，实现步骤(c)是很有挑战的。与之形成对比的是 Apecechea 等人能够用一个空的 &lt;strong&gt;sysenter&lt;/strong&gt; 调用来触发一次
+细小的内核操作。为了实现这个步骤，我们必须调查 JavaScript 的运行时来发现有哪些函数会触发有意思的行为，例如文件访问，网络访问，内存分配等等。
+我们还对那些运行时间相对较短，不会产生遗留的函数感兴趣。因为遗留可能导致垃圾回收，进而影响步骤(d)的测量。Ho 等人在 文章[10] 中已经找到了这样的
+几个函数。另外一种方式是诱导用户代替攻击者执行一个特定的操作（比如在键盘上按一个键）。这个例子里的学习过程可能是结构化的（攻击者知道受害者
+将要执行的时机），也可能是非结构化的（攻击者只能假设系统一段时间内的响应缓慢是由受害者的操作导致的）。这两种方法都被使用，详见 章节4。&lt;/p&gt;
+
+&lt;p&gt;因为我们的程序会一直检测到由 JavaScript 运行时产生的活动，比如高性能的计时器的代码，浏览器其它那些与当前执行调用无关的模块的代码，实际上我们
+通过调用两个相似的函数并 &lt;strong&gt;对比&lt;/strong&gt; 它们两次活动性能分析的结果，以此来寻找相关的组。&lt;/p&gt;
+
+&lt;h2&gt;3 基于高速缓存区的隐藏信道之 JavaScript 实现&lt;/h2&gt;
+
+&lt;h3&gt;3.1 动机&lt;/h3&gt;
+
+&lt;p&gt;正如 文章[23] 所示，LLC 访问模式可被用来建立一个高带宽的隐藏信道，有效的用来在同一台宿主上的两个虚拟机之间渗透敏感的信息。在我们的攻击模型里，
+攻击者虽然不在同一台宿主上的虚拟机里，而是在一个网页中，隐藏信道的动机不一样，但是也很有意思。&lt;/p&gt;
+
+&lt;p&gt;经由动机，我们假设某个安全部门在追踪犯罪大师 Bob 的踪迹。该部门通过钓鱼项目在 Bob 的个人电脑上装了一个被称作 APT( Advanced Persistent Threat ) 的
+软件。APT 被设计用来记录 Bob 的犯罪记录并发送到部门的秘密服务器上。然而 Bob 非常的警觉，他使用了启用了强制信息流跟踪 （Information Flow Tracking ） [24]
+的操作系统。操作系统的这一功能阻止了 APT 在访问了可能含有用户隐私数据的文件后再连上网络。&lt;/p&gt;
+
+&lt;p&gt;在这种情况下，只要 Bob 能被诱导访问一个由安全部门控制的网页，这个部门就可以立刻采用基于 JavaScript 的高速缓存区攻击。APT 可以利用基于高速缓存区
+的边信道和恶意网站通信，这样就不用通过网络传输用户的隐私数据，进而不会触发操作系统的信息流跟踪功能。&lt;/p&gt;
+
+&lt;p&gt;这个研究案例受到了来自某个安全部门的 “RF retro-reflector” 设计的启发，在这个设计里一台诸如麦克风的收集器，并不会把接收到的信号直接发送出去，
+而是把接受的信号调制到由一个外部 ”收集设备“ 发送给它的 “照射信号” 上去。&lt;/p&gt;
+
+&lt;h3&gt;3.1.1 设计&lt;/h3&gt;
+
+&lt;p&gt;隐藏信道的设计有两个需求：第一，保持发送端的简单，我们尤其不想让它执行 章节2.1 中的移除集算法。第二，因为接收端的移除集是非典型的，
+它应该足够简单，这样接收端就可以搜索到发送端的信号调制到了哪一个组。&lt;/p&gt;
+
+&lt;p&gt;为了满足这些需求，我们的发射器/ APT 在自己的内存中分配了 4K 大小的数组，并且不断地把收集到的数据转换成对与这个数组的内存访问的模式。这个 4K 大小
+的数组覆盖了缓存的 64 个组，这样 APT 在每个时间周期里就能传送 64比特 的数据。为了能保证内存访问能够被接收端定位，相同的访问模式被重复
+运用到数组的几个拷贝上。 因此，高速缓冲区的大部分都会被执行到，与之形成对比的是 文章[23] 中的方法使用了典型的移除集，因此只会激活两条缓存线。&lt;/p&gt;
+
+&lt;p&gt;接收端的代码会对操作系统的内存做一个性能分析，然后搜索含有被 APT 调制后的数据所在的页框。真正的数据会被从内存访问的模式里解调出来然后传回服务器，
+整个过程都不会违背操作系统对信息流跟踪的保护。&lt;/p&gt;
+
+&lt;h3&gt;3.1.2 评估&lt;/h3&gt;
+
+&lt;p&gt;我们的攻击模型假设发送端使用（相对较快的）机器语言编写，而接收端是用 JavaScript 编写。所以，我们假设整个系统性能的限制因素是恶意网站的
+采样速度。&lt;/p&gt;
+
+&lt;p&gt;为了评估隐藏信道的带宽，我们写了一个小程序用预先设定好的模式来遍历系统的内存（即含有单词&amp;quot;Usenix&amp;quot;的比特图）。
+接下来，我们用 JavaScript 高速缓存攻击来尝试寻找这一访问模式，并测量 JavaScript 代码所能达到的最大的频率。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure6.png&quot; alt=&quot;图6&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图6 主机到主机的隐藏信道&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;图6 显示的内存谱图捕捉到了这一隐藏信道的执行。隐藏信道的理论带宽通过测量大约是 320kbps，这和 文章[23] 中用机器语言实现的跨虚拟机的隐藏信道
+1.2Mbps 的带宽比较吻合。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure7.png&quot; alt=&quot;图7&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图6 主机到虚拟机的隐藏信道&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;图7 中的内存谱图比较相似，但并不是由运行在相同主机上的接收端代码得到的，而是在一台虚拟机上得到的（Firefox 34 浏览器，Ubuntu 14.01 系统，
+VMWare Fusion 7.1.0 ）。尽管在这个场景下的高峰频率只能到大约 8kbps，但是一个虚拟机中的网页竟然能够探测到底层的硬件，这着实让人惊讶。&lt;/p&gt;
+
+&lt;h2&gt;4 利用高速缓存区攻击跟踪用户行为&lt;/h2&gt;
+
+&lt;p&gt;绝大多数关于高速缓存区攻击的研究都假设攻击者和受害者位于云计算供应商数据中心里的同一台机器上。这样的机器一般不会配置成接收交互式的输入，
+所以该领域的大部分研究都聚焦于如何获得加密钥匙或其它保密的状态信息，譬如随机数生成器的状态[26]。 本文将研究怎么利用高速缓存区攻击来跟踪用户的行为
+，这和我们的攻击模型更相关。我们注意到 文章[20] 已经尝试了利用 CPU 的一级缓存对系统负载进行细粒度的度量，以此跟踪按键事件的方法。&lt;/p&gt;
+
+&lt;p&gt;本案例将演示一个恶意网站怎么用高速缓存区攻击去跟踪用户的活动。在接下来展示的的攻击里，我们会假设用户在一个背景标签页或窗口里打开
+了一个恶意网站的页面，并且在另一个标签页或是另外一个完全没有互联网连接的应用里执行了一些敏感的操作。&lt;/p&gt;
+
+&lt;p&gt;我们选择了把焦点集中在鼠标操作和网络活动上，因为操作系统负责处理它们的代码没有办法被忽略不计。所以，我们期待这些操作会在高速缓存区留下比较大的脚印。
+而且正如下文所述，它们也很容易被 JavaScript 处处受限的安全模型所触发。&lt;/p&gt;
+
+&lt;h3&gt;4.1 设计&lt;/h3&gt;
+
+&lt;p&gt;两种攻击的结构比较类似。首先，进行性能分析，攻击者用 JavaScript 探测每一个组。接着，在训练阶段，待检测的活动（网络活动或鼠标操作）被触发，
+伴随着对高速缓存区的高精度的采样。在训练阶段一方面通过测量脚本直接触发网络活动（执行一个网络请求），另一方面是不停地在网页上摇晃鼠标。&lt;/p&gt;
+
+&lt;p&gt;通过比较在训练阶段缓存区在闲时和忙时的活动，攻击者可以知道用户操作会对应激活哪部分的组，并且训练出一个关于组的分类器。最后，
+在分类阶段，攻击者不停地监视这些有意思的组从而掌握用户的活动。&lt;/p&gt;
+
+&lt;p&gt;我们用一个基本的非结构化的训练过程，即假设训练过程中系统进行的最集中的操作就是被测量的。为了利用这点，我们计算了随着时间的
+每次测量的 Hamming 权重（等于在某个周期内活跃组的个数），之后应用 k-meas 算法对测量数据做聚类。
+然后计算每个簇中每个组的平均访问延迟，从而算出每个簇的中心。遇到未知的测量矢量，我们会计算这个矢量和各个中心的欧几里得距离，
+并把它归到最近的那一类。&lt;/p&gt;
+
+&lt;p&gt;在分类阶段，我们用命令行工具 wget 生成网络流量，并且将鼠标移动到窗口以外。为了获得网络活动的真实数据，我们同时用 tcp-dump
+来测量系统的流量，然后把 tcp-dump 记录的时间戳和分类器所检测到时间戳联系起来。为了获得鼠标操作的真实数据，我们写了一个页面记录所有
+鼠标事件及其时间戳。需要强调的是，记录鼠标活动的页面并不在运行着测量代码的浏览器（Firefox），而是运行在另一个浏览器里（Chrome）。&lt;/p&gt;
+
+&lt;h3&gt;4.2 验证&lt;/h3&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure8.png&quot; alt=&quot;图8&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图8 检测到的网络活动  &lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;img src=&quot;/images/cache_attack_in_javascript/figure9.png&quot; alt=&quot;图9&quot;&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;图9 检测到的鼠标活动 &lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;活动测量的结果见 图8 和 图9 。两个图片的顶端都显示了高速缓存区一个子集的实时活动。图片的底端是分类器的输出结果和外部收集的真实数据。
+正如图片展示的那样，我们异常简单的分类器在识别鼠标操作和网络活动方面非常有效。毫无疑问，使用更加
+高级的训练和分类技巧可以进一步提高攻击的效果。需要强调的是，鼠标操作的检测器并不会检测网络活动，反之亦然。&lt;/p&gt;
+
+&lt;p&gt;分类器的测量频率只有　500Hz。结果就是，它没有办法统计单个的包，而只能说明在一个阶段里活跃还是不活跃。另一方面，检测鼠标活动的代码要比
+记录真实数据的代码采集到的事件多。这是因为　Chrome 浏览器对鼠标事件的频率做了限制，大约是　60Hz。&lt;/p&gt;
+
+&lt;p&gt;Chen 等人在一篇著名的文章[5]中证明了对网络活动的监测可以作为深度挖掘用户行为的奠基石 。虽然 Chen 等人假设攻击者可以在网络层
+监控受害者所有流入和流出的数据，但是这里所展示的技术本质上可以让恶意网站监控用户同时进行的网络操作。攻击可以被更多的指标增强，
+例如内存分配（见文[13]），DOM　布局事件，磁盘写操作等。&lt;/p&gt;
+
+&lt;h2&gt;5 结论&lt;/h2&gt;
+
+&lt;p&gt;本文显示了边信道攻击的范围要比预期的大很多。本文提出的攻击可针对互联网上的大部分机器而不局限于某些特定的攻击场景。如此众多的系统突然间易受
+边信道攻击意味着防止边信道攻击的算法和系统应当被广泛使用，而不能只是在某些特定情况下。&lt;/p&gt;
+
+&lt;h3&gt;5.1 易被攻击系统的普遍性&lt;/h3&gt;
+
+&lt;p&gt;我们的攻击需要一台个人计算机，并配有 Intel CPU，使用了 Sandy Bridge， Ivy Bridge， Haswell 或者 Broadwell 的微架构。据 IDC 的数据显示，2011年
+以后售出的个人计算机80%都满足这一条件。更进一步，假设用户使用的浏览器支持 HTML5 高精度计时器和类型数组的规范。表1 列举了各个浏览器厂商支持这些 API
+的最早的版本和易被攻击的版本占全球互联网流量的比重，统计数据来自 StatCounter GlobalStatas 2015年一月份的报告。如表所示，目前市场上 80% 的浏览器
+都无法抵御此类攻击。&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Browser brand&lt;/th&gt;
+&lt;th&gt;High Resolution Time Support&lt;/th&gt;
+&lt;th&gt;Typed Arrays Support&lt;/th&gt;
+&lt;th&gt;Worldwide prevalence&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Internet Explorer&lt;/td&gt;
+&lt;td&gt;10&lt;/td&gt;
+&lt;td&gt;11&lt;/td&gt;
+&lt;td&gt;11.77%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Safari&lt;/td&gt;
+&lt;td&gt;8&lt;/td&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;1.86%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Chrome&lt;/td&gt;
+&lt;td&gt;20&lt;/td&gt;
+&lt;td&gt;7&lt;/td&gt;
+&lt;td&gt;50%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Firefox&lt;/td&gt;
+&lt;td&gt;15&lt;/td&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;17.67%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Opera&lt;/td&gt;
+&lt;td&gt;15&lt;/td&gt;
+&lt;td&gt;12.1&lt;/td&gt;
+&lt;td&gt;1.2%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Total&lt;/td&gt;
+&lt;td&gt;-&lt;/td&gt;
+&lt;td&gt;-&lt;/td&gt;
+&lt;td&gt;83.03%&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;攻击能否取得效果取决于能不能用 JavaScript 高精度时间API 进行精准的测量。虽然 W3C 对这个API规范定义了高精度时间的单位是 “毫秒，并精确到千分之一”，
+但是它并没有给出该值的最高分辨率，实际上浏览器不同、操作系统不同这个值也会有所区别。举个例子，我们在测试过程中发现 MacOS 上的 Safari 浏览器可以精确
+到纳秒，而 Windows 上的 IE 浏览器只能精确到 0.8 微秒。 另一方面， Chrome 浏览器在所有我们测试的操作系统上给出的分辨率都是 1 微秒。&lt;/p&gt;
+
+&lt;p&gt;所以 图3 中，单次缓存命中和缓存未命中的差别大概是 50 纳秒，性能分析和测量的脚本在时间分辨率力度更细的操作系统上要稍加改动。
+在性能分析阶段，我们没有统计单次未命中的时间，而是重复读取内存来放大时间的差别。
+在测量阶段，我们虽然没有办法放大每次缓存未命中的时间，但是我们可以利用来自相同页框的代码通常会让相邻的组失效这一点。只要同一个页框的64个组里有20个
+产生了缓存未命中，我们的攻击就可以在哪怕是毫秒级的分辨率上进行。&lt;/p&gt;
+
+&lt;p&gt;我们提出的这种攻击还可以很容易的运用到手机、平板等移动设备上。值得一提的是，安卓浏览器从 4.4 版本开始支持 高精度时间API 和 类型数组，但在
+本文撰写的时候 iOS Safari （8.1） 还不支持 高精度时间API。&lt;/p&gt;
+
+&lt;h3&gt;5.2 反制措施&lt;/h3&gt;
+
+&lt;p&gt;本文描述的攻击之所以可行，是因为它聚集了从微架构这一层到最终的 JavaScript 运行时设计和实现的的一些决定： 怎么把物理内存的地址映射到组，
+嵌套的高速缓存区架构，JavaScript 高速的内存访问和高精度计时器;最后是 JavaScript 的权限模型。这里的每一点上都可以采取一些缓解措施，
+但是都会对系统的正常使用产生影响。&lt;/p&gt;
+
+&lt;p&gt;在&lt;strong&gt;微架构&lt;/strong&gt;这层，修改物理内存到缓存线的映射方式可以非常有效地阻止我们的攻击，即不再用地址底12比特中的6个直接选择一个组。类似的，换用非嵌套的
+缓存微架构而不是用嵌套的，会让我们的代码几乎不肯能精确地一级缓存中淘汰某项，使得测量更加困难。然而，这两个设计决定当初被选择正是为了让 CPU 的设计
+和高速缓存的使用更高效，改变它们会让其它很多的应用性能受到影响。再说了，修改 CPU 微架构可不是一件小事，因为升级已经部署的硬件是肯定不行的。&lt;/p&gt;
+
+&lt;p&gt;在&lt;strong&gt;JavaScript&lt;/strong&gt;这层，似乎降低高精度计时器的分辨率就可以让攻击更难发动。但是，高精度计时器的建立是为了解决 JavaScript 开发者的实际需要的，
+这些应用范围可从音乐和游戏再到增强现实和远程医疗。&lt;/p&gt;
+
+&lt;p&gt;一个可能的权宜之计是限制应用只有在获得了用户许可后才能访问计时器（例如，通过显示一个确认窗口）或者通过第三方的认可（例如下载自可信的
+ “app store”）。&lt;/p&gt;
+
+&lt;p&gt;一种有意思的方式是使用启发式的性能分析来检测和阻止此类攻击。如 Wang 等人利用大量算法和按位指令的存在可以预示这密码学应用元素 [21] 的存在，
+可以注意到我们的攻击里各种测量步骤访问内存也会有一定的模式。因为现代的 JavaScript 的运行时，作为性能分析引导优化的机制的一部分，已经能够
+详细的检查代码的运行时性能。所以 JavaScript 运行时应该能够在执行时发现有性能分析行为的代码并且相应的修改返回结果
+（例如，在高精度计时器里加上抖动，或者动态的调整数组在内存中的位置等）。&lt;/p&gt;
+
+&lt;h3&gt;5.3 结论&lt;/h3&gt;
+
+&lt;p&gt;在这篇论文里，我们展示了如何有效地通过可疑网页发起针对微架构的边信道攻击，这种方式已被认为是非常有效的。
+与高速缓存区攻击一般被用于密码分析应用不同，本文介绍了它怎么被用来有效地跟踪用户行为。
+边信道攻击的范围已被拓展，这意味着设计新的安全系统时一定要考虑到对边信道攻击的反制措施。&lt;/p&gt;
+
+&lt;h2&gt;致谢&lt;/h2&gt;
+
+&lt;p&gt;我们很感谢激 Henry Wong 对于 Ivy Bridge 缓存淘汰策略的研究和 Burton Rosenberg 对于页和页框的讲解。&lt;/p&gt;
+
+&lt;h2&gt;参考文献&lt;/h2&gt;
+
+&lt;p&gt;见原文&lt;/p&gt;
+
+&lt;hr&gt;
+
+&lt;h2&gt;关于译文&lt;/h2&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;偶然看到这篇文章 &lt;a href=&quot;http://www.cnbeta.com/articles/387087.htm&quot;&gt;美发现新的浏览器攻击模式：可监控全球八成PC&lt;/a&gt;， 非常惊讶
+便随手点开文章里的原文连接 &lt;a href=&quot;http://arxiv.org/pdf/1502.07373v2.pdf&quot;&gt;PDF&lt;/a&gt;，读完有种脑洞大开的感觉。论文知识点涉及计算机组成原理、虚拟化、
+性能分析、JavaScript、HTML5规范等，都是我所感兴趣的领域，再加上中招的是 &lt;a href=&quot;https://cn.linkedin.com/in/longtian&quot;&gt;老东家&lt;/a&gt; 的产品，
+因此虽然我是安全领域的小白，但还是尝试精读并且斗胆翻译一下，不足之处欢迎大家批评指正。任何意见和建议请猛戳
+&lt;a href=&quot;https://github.com/wyvernnot/cache_attack_in_javascript/issues&quot;&gt;issues&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>

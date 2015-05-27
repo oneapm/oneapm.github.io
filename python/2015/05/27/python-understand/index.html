@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【译】从底层理解 Python 的执行 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="【译】从底层理解 Python 的执行 ">
+    <link rel="canonical" href="/python/2015/05/27/python-understand/">
+    
+    
+    <meta property="og:title" content="【译】从底层理解 Python 的执行 "/>
+    <meta property="og:url" content="/python/2015/05/27/python-understand/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="通过编写追踪器来从底层理解 Python 的执行"/>
+    <meta name="description" content="通过编写追踪器来从底层理解 Python 的执行"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">【译】从底层理解 Python 的执行</h1>
+                
+                <div class="meta">
+                    <address>赵斌</address> &mdash;
+                    <time pubdate datetime="2015-27-May" title="May 27, 2015">May 27, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>赵斌</address> &mdash;
+                <time pubdate datetime="2015-27-May" title="May 27, 2015">May 27, 2015</time>
+            </div>
+            <h1 class="title">【译】从底层理解 Python 的执行</h1>
+            
+        </header> -->
+
+        <section>
+            <p>原文地址：<a href="http://blog.hakril.net/articles/2-understanding-python-execution-tracer.html">Understanding Python execution from inside: A Python assembly tracer</a></p>
+
+<p>最近我在学习 Python 的运行模型。我对 Python 的一些内部机制很是好奇，比如 Python 是怎么实现类似 YIELD<em>VALUE、YIELD</em>FROM 这样的操作码的；对于 递推式构造列表(List Comprehensions)、生成器表达式(generator expressions)以及其他一些有趣的 Python 特性是怎么编译的；从字节码的层面来看，当异常抛出的时候都发生了什么事情。翻阅 CPython 的代码对于解答这些问题当然是很有帮助的，但我仍然觉得以这样的方式来做的话对于理解字节码的执行和堆栈的变化还是缺少点神马。GDB 是个好选择，但是我懒而且只想使用一些比较高阶的接口写点 Python 代码来完成这件事。</p>
+
+<p>所以呢，我的目标就是创建一个字节码级别的追踪 API，类似 sys.setrace 所提供的那样，但相对而言会有更好的粒度。这充分锻炼了我编写 Python 实现的 C 代码的编码能力。</p>
+
+<p>我们所需要的有如下几项</p>
+
+<ul>
+<li>一个新的 Cpython 解释器操作码</li>
+<li>一种将操作码注入到 Python 字节码的方法</li>
+<li>一些用于处理操作码的 Python 代码</li>
+</ul>
+
+<p>在这篇文章中所用的 Python 版本为 3.5</p>
+
+<h2>一个新的 Cpython 操作码</h2>
+
+<h3>新操作码：DEBUG_OP</h3>
+
+<p>这个新的操作码 DEBUG_OP 是我第一次尝试写 CPython 实现的 C 代码，我将尽可能的让它保持简单。
+我们想要达成的目的是当我们的操作码被执行的时候我能有一种方式来调用一些 Python 代码。同时，我们也想能够追踪一些与执行上下文有关的数据。我们的操作码会把这些信息当作参数传递给我们的回调函数。通过操作码能辨识出的有用信息如下：</p>
+
+<ul>
+<li>堆栈的内容</li>
+<li>执行 DEBUG_OP 的帧对象信息</li>
+</ul>
+
+<p>所以呢，我们的操作码需要做的事情是</p>
+
+<ul>
+<li>找到回调函数</li>
+<li>创建一个包含堆栈内容的列表</li>
+<li>调用回调函数，并将包含堆栈内容的列表和当前帧作为参数传递给它</li>
+</ul>
+
+<p>听起来挺简单的，现在开始动手吧！
+<strong>声明</strong>：下面所有的解释说明和代码是经过了大量段错误调试之后总结得到的结论
+首先要做的是给操作码定义一个名字和相应的值，因此我们需要在 <a href="https://github.com/python/cpython/blob/master/Include/opcode.h">Include/opcode.h</a> 中添加代码。</p>
+<div class="highlight"><pre><code class="language-c" data-lang="c"><span class="cm">/** My own comments begin by &#39;**&#39; **/</span>
+<span class="cm">/** From: Includes/opcode.h **/</span>
+
+<span class="cm">/* Instruction opcodes for compiled code */</span>
+
+<span class="cm">/** We just have to define our opcode with a free value</span>
+<span class="cm">    0 was the first one I found **/</span>
+<span class="cp">#define DEBUG_OP                0</span>
+
+<span class="cp">#define POP_TOP                 1</span>
+<span class="cp">#define ROT_TWO                 2</span>
+<span class="cp">#define ROT_THREE               3</span>
+</code></pre></div>
+<p>这部分工作就完成了，现在我们去编写操作码真正干活的代码。</p>
+
+<h3>实现 DEBUG_OP</h3>
+
+<p>在考虑如何实现 <code>DEBUG_OP</code> 之前我们需要了解的是 <code>DEBUG_OP</code> 提供的接口将长什么样。
+拥有一个可以调用其他代码的新操作码是相当酷眩叼炸天的，但是究竟它将调用哪些代码捏？这个操作码如何找到回调函数的捏？我选择了一种最简单的方法：在帧的全局区域写死函数名。</p>
+
+<p>那么问题就变成了，我该怎么从字典中找到一个固定的 C 字符串？</p>
+
+<p>为了回答这个问题我们来看看在 Python 的 main loop 中使用到的和上下文管理相关的标识符 <code>__enter__</code> 和 <code>__exit__</code></p>
+
+<p>我们可以看到这两标识符被使用在操作码 <code>SETUP_WITH</code> 中</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="cm">/** From: Python/ceval.c **/</span>
+<span class="n">TARGET</span><span class="p">(</span><span class="n">SETUP_WITH</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">_Py_IDENTIFIER</span><span class="p">(</span><span class="n">__exit__</span><span class="p">);</span>
+<span class="n">_Py_IDENTIFIER</span><span class="p">(</span><span class="n">__enter__</span><span class="p">);</span>
+<span class="n">PyObject</span> <span class="o">*</span><span class="n">mgr</span> <span class="o">=</span> <span class="n">TOP</span><span class="p">();</span>
+<span class="n">PyObject</span> <span class="o">*</span><span class="n">exit</span> <span class="o">=</span> <span class="n">special_lookup</span><span class="p">(</span><span class="n">mgr</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">PyId___exit__</span><span class="p">),</span> <span class="o">*</span><span class="n">enter</span><span class="p">;</span>
+<span class="n">PyObject</span> <span class="o">*</span><span class="n">res</span><span class="p">;</span>
+</code></pre></div>
+<p>现在，看一眼宏 <code>_Py_IDENTIFIER</code> 的定义</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="cm">/** From: Include/object.h **/</span>
+
+<span class="cm">/********************* String Literals ****************************************/</span>
+<span class="cm">/* This structure helps managing static strings. The basic usage goes like this:</span>
+<span class="cm">   Instead of doing</span>
+
+<span class="cm">       r = PyObject_CallMethod(o, &quot;foo&quot;, &quot;args&quot;, ...);</span>
+
+<span class="cm">   do</span>
+
+<span class="cm">       _Py_IDENTIFIER(foo);</span>
+<span class="cm">       ...</span>
+<span class="cm">       r = _PyObject_CallMethodId(o, &amp;PyId_foo, &quot;args&quot;, ...);</span>
+
+<span class="cm">   PyId_foo is a static variable, either on block level or file level. On first</span>
+<span class="cm">   usage, the string &quot;foo&quot; is interned, and the structures are linked. On interpreter</span>
+<span class="cm">   shutdown, all strings are released (through _PyUnicode_ClearStaticStrings).</span>
+
+<span class="cm">   Alternatively, _Py_static_string allows to choose the variable name.</span>
+<span class="cm">   _PyUnicode_FromId returns a borrowed reference to the interned string.</span>
+<span class="cm">   _PyObject_{Get,Set,Has}AttrId are __getattr__ versions using _Py_Identifier*.</span>
+<span class="cm">*/</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="n">_Py_Identifier</span> <span class="p">{</span>
+    <span class="k">struct</span> <span class="n">_Py_Identifier</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span>
+    <span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">string</span><span class="p">;</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">object</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">_Py_Identifier</span><span class="p">;</span>
+
+<span class="cp">#define _Py_static_string_init(value) { 0, value, 0 }</span>
+<span class="cp">#define _Py_static_string(varname, value)  static _Py_Identifier varname = _Py_static_string_init(value)</span>
+<span class="cp">#define _Py_IDENTIFIER(varname) _Py_static_string(PyId_##varname, #varname)</span>
+</code></pre></div>
+<p>嗯，注释部分已经说明得很清楚了。通过一番查找，我们发现了可以用来从字典找固定字符串的函数 <code>_PyDict_GetItemId</code>
+所以我们操作码的查找部分的代码就是长这样滴</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"> <span class="cm">/** Our callback function will be named op_target **/</span>
+<span class="n">PyObject</span> <span class="o">*</span><span class="n">target</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+<span class="n">_Py_IDENTIFIER</span><span class="p">(</span><span class="n">op_target</span><span class="p">);</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">_PyDict_GetItemId</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">f_globals</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">PyId_op_target</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">target</span> <span class="o">==</span> <span class="nb">NULL</span> <span class="o">&amp;&amp;</span> <span class="n">_PyErr_OCCURRED</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">PyErr_ExceptionMatches</span><span class="p">(</span><span class="n">PyExc_KeyError</span><span class="p">))</span>
+        <span class="k">goto</span> <span class="n">error</span><span class="p">;</span>
+    <span class="n">PyErr_Clear</span><span class="p">();</span>
+    <span class="n">DISPATCH</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>为了方便理解，对这一段代码做一些说明</p>
+
+<ul>
+<li><code>f</code> 是当前的帧，<code>f-&gt;f_globals</code> 是它的全局区域</li>
+<li>如果我们没有找到 <code>op_target</code>，我们将会检查这个异常是不是 <code>KeyError</code></li>
+<li><code>goto error;</code>是一种在 main loop 中抛出异常的方法</li>
+<li><code>PyErr_Clear()</code>抑制了当前异常的抛出，而<code>DISPATCH()</code>触发了下一个操作码的执行</li>
+</ul>
+
+<p>下一步就是收集我们想要的堆栈信息。</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="cm">/** This code create a list with all the values on the current stack **/</span>
+<span class="n">PyObject</span> <span class="o">*</span><span class="n">value</span> <span class="o">=</span> <span class="n">PyList_New</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">1</span> <span class="p">;</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="n">STACK_LEVEL</span><span class="p">();</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">PEEK</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">tmp</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">Py_None</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">PyList_Append</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">tmp</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>最后一步就是调用我们的回调函数！我们用 <code>call_function</code>来搞定这件事，我们通过研究操作码<code>CALL_FUNCTION</code>的实现来学习怎么使用<code>call_function</code></p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="cm">/** From: Python/ceval.c **/</span>
+<span class="n">TARGET</span><span class="p">(</span><span class="n">CALL_FUNCTION</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">PyObject</span> <span class="o">**</span><span class="n">sp</span><span class="p">,</span> <span class="o">*</span><span class="n">res</span><span class="p">;</span>
+    <span class="cm">/** stack_pointer is a local of the main loop.</span>
+<span class="cm">        It&#39;s the pointer to the stacktop of our frame **/</span>
+    <span class="n">sp</span> <span class="o">=</span> <span class="n">stack_pointer</span><span class="p">;</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">call_function</span><span class="p">(</span><span class="o">&amp;</span><span class="n">sp</span><span class="p">,</span> <span class="n">oparg</span><span class="p">);</span>
+    <span class="cm">/** call_function handles the args it consummed on the stack for us **/</span>
+    <span class="n">stack_pointer</span> <span class="o">=</span> <span class="n">sp</span><span class="p">;</span>
+    <span class="n">PUSH</span><span class="p">(</span><span class="n">res</span><span class="p">);</span>
+    <span class="cm">/** Standard exception handling **/</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+        <span class="k">goto</span> <span class="n">error</span><span class="p">;</span>
+    <span class="n">DISPATCH</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>有了上面这些信息，我们终于可以捣鼓出一个操作码<code>DEBUG_OP</code>的草稿了</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="n">TARGET</span><span class="p">(</span><span class="n">DEBUG_OP</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">value</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">target</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">res</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">PyObject</span> <span class="o">**</span><span class="n">sp</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">PyObject</span> <span class="o">*</span><span class="n">tmp</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+    <span class="n">_Py_IDENTIFIER</span><span class="p">(</span><span class="n">op_target</span><span class="p">);</span>
+
+    <span class="n">target</span> <span class="o">=</span> <span class="n">_PyDict_GetItemId</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">f_globals</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">PyId_op_target</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">target</span> <span class="o">==</span> <span class="nb">NULL</span> <span class="o">&amp;&amp;</span> <span class="n">_PyErr_OCCURRED</span><span class="p">())</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">PyErr_ExceptionMatches</span><span class="p">(</span><span class="n">PyExc_KeyError</span><span class="p">))</span>
+            <span class="k">goto</span> <span class="n">error</span><span class="p">;</span>
+        <span class="n">PyErr_Clear</span><span class="p">();</span>
+        <span class="n">DISPATCH</span><span class="p">();</span>
+    <span class="p">}</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">PyList_New</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="n">Py_INCREF</span><span class="p">(</span><span class="n">target</span><span class="p">);</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">1</span> <span class="p">;</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="n">STACK_LEVEL</span><span class="p">();</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">PEEK</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">tmp</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">Py_None</span><span class="p">;</span>
+        <span class="n">PyList_Append</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">tmp</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="n">PUSH</span><span class="p">(</span><span class="n">target</span><span class="p">);</span>
+    <span class="n">PUSH</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+    <span class="n">Py_INCREF</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+    <span class="n">PUSH</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+    <span class="n">sp</span> <span class="o">=</span> <span class="n">stack_pointer</span><span class="p">;</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">call_function</span><span class="p">(</span><span class="o">&amp;</span><span class="n">sp</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">stack_pointer</span> <span class="o">=</span> <span class="n">sp</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+        <span class="k">goto</span> <span class="n">error</span><span class="p">;</span>
+    <span class="n">Py_DECREF</span><span class="p">(</span><span class="n">res</span><span class="p">);</span>
+    <span class="n">DISPATCH</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>在编写 CPython 实现的 C 代码方面我确实没有什么经验，有可能我漏掉了些细节。如果您有什么建议还请您纠正，我期待您的反馈。</p>
+
+<p>编译它，成了！</p>
+
+<p>一切看起来很顺利但是当我们尝试去使用我们定义的操作码<code>DEBUG_OP</code>的时候却失败了。自从 2008 年之后，Python 使用预先写好的<a href="http://bugs.python.org/issue4753">goto</a>(你也可以从<a href="http://eli.thegreenplace.net/2012/07/12/computed-goto-for-efficient-dispatch-tables">这里</a>获取更多的讯息)。故，我们需要更新下 goto jump table，我们在 Python/opcode_targets.h 中做如下修改</p>
+<div class="highlight"><pre><code class="language-C" data-lang="C"><span class="cm">/** From: Python/opcode_targets.h **/</span>
+<span class="cm">/** Easy change since DEBUG_OP is the opcode number 1 **/</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="o">*</span><span class="n">opcode_targets</span><span class="p">[</span><span class="mi">256</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1">//&amp;&amp;_unknown_opcode,</span>
+    <span class="o">&amp;&amp;</span><span class="n">TARGET_DEBUG_OP</span><span class="p">,</span>
+    <span class="o">&amp;&amp;</span><span class="n">TARGET_POP_TOP</span><span class="p">,</span>
+    <span class="cm">/** ... **/</span>
+</code></pre></div>
+<p>这就完事了，我们现在就有了一个可以工作的新操作码。唯一的问题就是这货虽然存在但是没有被人调用过。接下来，我们将<code>DEBUG_OP</code>注入到函数的字节码中。</p>
+
+<h2>在 Python 字节码中注入操作码 DEBUG_OP</h2>
+
+<p>有很多方式可以在 Python 字节码中注入新的操作码</p>
+
+<ul>
+<li>使用 peephole optimizer，<a href="http://blog.quarkslab.com/building-an-obfuscated-python-interpreter-we-need-more-opcodes.html">Quarkslab</a>就是这么干的</li>
+<li>在生成字节码的代码中动些手脚</li>
+<li>在运行时直接修改函数的字节码(这就是我们将要干的事儿)</li>
+</ul>
+
+<p>为了创造出一个新操作码，有了上面的那一堆 C 代码就够了。现在让我们回到原点，开始理解奇怪甚至神奇的 Python！</p>
+
+<p>我们将要做的事儿有</p>
+
+<ul>
+<li>得到我们想要追踪函数的 code object</li>
+<li>重写字节码来注入<code>DEBUG_OP</code></li>
+<li>将新生成的 code object 替换回去</li>
+</ul>
+
+<h3>和 code object 有关的小贴士</h3>
+
+<p>如果你从没听说过 code object，这里有一个简单的<a href="http://blog.hakril.net/articles/0-understanding-python-by-breaking-it.html">介绍</a>
+网路上也有一些相关的<a href="https://docs.python.org/3.4/reference/datamodel.html">文档</a>可供查阅,可以直接 <code>Ctrl+F</code> 查找 code object</p>
+
+<p>还有一件事情需要注意的是在这篇文章所指的环境中 code object 是<strong>不可变</strong>的</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Python 3.4.2 (default, Oct  8 2014, 10:45:20)
+[GCC 4.9.1] on linux
+Type &quot;help&quot;, &quot;copyright&quot;, &quot;credits&quot; or &quot;license&quot; for more information.
+&gt;&gt;&gt; x = lambda y : 2
+&gt;&gt;&gt; x.__code__
+&lt;code object &lt;lambda&gt; at 0x7f481fd88390, file &quot;&lt;stdin&gt;&quot;, line 1&gt;
+&gt;&gt;&gt; x.__code__.co_name
+&#39;&lt;lambda&gt;&#39;
+&gt;&gt;&gt; x.__code__.co_name = &#39;truc&#39;
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+AttributeError: readonly attribute
+&gt;&gt;&gt; x.__code__.co_consts = (&#39;truc&#39;,)
+Traceback (most recent call last):
+  File &quot;&lt;stdin&gt;&quot;, line 1, in &lt;module&gt;
+AttributeError: readonly attribute
+</code></pre></div>
+<p>但是不用担心，我们将会找到方法绕过这个问题的</p>
+
+<h2>使用的工具</h2>
+
+<p>为了修改字节码我们需要一些工具</p>
+
+<ul>
+<li><a href="https://docs.python.org/3.4/library/dis.html">dis</a> 模块用来反编译和分析字节码</li>
+<li><code>dis.Bytecode</code>Python 3.4 新增的一个特性，对于反编译和分析字节码特别有用</li>
+<li>一个能够简单修改 code object 的方法</li>
+</ul>
+
+<p>用<code>dis.Bytecode</code>反编译 code bject 能告诉我们一些有关操作码、参数和上下文的信息</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text"># Python3.4
+&gt;&gt;&gt; import dis
+&gt;&gt;&gt; f = lambda x: x + 3
+&gt;&gt;&gt; for i in dis.Bytecode(f.__code__): print (i)
+...
+Instruction(opname=&#39;LOAD_FAST&#39;, opcode=124, arg=0, argval=&#39;x&#39;, argrepr=&#39;x&#39;, offset=0, starts_line=1, is_jump_target=False)
+Instruction(opname=&#39;LOAD_CONST&#39;, opcode=100, arg=1, argval=3, argrepr=&#39;3&#39;, offset=3, starts_line=None, is_jump_target=False)
+Instruction(opname=&#39;BINARY_ADD&#39;, opcode=23, arg=None, argval=None, argrepr=&#39;&#39;, offset=6, starts_line=None, is_jump_target=False)
+Instruction(opname=&#39;RETURN_VALUE&#39;, opcode=83, arg=None, argval=None, argrepr=&#39;&#39;, offset=7, starts_line=None, is_jump_target=False)
+</code></pre></div>
+<p>为了能够修改 code object 我定义了一个很小的类用来复制 code object 同时能够按我们的需求修改相应的值，然后重新生成一个新的 code object</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">class</span> <span class="nc">MutableCodeObject</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">args_name</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;co_argcount&quot;</span><span class="p">,</span> <span class="s">&quot;co_kwonlyargcount&quot;</span><span class="p">,</span> <span class="s">&quot;co_nlocals&quot;</span><span class="p">,</span> <span class="s">&quot;co_stacksize&quot;</span><span class="p">,</span> <span class="s">&quot;co_flags&quot;</span><span class="p">,</span> <span class="s">&quot;co_code&quot;</span><span class="p">,</span>
+                  <span class="s">&quot;co_consts&quot;</span><span class="p">,</span> <span class="s">&quot;co_names&quot;</span><span class="p">,</span> <span class="s">&quot;co_varnames&quot;</span><span class="p">,</span> <span class="s">&quot;co_filename&quot;</span><span class="p">,</span> <span class="s">&quot;co_name&quot;</span><span class="p">,</span> <span class="s">&quot;co_firstlineno&quot;</span><span class="p">,</span>
+                   <span class="s">&quot;co_lnotab&quot;</span><span class="p">,</span> <span class="s">&quot;co_freevars&quot;</span><span class="p">,</span> <span class="s">&quot;co_cellvars&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_code</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_code</span> <span class="o">=</span> <span class="n">initial_code</span>
+        <span class="k">for</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args_name</span><span class="p">:</span>
+            <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_code</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">attr</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_code</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">attr_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args_name</span><span class="p">:</span>
+            <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">attr</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_code</span><span class="o">.</span><span class="n">__class__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</code></pre></div>
+<p>这个类用起来很方便，解决了上面提到的 code object 不可变的问题</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">&gt;&gt;&gt; x = lambda y : 2
+&gt;&gt;&gt; m = MutableCodeObject(x.__code__)
+&gt;&gt;&gt; m
+&lt;new_code.MutableCodeObject object at 0x7f3f0ea546a0&gt;
+&gt;&gt;&gt; m.co_consts
+[None, 2]
+&gt;&gt;&gt; m.co_consts[1] = &#39;3&#39;
+&gt;&gt;&gt; m.co_name = &#39;truc&#39;
+&gt;&gt;&gt; m.get_code()
+&lt;code object truc at 0x7f3f0ea2bc90, file &quot;&lt;stdin&gt;&quot;, line 1&gt;
+</code></pre></div>
+<h2>测试我们的新操作码</h2>
+
+<p>我们现在拥有了注入<code>DEBUG_OP</code>的所有工具，让我们来验证下我们的实现是否可用。</p>
+
+<p>我们将我们的操作码注入到一个最简单的函数中</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">from new_code import MutableCodeObject
+
+def op_target(*args):
+    print(&quot;WOOT&quot;)
+    print(&quot;op_target called with args &lt;{0}&gt;&quot;.format(args))
+
+def nop():
+    pass
+
+new_nop_code = MutableCodeObject(nop.__code__)
+new_nop_code.co_code = b&quot;\x00&quot; + new_nop_code.co_code[0:3] + b&quot;\x00&quot; + new_nop_code.co_code[-1:]
+new_nop_code.co_stacksize += 3
+
+nop.__code__ = new_nop_code.get_code()
+
+import dis
+dis.dis(nop)
+nop()
+
+
+# Don&#39;t forget that ./python is our custom Python implementing DEBUG_OP
+hakril@computer ~/python/CPython3.5 % ./python proof.py
+  8           0 &lt;0&gt;
+              1 LOAD_CONST               0 (None)
+              4 &lt;0&gt;
+              5 RETURN_VALUE
+WOOT
+op_target called with args &lt;([], &lt;frame object at 0x7fde9eaebdb0&gt;)&gt;
+WOOT
+op_target called with args &lt;([None], &lt;frame object at 0x7fde9eaebdb0&gt;)&gt;
+</code></pre></div>
+<p>看起来它成功了！有一行代码需要说明一下<code>new_nop_code.co_stacksize += 3</code></p>
+
+<ul>
+<li>co_stacksize 表示 code object 所需要的堆栈的大小</li>
+<li>操作码<code>DEBUG_OP</code>往堆栈中增加了三项，所以我们需要为这些增加的项预留些空间</li>
+</ul>
+
+<p>现在我们可以将我们的操作码注入到每一个 Python 函数中了！</p>
+
+<h2>重写字节码</h2>
+
+<p>正如我们在上面的例子中所看到的那样，重写 Pyhton 的字节码似乎 so easy。为了在每一个操作码之间注入我们的操作码，我们需要获取每一个操作码的偏移量，然后将我们的操作码注入到这些位置上(把我们操作码注入到参数上是有坏处大大滴)。这些偏移量也很容易获取，使用<code>dis.Bytecode</code></p>
+
+<p>就像这样</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">add_debug_op_everywhere</span><span class="p">(</span><span class="n">code_obj</span><span class="p">):</span>
+    <span class="c"># We get every instruction offset in the code object</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="p">[</span><span class="n">instr</span><span class="o">.</span><span class="n">offset</span> <span class="k">for</span> <span class="n">instr</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">Bytecode</span><span class="p">(</span><span class="n">code_obj</span><span class="p">)]</span>
+    <span class="c"># And insert a DEBUG_OP at every offset</span>
+    <span class="k">return</span> <span class="n">insert_op_debug_list</span><span class="p">(</span><span class="n">code_obj</span><span class="p">,</span> <span class="n">offsets</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">insert_op_debug_list</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">offsets</span><span class="p">):</span>
+    <span class="c"># We insert the DEBUG_OP one by one</span>
+    <span class="k">for</span> <span class="n">nb</span><span class="p">,</span> <span class="n">off</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">offsets</span><span class="p">)):</span>
+        <span class="c"># Need to ajust the offsets by the number of opcodes already inserted before</span>
+        <span class="c"># That&#39;s why we sort our offsets!</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">insert_op_debug</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">off</span> <span class="o">+</span> <span class="n">nb</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">code</span>
+
+<span class="c"># Last problem: what does insert_op_debug looks like?</span>
+</code></pre></div>
+<p>基于上面的例子，有人可能会想我们的<code>insert_op_debug</code>会在指定的偏移量增加一个<code>&quot;\x00&quot;</code>，这尼玛是个坑啊！我们第一个<code>DEBUG_OP</code>注入的例子中被注入的函数是没有任何的分支的，为了能够实现完美一个函数注入函数<code>insert_op_debug</code>我们需要考虑到存在分支操作码的情况。</p>
+
+<p>Python 的分支一共有两种</p>
+
+<ul>
+<li>绝对分支：看起来是类似这样子的<code>Instruction_Pointer = argument(instruction)</code></li>
+<li>相对分支：看起来是类似这样子的<code>Instruction_Pointer += argument(instruction)</code>
+
+<ul>
+<li>相对分支总是向前的</li>
+</ul></li>
+</ul>
+
+<p>我们希望这些分支在我们插入操作码之后仍然能够正常工作，为此我们需要修改一些指令参数。以下是其逻辑流程</p>
+
+<ul>
+<li>对于每一个在插入偏移量之前的相对分支而言
+
+<ul>
+<li>如果目标地址是严格大于我们的插入偏移量的话，将指令参数增加 1</li>
+<li>如果相等，则不需要增加 1 就能够在跳转操作和目标地址之间执行我们的操作码<code>DEBUG_OP</code></li>
+<li>如果小于，插入我们的操作码的话并不会影响到跳转操作和目标地址之间的距离</li>
+</ul></li>
+<li>对于 code object 中的每一个绝对分支而言
+
+<ul>
+<li>如果目标地址是严格大于我们的插入偏移量的话，将指令参数增加 1<br></li>
+<li>如果相等，那么不需要任何修改，理由和相对分支部分是一样的</li>
+<li>如果小于，插入我们的操作码的话并不会影响到跳转操作和目标地址之间的距离</li>
+</ul></li>
+</ul>
+
+<p>下面是实现</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="c"># Helper</span>
+<span class="k">def</span> <span class="nf">bytecode_to_string</span><span class="p">(</span><span class="n">bytecode</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">bytecode</span><span class="o">.</span><span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s">&quot;&lt;Bh&quot;</span><span class="p">,</span> <span class="n">bytecode</span><span class="o">.</span><span class="n">opcode</span><span class="p">,</span> <span class="n">bytecode</span><span class="o">.</span><span class="n">arg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s">&quot;&lt;B&quot;</span><span class="p">,</span> <span class="n">bytecode</span><span class="o">.</span><span class="n">opcode</span><span class="p">)</span>
+
+<span class="c"># Dummy class for bytecode_to_string</span>
+<span class="k">class</span> <span class="nc">DummyInstr</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">opcode</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">opcode</span> <span class="o">=</span> <span class="n">opcode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">arg</span> <span class="o">=</span> <span class="n">arg</span>
+
+<span class="k">def</span> <span class="nf">insert_op_debug</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+    <span class="n">opcode_jump_rel</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;FOR_ITER&#39;</span><span class="p">,</span> <span class="s">&#39;JUMP_FORWARD&#39;</span><span class="p">,</span> <span class="s">&#39;SETUP_LOOP&#39;</span><span class="p">,</span> <span class="s">&#39;SETUP_WITH&#39;</span><span class="p">,</span> <span class="s">&#39;SETUP_EXCEPT&#39;</span><span class="p">,</span> <span class="s">&#39;SETUP_FINALLY&#39;</span><span class="p">]</span>
+    <span class="n">opcode_jump_abs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;POP_JUMP_IF_TRUE&#39;</span><span class="p">,</span> <span class="s">&#39;POP_JUMP_IF_FALSE&#39;</span><span class="p">,</span> <span class="s">&#39;JUMP_ABSOLUTE&#39;</span><span class="p">]</span>
+    <span class="n">res_codestring</span> <span class="o">=</span> <span class="n">b</span><span class="s">&quot;&quot;</span>
+    <span class="n">inserted</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">for</span> <span class="n">instr</span> <span class="ow">in</span> <span class="n">dis</span><span class="o">.</span><span class="n">Bytecode</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">instr</span><span class="o">.</span><span class="n">offset</span> <span class="o">==</span> <span class="n">offset</span><span class="p">:</span>
+            <span class="n">res_codestring</span> <span class="o">+=</span> <span class="n">b</span><span class="s">&quot;</span><span class="se">\x00</span><span class="s">&quot;</span>
+            <span class="n">inserted</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">instr</span><span class="o">.</span><span class="n">opname</span> <span class="ow">in</span> <span class="n">opcode_jump_rel</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">inserted</span><span class="p">:</span> <span class="c">#relative jump are always forward</span>
+            <span class="k">if</span> <span class="n">offset</span> <span class="o">&lt;</span> <span class="n">instr</span><span class="o">.</span><span class="n">offset</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">instr</span><span class="o">.</span><span class="n">arg</span><span class="p">:</span> <span class="c"># inserted beetwen jump and dest: add 1 to dest (3 for size)</span>
+                <span class="c">#If equal: jump on DEBUG_OP to get info before exec instr</span>
+                <span class="n">res_codestring</span> <span class="o">+=</span> <span class="n">bytecode_to_string</span><span class="p">(</span><span class="n">DummyInstr</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">opcode</span><span class="p">,</span> <span class="n">instr</span><span class="o">.</span><span class="n">arg</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">instr</span><span class="o">.</span><span class="n">opname</span> <span class="ow">in</span> <span class="n">opcode_jump_abs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">instr</span><span class="o">.</span><span class="n">arg</span> <span class="o">&gt;</span> <span class="n">offset</span><span class="p">:</span>
+                <span class="n">res_codestring</span> <span class="o">+=</span> <span class="n">bytecode_to_string</span><span class="p">(</span><span class="n">DummyInstr</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">opcode</span><span class="p">,</span> <span class="n">instr</span><span class="o">.</span><span class="n">arg</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="k">continue</span>
+        <span class="n">res_codestring</span> <span class="o">+=</span> <span class="n">bytecode_to_string</span><span class="p">(</span><span class="n">instr</span><span class="p">)</span>
+    <span class="c"># replace_bytecode just replaces the original code co_code</span>
+    <span class="k">return</span> <span class="n">replace_bytecode</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">res_codestring</span><span class="p">)</span>
+</code></pre></div>
+<p>让我们看一下效果如何</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">&gt;&gt;&gt; def lol(x):
+...     for i in range(10):
+...         if x == i:
+...             break
+
+&gt;&gt;&gt; dis.dis(lol)
+101           0 SETUP_LOOP              36 (to 39)
+              3 LOAD_GLOBAL              0 (range)
+              6 LOAD_CONST               1 (10)
+              9 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+             12 GET_ITER
+        &gt;&gt;   13 FOR_ITER                22 (to 38)
+             16 STORE_FAST               1 (i)
+
+102          19 LOAD_FAST                0 (x)
+             22 LOAD_FAST                1 (i)
+             25 COMPARE_OP               2 (==)
+             28 POP_JUMP_IF_FALSE       13
+
+103          31 BREAK_LOOP
+             32 JUMP_ABSOLUTE           13
+             35 JUMP_ABSOLUTE           13
+        &gt;&gt;   38 POP_BLOCK
+        &gt;&gt;   39 LOAD_CONST               0 (None)
+             42 RETURN_VALUE
+&gt;&gt;&gt; lol.__code__ = transform_code(lol.__code__, add_debug_op_everywhere, add_stacksize=3)
+
+
+&gt;&gt;&gt; dis.dis(lol)
+101           0 &lt;0&gt;
+              1 SETUP_LOOP              50 (to 54)
+              4 &lt;0&gt;
+              5 LOAD_GLOBAL              0 (range)
+              8 &lt;0&gt;
+              9 LOAD_CONST               1 (10)
+             12 &lt;0&gt;
+             13 CALL_FUNCTION            1 (1 positional, 0 keyword pair)
+             16 &lt;0&gt;
+             17 GET_ITER
+        &gt;&gt;   18 &lt;0&gt;
+
+102          19 FOR_ITER                30 (to 52)
+             22 &lt;0&gt;
+             23 STORE_FAST               1 (i)
+             26 &lt;0&gt;
+             27 LOAD_FAST                0 (x)
+             30 &lt;0&gt;
+
+103          31 LOAD_FAST                1 (i)
+             34 &lt;0&gt;
+             35 COMPARE_OP               2 (==)
+             38 &lt;0&gt;
+             39 POP_JUMP_IF_FALSE       18
+             42 &lt;0&gt;
+             43 BREAK_LOOP
+             44 &lt;0&gt;
+             45 JUMP_ABSOLUTE           18
+             48 &lt;0&gt;
+             49 JUMP_ABSOLUTE           18
+        &gt;&gt;   52 &lt;0&gt;
+             53 POP_BLOCK
+        &gt;&gt;   54 &lt;0&gt;
+             55 LOAD_CONST               0 (None)
+             58 &lt;0&gt;
+             59 RETURN_VALUE
+
+# Setup the simplest handler EVER
+&gt;&gt;&gt; def op_target(stack, frame):
+...     print (stack)
+
+# GO
+&gt;&gt;&gt; lol(2)
+[]
+[]
+[&lt;class &#39;range&#39;&gt;]
+[10, &lt;class &#39;range&#39;&gt;]
+[range(0, 10)]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[0, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[0, 2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[False, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[1, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[1, 2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[False, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[2, 2, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[True, &lt;range_iterator object at 0x7f1349afab80&gt;]
+[&lt;range_iterator object at 0x7f1349afab80&gt;]
+[]
+[None]
+</code></pre></div>
+<p>甚好！现在我们知道了如何获取堆栈信息和 Python 中每一个操作对应的帧信息。上面结果所展示的结果目前而言并不是很实用。在最后一部分中让我们对注入做进一步的封装。</p>
+
+<h2>增加 Python 封装</h2>
+
+<p>正如您所见到的，所有的底层接口都是好用的。我们最后要做的一件事是让 op_target 更加方便使用(这部分相对而言比较空泛一些，毕竟在我看来这不是整个项目中最有趣的部分)</p>
+
+<p>首先我们来看一下帧的参数所能提供的信息，如下所示</p>
+
+<ul>
+<li><code>f_code</code>当前帧将执行的 code object</li>
+<li><code>f_lasti</code>当前的操作(code object 中的字节码字符串的索引)</li>
+</ul>
+
+<p>经过我们的处理我们可以得知<code>DEBUG_OP</code>之后要被执行的操作码，这对我们聚合数据并展示是相当有用的。</p>
+
+<p>新建一个用于追踪函数内部机制的类</p>
+
+<ul>
+<li>改变函数自身的 <code>co_code</code></li>
+<li>设置回调函数作为<code>op_debug</code>的目标函数</li>
+</ul>
+
+<p>一旦我们知道下一个操作，我们就可以分析它并修改它的参数。举例来说我们可以增加一个<code>auto-follow-called-functions</code>的特性</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">op_target</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">exc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">op_target</span><span class="o">.</span><span class="n">callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">op_target</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Trace</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_func_to_trace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">)</span>
+        <span class="c"># Activate Trace callback for the func call</span>
+        <span class="n">op_target</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">e</span>
+        <span class="n">op_target</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+    <span class="k">def</span> <span class="nf">add_func_to_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+        <span class="c"># Is it code? is it already transformed?</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">f</span> <span class="p">,</span><span class="s">&quot;op_debug&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">&quot;__code__&quot;</span><span class="p">):</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">__code__</span> <span class="o">=</span> <span class="n">transform_code</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">__code__</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">add_everywhere</span><span class="p">,</span> <span class="n">add_stacksize</span><span class="o">=</span><span class="n">ADD_STACK</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">__globals__</span><span class="p">[</span><span class="s">&#39;op_target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">op_target</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">op_debug</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">do_auto_follow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stack</span><span class="p">,</span> <span class="n">frame</span><span class="p">):</span>
+        <span class="c"># Nothing fancy: FrameAnalyser is just the wrapper that gives the next executed instruction</span>
+        <span class="n">next_instr</span> <span class="o">=</span> <span class="n">FrameAnalyser</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span><span class="o">.</span><span class="n">next_instr</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s">&quot;CALL&quot;</span> <span class="ow">in</span> <span class="n">next_instr</span><span class="o">.</span><span class="n">opname</span><span class="p">:</span>
+            <span class="n">arg</span> <span class="o">=</span> <span class="n">next_instr</span><span class="o">.</span><span class="n">arg</span>
+            <span class="n">f_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xff</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&gt;&gt;</span> <span class="mi">8</span><span class="p">))</span>
+            <span class="n">called_func</span> <span class="o">=</span> <span class="n">stack</span><span class="p">[</span><span class="n">f_index</span><span class="p">]</span>
+
+            <span class="c"># If call target is not traced yet: do it</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">called_func</span><span class="p">,</span> <span class="s">&quot;op_debug&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_func_to_trace</span><span class="p">(</span><span class="n">called_func</span><span class="p">)</span>
+</code></pre></div>
+<p>现在我们实现一个 Trace 的子类，在这个子类中增加 callback 和 do<em>report 这两个方法。callback 方法将在每一个操作之后被调用。do</em>report 方法将我们收集到的信息打印出来。</p>
+
+<p>这是一个伪函数追踪器实现</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">class</span> <span class="nc">DummyTrace</span><span class="p">(</span><span class="n">Trace</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">known_frame</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stack</span><span class="p">,</span> <span class="n">frame</span><span class="p">,</span> <span class="n">exc</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">frame</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">known_frame</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">known_frame</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; === Entering New Frame {0} ({1}) ===&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">frame</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> <span class="o">=</span> <span class="n">frame</span>
+        <span class="k">if</span> <span class="n">frame</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; === Returning to Frame {0} {1}===&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="n">frame</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_frame</span> <span class="o">=</span> <span class="n">frame</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">stack</span><span class="p">))</span>
+        <span class="n">instr</span> <span class="o">=</span> <span class="n">FrameAnalyser</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span><span class="o">.</span><span class="n">next_instr</span><span class="p">()</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">offset</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">opname</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">opname</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+        <span class="n">arg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">arg</span><span class="p">)</span><span class="o">.</span><span class="n">ljust</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">report</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{0}  {1} {2} {3}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="n">opname</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">instr</span><span class="o">.</span><span class="n">argval</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">do_auto_follow</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span> <span class="n">frame</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">do_report</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">report</span><span class="p">))</span>
+</code></pre></div>
+<p>这里有一些实现的例子和使用方法。格式有些不方便观看，毕竟我并不擅长于搞这种对用户友好的报告的事儿</p>
+
+<ul>
+<li><a href="http://hakril.net/python/article/example_dummy_trace.html">例1</a> 自动追踪堆栈信息和已经执行的指令</li>
+<li><a href="http://hakril.net/python/article/example_dummy_contextmanager.html">例2</a>上下文管理</li>
+</ul>
+
+<p>递推式构造列表(List Comprehensions)的追踪示例</p>
+
+<ul>
+<li><a href="http://hakril.net/python/article/example_list_comp_dummy.html">例3</a>伪追踪器的输出</li>
+<li><a href="http://hakril.net/python/article/example_list_comp_stacktrace.html">例4</a>输出收集的堆栈信息</li>
+</ul>
+
+<h2>总结</h2>
+
+<p>这个小项目是一个了解 Python 底层的良好途径，包括解释器的 main loop，Python 实现的 C 代码编程、Python 字节码。通过这个小工具我们可以看到 Python 一些有趣构造函数的字节码行为，例如生成器、上下文管理和递推式构造列表。</p>
+
+<p><a href="http://hakril.net/blog_data/assembly_tracer_code.zip">这里</a>是这个小项目的完整代码。</p>
+
+<p>更进一步的，我们还可以做的是修改我们所追踪的函数的堆栈。我虽然不确定这个是否有用，但是可以肯定是这一过程是相当有趣的。</p>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/zhaobin.jpg">
+                <p><strong>赵斌</strong><br>
+                <span class="muted">Python 工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/python/2015/05/27/python-understand" data-title="【译】从底层理解 Python 的执行" data-url="http://code.oneapm.com/python/2015/05/27/python-understand/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
