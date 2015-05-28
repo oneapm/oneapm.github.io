@@ -6,8 +6,8 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Thu, 28 May 2015 06:05:17 +0000</pubDate>
-    <lastBuildDate>Thu, 28 May 2015 06:05:17 +0000</lastBuildDate>
+    <pubDate>Thu, 28 May 2015 09:11:08 +0000</pubDate>
+    <lastBuildDate>Thu, 28 May 2015 09:11:08 +0000</lastBuildDate>
 
     
     
@@ -1227,7 +1227,7 @@ root@Exp-1:/tmp#
   &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;I am sure that it will be here!&amp;#39;&lt;/span&gt;
 &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
 
-&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; return default&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# =&amp;gt; I am sure that it will be here!&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;像这种情况，在&lt;code&gt;ensure&lt;/code&gt;语句之前，无论是否显示用&lt;code&gt;return&lt;/code&gt;来返回，&lt;code&gt;m1&lt;/code&gt;方法都会返回&lt;code&gt;ensure&lt;/code&gt;之前的值，
 &lt;code&gt;ensure&lt;/code&gt;语句只是确保之后的代码块&lt;code&gt;puts &amp;#39;I am sure that it will be here!&amp;#39;&lt;/code&gt;执行，但是不会从这里返回。

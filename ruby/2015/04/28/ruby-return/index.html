@@ -105,7 +105,7 @@
   <span class="nb">puts</span> <span class="s1">&#39;I am sure that it will be here!&#39;</span>
 <span class="k">end</span>
 
-<span class="n">m1</span> <span class="c1"># =&gt; return default</span>
+<span class="n">m1</span> <span class="c1"># =&gt; I am sure that it will be here!</span>
 </code></pre></div>
 <p>像这种情况，在<code>ensure</code>语句之前，无论是否显示用<code>return</code>来返回，<code>m1</code>方法都会返回<code>ensure</code>之前的值，
 <code>ensure</code>语句只是确保之后的代码块<code>puts &#39;I am sure that it will be here!&#39;</code>执行，但是不会从这里返回。
