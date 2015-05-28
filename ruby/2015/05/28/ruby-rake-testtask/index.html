@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rake::TestTask 介绍 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Rake::TestTask 介绍 ">
+    <link rel="canonical" href="/ruby/2015/05/28/ruby-rake-testtask/">
+    
+    
+    <meta property="og:title" content="Rake::TestTask 介绍 "/>
+    <meta property="og:url" content="/ruby/2015/05/28/ruby-rake-testtask/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="如何更简单的执行测试命令。"/>
+    <meta name="description" content="如何更简单的执行测试命令。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Rake::TestTask 介绍</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-28-May" title="May 28, 2015">May 28, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-28-May" title="May 28, 2015">May 28, 2015</time>
+            </div>
+            <h1 class="title">Rake::TestTask 介绍</h1>
+            
+        </header> -->
+
+        <section>
+            <p>通常我们创建一个新的项目的时候，会建立一个<code>test</code>或者<code>spec</code>的文件夹来存放测试的文件，运行这些测试需要单独的命令，比如在项目目录下执行<code>rspec .</code>或者<code>ruby test.rb</code>等等，这些测试的工具中大多也都提供了更方便的方式来运行这些测试，但是如果你喜欢用<code>Rake</code>的话，那就有另外一个选择<code>Rake::TestTask</code>。</p>
+
+<p>先上代码：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s2">&quot;rake/testtask&quot;</span>
+
+<span class="no">Rake</span><span class="o">::</span><span class="no">TestTask</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="o">|</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">libs</span> <span class="o">&lt;&lt;</span> <span class="s2">&quot;test&quot;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;test/*_test.rb&quot;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="kp">true</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>将以上代码保存或添加到项目目录中的<code>Rakefile</code>，然后在这个目录下执行<code>rake test</code>，你就可以看到如下输出（这里我用的测试框架是<code>Minitest</code>）：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">/home/lizhe/.rvm/rubies/ruby-2.2.2/bin/ruby -I&quot;lib:test&quot;  &quot;/home/lizhe/.rvm/rubies/ruby-2.2.2/lib/ruby/2.2.0/rake/rake_test_loader.rb&quot; &quot;test/person_test.rb&quot;
+Run options: --seed 535
+
+# Running:
+
+.
+
+Finished in 0.000558s, 1793.5482 runs/s, 1793.5482 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+</code></pre></div>
+<p>如果去掉最上面代码中的<code>t.verbose = true</code>的话：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s2">&quot;rake/testtask&quot;</span>
+
+<span class="no">Rake</span><span class="o">::</span><span class="no">TestTask</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="o">|</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">libs</span> <span class="o">&lt;&lt;</span> <span class="s2">&quot;test&quot;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;test/*_test.rb&quot;</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>则输出结果就不会显示执行的ruby命令，如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Run options: --seed 17527
+
+# Running:
+
+.
+
+Finished in 0.001629s, 613.9689 runs/s, 613.9689 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+</code></pre></div>
+<p>这里再介绍一下<code>Rake::TestTask</code>的配置选项：</p>
+
+<ul>
+<li><code>libs</code>会被添加到<code>$LOAD_PATH</code>中；</li>
+<li><code>pattern</code> 测试文件的名称匹配，还有另外一个叫做<code>test_files</code>，这两个使用哪一个都可以，如果同时使用的话，会合并两者；</li>
+<li><code>verbose</code> 输出这个<code>Rake::TestTask</code>执行的具体Ruby命令；</li>
+<li><code>options</code> 指定给测试框架的参数，类型为数组，也可以通过传入<code>TESTOPTS</code>命令行参数达到相同的目的；</li>
+<li><code>ruby_opts</code> 执行ruby命令时的参数，类型为数组，比如可以在指定为<code>-rtesthelper</code>，避免每个测试文件重复<code>require &quot;test_helper&quot;</code>；</li>
+<li><code>name</code> <code>Rake Task</code>的名称，默认是<code>test</code>；</li>
+</ul>
+
+<p>还有一点，在我们执行<code>rake test</code>的时候，是可以传入一些参数的，比如我执行执行<code>test/dummy_test.rb</code>这个测试，那么就可以指定<code>TEST</code>参数：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">rake test TEST=test/dummy_test.rb
+</code></pre></div>
+<p>还可以通过<code>TESTOPTS</code>给你使用的测试框架传入参数，比如<code>Minitest</code>有<code>-v</code>和<code>-p</code>两个参数，那么就可以这样传进去：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">rake test TESTOPTS=&quot;-vp&quot;
+</code></pre></div>
+<p>参考链接：</p>
+
+<ul>
+<li><a href="http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html">http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html</a></li>
+</ul>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创文章 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/05/28/ruby-rake-testtask" data-title="Rake::TestTask 介绍" data-url="http://code.oneapm.com/ruby/2015/05/28/ruby-rake-testtask/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

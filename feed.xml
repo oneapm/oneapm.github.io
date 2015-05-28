@@ -6,9 +6,86 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Wed, 27 May 2015 06:09:20 +0000</pubDate>
-    <lastBuildDate>Wed, 27 May 2015 06:09:20 +0000</lastBuildDate>
+    <pubDate>Thu, 28 May 2015 06:05:17 +0000</pubDate>
+    <lastBuildDate>Thu, 28 May 2015 06:05:17 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Rake::TestTask 介绍</title>
+      <link>/ruby/2015/05/28/ruby-rake-testtask/</link>
+      <pubDate>Thu, 28 May 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/05/28/ruby-rake-testtask</guid>
+      <description>&lt;p&gt;通常我们创建一个新的项目的时候，会建立一个&lt;code&gt;test&lt;/code&gt;或者&lt;code&gt;spec&lt;/code&gt;的文件夹来存放测试的文件，运行这些测试需要单独的命令，比如在项目目录下执行&lt;code&gt;rspec .&lt;/code&gt;或者&lt;code&gt;ruby test.rb&lt;/code&gt;等等，这些测试的工具中大多也都提供了更方便的方式来运行这些测试，但是如果你喜欢用&lt;code&gt;Rake&lt;/code&gt;的话，那就有另外一个选择&lt;code&gt;Rake::TestTask&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;先上代码：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;rake/testtask&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Rake&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TestTask&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;libs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test/*_test.rb&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;verbose&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;将以上代码保存或添加到项目目录中的&lt;code&gt;Rakefile&lt;/code&gt;，然后在这个目录下执行&lt;code&gt;rake test&lt;/code&gt;，你就可以看到如下输出（这里我用的测试框架是&lt;code&gt;Minitest&lt;/code&gt;）：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;/home/lizhe/.rvm/rubies/ruby-2.2.2/bin/ruby -I&amp;quot;lib:test&amp;quot;  &amp;quot;/home/lizhe/.rvm/rubies/ruby-2.2.2/lib/ruby/2.2.0/rake/rake_test_loader.rb&amp;quot; &amp;quot;test/person_test.rb&amp;quot;
+Run options: --seed 535
+
+# Running:
+
+.
+
+Finished in 0.000558s, 1793.5482 runs/s, 1793.5482 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;如果去掉最上面代码中的&lt;code&gt;t.verbose = true&lt;/code&gt;的话：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;rake/testtask&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Rake&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TestTask&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;libs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test/*_test.rb&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;则输出结果就不会显示执行的ruby命令，如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Run options: --seed 17527
+
+# Running:
+
+.
+
+Finished in 0.001629s, 613.9689 runs/s, 613.9689 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里再介绍一下&lt;code&gt;Rake::TestTask&lt;/code&gt;的配置选项：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;libs&lt;/code&gt;会被添加到&lt;code&gt;$LOAD_PATH&lt;/code&gt;中；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;pattern&lt;/code&gt; 测试文件的名称匹配，还有另外一个叫做&lt;code&gt;test_files&lt;/code&gt;，这两个使用哪一个都可以，如果同时使用的话，会合并两者；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;verbose&lt;/code&gt; 输出这个&lt;code&gt;Rake::TestTask&lt;/code&gt;执行的具体Ruby命令；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;options&lt;/code&gt; 指定给测试框架的参数，类型为数组，也可以通过传入&lt;code&gt;TESTOPTS&lt;/code&gt;命令行参数达到相同的目的；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ruby_opts&lt;/code&gt; 执行ruby命令时的参数，类型为数组，比如可以在指定为&lt;code&gt;-rtesthelper&lt;/code&gt;，避免每个测试文件重复&lt;code&gt;require &amp;quot;test_helper&amp;quot;&lt;/code&gt;；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;name&lt;/code&gt; &lt;code&gt;Rake Task&lt;/code&gt;的名称，默认是&lt;code&gt;test&lt;/code&gt;；&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;还有一点，在我们执行&lt;code&gt;rake test&lt;/code&gt;的时候，是可以传入一些参数的，比如我执行执行&lt;code&gt;test/dummy_test.rb&lt;/code&gt;这个测试，那么就可以指定&lt;code&gt;TEST&lt;/code&gt;参数：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;rake test TEST=test/dummy_test.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;还可以通过&lt;code&gt;TESTOPTS&lt;/code&gt;给你使用的测试框架传入参数，比如&lt;code&gt;Minitest&lt;/code&gt;有&lt;code&gt;-v&lt;/code&gt;和&lt;code&gt;-p&lt;/code&gt;两个参数，那么就可以这样传进去：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;rake test TESTOPTS=&amp;quot;-vp&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;参考链接：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html&quot;&gt;http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
