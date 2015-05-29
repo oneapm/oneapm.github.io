@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【译】使用Rails 4.2+ 测试异步邮件系统 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="【译】使用Rails 4.2+ 测试异步邮件系统 ">
+    <link rel="canonical" href="/ruby/2015/05/26/test-rails-mailer/">
+    
+    
+    <meta property="og:title" content="【译】使用Rails 4.2+ 测试异步邮件系统 "/>
+    <meta property="og:url" content="/ruby/2015/05/26/test-rails-mailer/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="异步的测试总是一个问题，如何在Rails中测试异步邮件系统，来看看这篇就知道了。"/>
+    <meta name="description" content="异步的测试总是一个问题，如何在Rails中测试异步邮件系统，来看看这篇就知道了。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">【译】使用Rails 4.2+ 测试异步邮件系统</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-26-May" title="May 26, 2015">May 26, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-26-May" title="May 26, 2015">May 26, 2015</time>
+            </div>
+            <h1 class="title">【译】使用Rails 4.2+ 测试异步邮件系统</h1>
+            
+        </header> -->
+
+        <section>
+            <p>原文链接：<a href="https://blog.engineyard.com/2015/testing-async-emails-rails-42">Testing async emails, the Rails 4.2+ way</a></p>
+
+<p>假设想写一个需要发送邮件的应用，我们都知道在这种情况是绝对不能block控制器的，因此异步传送才是解决之道。为了达到这个目的，我们需要
+将邮件发送代码从最初的request/response循环中移到后台的异步处理进程中去。</p>
+
+<p>然而，做出这样的改变之后，我们如何确保代码能够一如往常的运行呢？在这篇博文中，我们会探索一种新方法来进行测试，我们将要使用的<code>MiniTest</code>(Rails已经内置了这个框架)，
+这里的概念同样使用<code>Rspec</code>。</p>
+
+<p>现在有一个好消息，那就是从Rails 4.2开始，异步传送邮件已经比之前简单多了。我们在例子中使用<code>Sidekiq</code>作为队列系统。由于<code>ActionMailer#deliver_later</code>建立在<code>ActiveJob</code>之上，
+接口非常的简洁明了。这表示，要不是我刚才提了一下，身为开发者或用户的你也不会知情。建立队列系统是另外一个话题，
+你可以在<a href="https://blog.engineyard.com/2014/getting-started-with-active-job">getting started with Active Job here</a>中了解更多相关的信息。</p>
+
+<h2>别太依赖小组件</h2>
+
+<p>在例子中，我们假定<code>Sidekiq</code>及其依赖组件配置正确，因此本场景特有的一段代码是声明<code>Active Job</code>该使用哪一个队列调节器。</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># config/application.rb</span>
+
+<span class="k">module</span> <span class="nn">OurApp</span>
+  <span class="k">class</span> <span class="nc">Application</span> <span class="o">&lt;</span> <span class="no">Rails</span><span class="o">::</span><span class="no">Application</span>
+    <span class="c1"># ...</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">active_job</span><span class="o">.</span><span class="n">queue_adapter</span> <span class="o">=</span> <span class="ss">:sidekiq</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>Active Job在隐藏实质性的队列配置细节方面功能非常强大，以至于若是使用<code>Resque</code>，<code>Delayed Job</code>或其他组件，代码也不需要太大的改动。
+因此，如果我们转而使用<code>Sucker Punch</code>，唯一的改变就是在引用相应的依赖包后，将<code>queue_adapter</code>从<code>:sidekiq</code>改为<code>：sucker_punch</code>就可以了。</p>
+
+<h2>站在Active Job的肩膀上</h2>
+
+<p>如果你是Rails 4.2或者<code>Active Job</code>不太了解，<a href="Ben%20Lewis&#x27;s%20intro%20to%20Active%20Job">https://blog.engineyard.com/2014/getting-started-with-active-job</a>
+是就是很好的入门读物。然而，这篇文章留给我的一个小期许是，找到一种简洁、地道的测试方法，从而让所有组件都能正常的运行。</p>
+
+<p>根据本文的目标，我们假定你已经部署了：</p>
+
+<ul>
+<li>Rails 4.2或者一个更高的版本</li>
+<li>已经设置好<code>queue_adapter</code>的Active Job (Sidekiq, Resque, 等)</li>
+<li>一封邮件</li>
+</ul>
+
+<p>任何邮件都应该能够按照这里描述的方式正常工作，这里我们就用一封欢迎邮件来使这个例子更实用：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1">#app/mailers/user_mailer.rb</span>
+
+<span class="k">class</span> <span class="nc">UserMailer</span> <span class="o">&lt;</span> <span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span>
+  <span class="n">default</span> <span class="ss">from</span><span class="p">:</span> <span class="s1">&#39;email@example.com&#39;</span>
+
+  <span class="k">def</span> <span class="nf">welcome_email</span><span class="p">(</span><span class="ss">user</span><span class="p">:)</span>
+    <span class="n">mail</span><span class="p">(</span>
+      <span class="ss">to</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span>
+      <span class="ss">subject</span><span class="p">:</span> <span class="s2">&quot;Hi </span><span class="si">#{</span><span class="n">user</span><span class="o">.</span><span class="n">first_name</span><span class="si">}</span><span class="s2">, and welcome!&quot;</span>
+    <span class="p">)</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>为了保持程序简单并有针对性，我们会在每个用户注册后发送给他们一封欢迎邮件。</p>
+
+<p>这和<a href="http://guides.rubyonrails.org/action_mailer_basics.html#calling-the-mailer">the Rails guides mailer example</a>是一样的：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># app/controllers/users_controller.rb</span>
+
+<span class="k">class</span> <span class="nc">UsersController</span> <span class="o">&lt;</span> <span class="no">ApplicationController</span>
+  <span class="k">def</span> <span class="nf">create</span>
+    <span class="c1"># Yes, Ruby 2.0+ keyword arguments are preferred</span>
+    <span class="no">UserMailer</span><span class="o">.</span><span class="n">welcome_email</span><span class="p">(</span><span class="ss">user</span><span class="p">:</span> <span class="vi">@user</span><span class="p">)</span><span class="o">.</span><span class="n">deliver_later</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<h2>The Mailer Should Do Its Job, Eventually</h2>
+
+<p>接下来，我们想确保控制器内的任务能如所期待的那样执行。</p>
+
+<p>在测试指南中，<a href="http://guides.rubyonrails.org/testing.html#custom-assertions-and-testing-jobs-inside-other-components">custom assertions for testing jobs inside other components</a>
+的章节介绍了大约六种这样的自定义断言方法。</p>
+
+<p>或许直觉告诉你应该单刀直入，然后使用<code>assert_enqueued_jobs</code> <code>assert-enqueued-jobs</code> 来测试每次添加新用户时，我们有否将邮件传送任务放入队列。</p>
+
+<p>你可能会这么做：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># test/controllers/users_controller_test.rb</span>
+
+<span class="nb">require</span> <span class="s1">&#39;test_helper&#39;</span>
+
+<span class="k">class</span> <span class="nc">UsersControllerTest</span> <span class="o">&lt;</span> <span class="no">ActionController</span><span class="o">::</span><span class="no">TestCase</span>
+  <span class="nb">test</span> <span class="s1">&#39;email is enqueued to be delivered later&#39;</span> <span class="k">do</span>
+    <span class="n">assert_enqueued_jobs</span> <span class="mi">1</span> <span class="k">do</span>
+      <span class="n">post</span> <span class="ss">:create</span><span class="p">,</span> <span class="p">{}</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>然而如果这么做，你会惊奇地发现测试失败了，系统会告诉你<code>assert_enqueued_jobs</code>未经定义，且无法使用。</p>
+
+<p>这是因为，我们的测试类继承自<code>ActionController::TestCase</code>，而后者在编写时没有包含<code>ActiveJob::TestHelper</code>。</p>
+
+<p>不过我们很快就可以修正这一点：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># test/test_helper.rb</span>
+
+<span class="k">class</span> <span class="nc">ActionController</span><span class="o">::</span><span class="no">TestCase</span>
+  <span class="kp">include</span> <span class="no">ActiveJob</span><span class="o">::</span><span class="no">TestHelper</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>假定我们的代码如期执行，那么测试应该就能顺利通过了。</p>
+
+<p>这是好消息。现在，我们可以重构我们的代码，增加新的功能，也可以增加新的测试。我们可以选择后者，看看我们的邮件有否投递成功，如果是的话，那就检查投递的内容是否正确。</p>
+
+<p><code>ActionMailer</code>能为我们提供一个包含所有发出邮件的队列，前提是将<code>delivery_method</code>选项设置为：<code>test</code>，我们能通过<code>ActionMailer::Base.deliveries</code>读取这个队列。</p>
+
+<p>当同步的地投递邮件时，检测邮件是否发送成功是很容易的。我们只需检查在动作完成后，投递计数器加1。用<code>MiniTest</code>来写的话，就像下面这样：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">assert_difference</span> <span class="s1">&#39;ActionMailer::Base.deliveries.size&#39;</span><span class="p">,</span> <span class="o">+</span><span class="mi">1</span> <span class="k">do</span>
+  <span class="n">post</span> <span class="ss">:create</span><span class="p">,</span> <span class="p">{}</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>我们的测试是实时发生的，但在开篇就已经知道不能阻拦控制器，需要在后台进程中发送邮件，现在我们把所有的组件都组装起来，确定系统是没有问题的。
+因此，在异步的世界里，我们必须先执行所有队列中的任务再去判定执行结果。为了执行pending中的<code>Active Job</code>任务，我们使用<code>perform_enqueued_jobs</code>：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">test</span> <span class="s1">&#39;email is delivered with expected content&#39;</span> <span class="k">do</span>
+  <span class="n">perform_enqueued_jobs</span> <span class="k">do</span>
+    <span class="n">post</span> <span class="ss">:create</span><span class="p">,</span> <span class="p">{}</span>
+    <span class="n">delivered_email</span> <span class="o">=</span> <span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="o">.</span><span class="n">last</span>
+
+    <span class="c1"># assert our email has the expected content, e.g.</span>
+    <span class="n">assert_includes</span> <span class="n">delivered_email</span><span class="o">.</span><span class="n">to</span><span class="p">,</span> <span class="vi">@user</span><span class="o">.</span><span class="n">email</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<h2>缩短反馈流程</h2>
+
+<p>目前为止，我们都在进行功能性测试以确保我们的控制器如期执行。但是，代码的变化足以破坏我们发送的邮件，为什么不对我们的邮件程序进行单元测试，从而缩短反馈流程，然后更快地洞察变化呢？</p>
+
+<p>Rails测试指南建议在这里使用fixtures，但是我觉得他们太生硬了。尤其是一开始，当我们还在尝试设计邮件时，一个变化很快就会让他们变得不可用，让我们的测试无法通过。
+我偏向使用<code>assert_match</code>以关注那些构成邮件主体的关键元素。</p>
+
+<p>为此，也因为其他原因(比如抽离处理多部分邮件的逻辑结构)，我们可以建立自定义断言。这可以扩展<code>MiniTest</code>标准断言或Rails专属断言。
+这也是创建自己的领域专属语言(Domain Specific Language)并用于测试的好例子。</p>
+
+<p>让我们在测试一文件夹内创建一个共享文件夹，用以存放<code>SharedMailerTests</code>模块。我们自定义的断言可以这么来写：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># /test/shared/shared_mailer_tests.rb</span>
+
+<span class="k">module</span> <span class="nn">SharedMailerTests</span>
+  <span class="k">def</span> <span class="nf">assert_email_body_matches</span><span class="p">(</span><span class="ss">matcher</span><span class="p">:,</span> <span class="ss">email</span><span class="p">:)</span>
+    <span class="k">if</span> <span class="n">email</span><span class="o">.</span><span class="n">multipart?</span>
+      <span class="sx">%w(text html)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">part</span><span class="o">|</span>
+        <span class="n">assert_match</span> <span class="n">matcher</span><span class="p">,</span> <span class="n">email</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">#{</span><span class="n">part</span><span class="si">}</span><span class="s2">_part&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">to_s</span>
+      <span class="k">end</span>
+    <span class="k">else</span>
+      <span class="n">assert_match</span> <span class="n">matcher</span><span class="p">,</span> <span class="n">email</span><span class="o">.</span><span class="n">body</span><span class="o">.</span><span class="n">to_s</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>接下来，我们需要让邮件测试系统注意到这个自定义断言，为此，我们可以将其放入<code>ActionMailer::TestCase</code>类中。
+然后可以借鉴之前把<code>ActiveJob::TestHelper</code>类包含于<code>ActionController::TestCase</code>类的方法：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># test/test_helper.rb</span>
+
+<span class="nb">require</span> <span class="s1">&#39;shared/shared_mailer_tests&#39;</span>
+
+<span class="k">class</span> <span class="nc">ActionMailer</span><span class="o">::</span><span class="no">TestCase</span>
+  <span class="kp">include</span> <span class="no">SharedMailerTests</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>注意，我们首先需要在<code>test_helper</code>中<code>require shared_mailer_tests</code>。</p>
+
+<p>这些办好之后，我们现在可以确信我们的邮件中包含我们期望的关键元素。假设我们想确保发送给用户的URL包含一些用于追踪的特定UTM参数。
+我们现在可以将自定义断言与老朋友<code>perform_enqueued_jobs</code>联合起来使用，就像这样：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># test/mailers/user_mailer_test.rb</span>
+
+<span class="k">class</span> <span class="nc">ToolMailerTest</span> <span class="o">&lt;</span> <span class="no">ActionMailer</span><span class="o">::</span><span class="no">TestCase</span>
+  <span class="nb">test</span> <span class="s1">&#39;emailed URL contains expected UTM params&#39;</span> <span class="k">do</span>
+    <span class="no">UserMailer</span><span class="o">.</span><span class="n">welcome_email</span><span class="p">(</span><span class="ss">user</span><span class="p">:</span> <span class="vi">@user</span><span class="p">)</span><span class="o">.</span><span class="n">deliver_later</span>
+
+    <span class="n">perform_enqueued_jobs</span> <span class="k">do</span>
+      <span class="n">refute</span> <span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="o">.</span><span class="n">empty?</span>
+
+      <span class="n">delivered_email</span> <span class="o">=</span> <span class="no">ActionMailer</span><span class="o">::</span><span class="no">Base</span><span class="o">.</span><span class="n">deliveries</span><span class="o">.</span><span class="n">last</span>
+      <span class="sx">%W(</span>
+<span class="sx">        utm_campaign=</span><span class="si">#{</span><span class="vi">@campaign</span><span class="si">}</span><span class="sx"></span>
+<span class="sx">        utm_content=</span><span class="si">#{</span><span class="vi">@content</span><span class="si">}</span><span class="sx"></span>
+<span class="sx">        utm_medium=email</span>
+<span class="sx">        utm_source=mandrill</span>
+<span class="sx">      )</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">utm_param</span><span class="o">|</span>
+        <span class="n">assert_email_body_matches</span> <span class="n">utm_param</span><span class="p">,</span> <span class="n">delivered_email</span>
+      <span class="k">end</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+</code></pre></div>
+<h2>结论</h2>
+
+<p>在<code>Active Job</code>的基础上，使用<code>ActionMailer</code>让从同步发送邮件到通过队列发送邮件的转化变得如此简单，就如同从<code>deliver_now</code>转化到<code>deliver_later</code>。</p>
+
+<p>同时，由于使用<code>Active Job</code>大大简化了设定工作基础环境的流程，你可以对自己所用的队列系统知之甚少。希望这篇教程能让你对此过程有更多了解。</p>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师编译并整理 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/05/26/test-rails-mailer" data-title="【译】使用Rails 4.2+ 测试异步邮件系统" data-url="http://code.oneapm.com/ruby/2015/05/26/test-rails-mailer/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
