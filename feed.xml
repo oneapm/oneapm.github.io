@@ -6,8 +6,8 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Tue, 02 Jun 2015 10:55:58 +0000</pubDate>
-    <lastBuildDate>Tue, 02 Jun 2015 10:55:58 +0000</lastBuildDate>
+    <pubDate>Tue, 02 Jun 2015 11:18:29 +0000</pubDate>
+    <lastBuildDate>Tue, 02 Jun 2015 11:18:29 +0000</lastBuildDate>
 
     
     
@@ -223,14 +223,6 @@ Android会在销毁你的Activity之前调用onSaveInstanceState()方法，于�
     }
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 &lt;p&gt;个人觉的这个方法相当好，当然更简单的你也可以不用otta这个库，自己单独的用接口回调的方式估计也能实现，大家可以试试。&lt;/p&gt;
-
-&lt;h2&gt;如何监控AsyncTask？&lt;/h2&gt;
-
-&lt;p&gt;不过，AsyncTask虽然很好用，但是问题也不少，需要注意的地方也很多。万一又出现问题了怎么办？客户反馈一个问题，开发人员第一反应是：“这不可能啊，我这里测试没问题的！”
-但是，老板让你解决问题，客户的环境无法复现、操作步骤无法重复，这个时候开发就犯难了......总之，监控这个事情是非常重要的。&lt;/p&gt;
-
-&lt;p&gt;国内基础软件领域的新兴领军企业&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;提供了下一代应用性能管理软件和服务，
-能够帮助企业用户和开发者轻松实现，缓慢的程序代码和SQL语句的实时抓取。OneAPM不仅覆盖了对Java、PHP、Ruby、Python、Node.js以及.Net等等多种语言的监控。还有针对移动端的应用性能监控产品&lt;a href=&quot;http://www.oneapm.com/mi/feature.html&quot;&gt;Mobile Insight&lt;/a&gt;，用户可以访问OneAPM官方网站，下载移动端监控SDK，测试下AsyncTask。&lt;/p&gt;
 
 &lt;p&gt;&lt;strong&gt;本文系&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创。想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
