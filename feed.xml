@@ -6,9 +6,236 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 01 Jun 2015 03:00:53 +0000</pubDate>
-    <lastBuildDate>Mon, 01 Jun 2015 03:00:53 +0000</lastBuildDate>
+    <pubDate>Tue, 02 Jun 2015 10:55:58 +0000</pubDate>
+    <lastBuildDate>Tue, 02 Jun 2015 10:55:58 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Android开发者：你真的会用AsyncTask吗？</title>
+      <link>/android/2015/06/02/android1/</link>
+      <pubDate>Tue, 02 Jun 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/android/2015/06/02/android1</guid>
+      <description>&lt;h1&gt;Android开发者：你真的会用AsyncTask吗？&lt;/h1&gt;
+
+&lt;p&gt;【&lt;strong&gt;导读&lt;/strong&gt;】在Android应用开发的过程中，我们需要时刻注意保证应用程序的稳定和UI操作响应及时，因为不稳定或响应缓慢的应用将给应用带来不好的印象，
+严重的用户卸载你的APP，这样你的努力就没有体现的价值了。本文试图从AsnycTask的作用说起，进一步的讲解一下内部的实现机制。如果有一些开发经验的人，
+读完之后应该对使用AsnycTask过程中的一些问题豁然开朗，开发经验不丰富的也可以从中找到使用过程中的注意点。&lt;/p&gt;
+
+&lt;h2&gt;为何引入AsnyncTask？&lt;/h2&gt;
+
+&lt;p&gt;在Android程序开始运行的时候会单独启动一个进程，默认情况下所有这个程序操作都在这个进程中进行。一个Android程序默认情况下只有一个进程，但是一个进程却是可以有许线程的。&lt;/p&gt;
+
+&lt;p&gt;在这些线程中，有一个线程叫做UI线程，也叫做Main Thread，除了Main Thread之外的线程都可称为Worker Thread。Main Thread主要负责控制UI页面的显示、更新、交互等。
+因此所有在UI线程中的操作要求越短越好，只有这样用户才会觉得操作比较流畅。一个比较好的做法是把一些比较耗时的操作，例如网络请求、数据库操作、
+复杂计算等逻辑都封装到单独的线程，这样就可以避免阻塞主线程。为此，有人写了如下的代码：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;private TextView textView;
+    public void onCreate(Bundle bundle){
+        super.onCreate(bundle);
+        setContentView(R.layout.thread_on_ui);
+        textView = (TextView) findViewById(R.id.tvTest);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    HttpGet httpGet = new HttpGet(&amp;quot;http://www.baidu.com&amp;quot;);
+                    HttpClient httpClient = new DefaultHttpClient();
+                    HttpResponse httpResp = httpClient.execute(httpGet);
+                    if (httpResp.getStatusLine().getStatusCode() == 200) {
+                        String result = EntityUtils.toString(httpResp.getEntity(), &amp;quot;UTF-8&amp;quot;);
+                        textView.setText(&amp;quot;请求返回正常，结果是：&amp;quot; + result);
+                    } else {
+                        textView.setText(&amp;quot;请求返回异常！&amp;quot;);
+                    }
+                }catch (IOException e){
+                   e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;运行，不出所料，异常信息如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;怎么破？可以在主线程创建Handler对象，把textView.setText地方替换为用handler把返回值发回到handler所在的线程处理，也就是主线程。
+这个处理方法稍显复杂，Android为我们考虑到了这个情况，给我们提供了一个轻量级的异步类可以直接继承AsyncTask，在类中实现异步操作，
+并提供接口反馈当前异步执行的结果以及执行进度，这些接口中有直接运行在主线程中的，例如onPostExecute，onPreExecute等方法。&lt;/p&gt;
+
+&lt;p&gt;也就是说，Android的程序运行时是多线程的，为了更方便的处理子线程和UI线程的交互，引入了AsyncTask。&lt;/p&gt;
+
+&lt;h2&gt;AsnyncTask内部机制&lt;/h2&gt;
+
+&lt;p&gt;AsyncTask内部逻辑主要有二个部分：&lt;/p&gt;
+
+&lt;p&gt;1、&lt;strong&gt;与主线的交互&lt;/strong&gt;，它内部实例化了一个静态的自定义类InternalHandler，这个类是继承自Handler的，在这个自定义类中绑定了一个叫做AsyncTaskResult的对象，每次子线程需要通知主线程，就调用sendToTarget发送消息给handler。然后在handler的handleMessage中AsyncTaskResult根据消息的类型不同（例如MESSAGE&lt;em&gt;POST&lt;/em&gt;PROGRESS会更新进度条，MESSAGE&lt;em&gt;POST&lt;/em&gt;CANCEL取消任务）而做不同的操作，值得一提的是，这些操作都是在UI线程进行的，意味着，从子线程一旦需要和UI线程交互，内部自动调用了handler对象把消息放在了主线程了。&lt;a href=&quot;http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/2.3.7_r1/android/os/AsyncTask.java#AsyncTask&quot;&gt;&lt;strong&gt;源码地址&lt;/strong&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;   mFuture = new FutureTask&amp;lt;Result&amp;gt;(mWorker) {
+           @Override
+            protected void More ...done() {
+                Message message;
+               Result result = null;
+
+                try {
+                    result = get();
+               } catch (InterruptedException e) {
+                    android.util.Log.w(LOG_TAG, e);
+               } catch (ExecutionException e) {
+                    throw new RuntimeException(&amp;quot;An error occured while executing doInBackground()&amp;quot;,
+                            e.getCause());
+                } catch (CancellationException e) {
+                    message = sHandler.obtainMessage(MESSAGE_POST_CANCEL,
+                           new AsyncTaskResult&amp;lt;Result&amp;gt;(AsyncTask.this, (Result[]) null));
+                    message.sendToTarget();
+                    return;
+                } catch (Throwable t) {
+                    throw new RuntimeException(&amp;quot;An error occured while executing &amp;quot;
+                           + &amp;quot;doInBackground()&amp;quot;, t);
+                }
+
+                message = sHandler.obtainMessage(MESSAGE_POST_RESULT,
+                        new AsyncTaskResult&amp;lt;Result&amp;gt;(AsyncTask.this, result));
+                message.sendToTarget();
+           }
+        };
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;  private static class InternalHandler extends Handler {
+        @SuppressWarnings({&amp;quot;unchecked&amp;quot;, &amp;quot;RawUseOfParameterizedType&amp;quot;})
+        @Override
+        public void More ...handleMessage(Message msg) {
+            AsyncTaskResult result = (AsyncTaskResult) msg.obj;
+            switch (msg.what) {
+                case MESSAGE_POST_RESULT:
+                    // There is only one result
+                    result.mTask.finish(result.mData[0]);
+                    break;
+                case MESSAGE_POST_PROGRESS:
+                    result.mTask.onProgressUpdate(result.mData);
+                    break;
+                case MESSAGE_POST_CANCEL:
+                    result.mTask.onCancelled();
+                    break;
+            }
+        }
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;2、&lt;strong&gt;AsyncTask内部调度&lt;/strong&gt;，虽然可以新建多个AsyncTask的子类的实例，但是AsyncTask的内部Handler和ThreadPoolExecutor都是static的，
+这么定义的变量属于类的，是进程范围内共享的，所以AsyncTask控制着进程范围内所有的子类实例，而且该类的所有实例都共用一个线程池和Handler。代码如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;public abstract class AsyncTask&amp;lt;Params, Progress, Result&amp;gt; {
+    private static final String LOG_TAG = &amp;quot;AsyncTask&amp;quot;;
+
+    private static final int CORE_POOL_SIZE = 5;
+    private static final int MAXIMUM_POOL_SIZE = 128;
+    private static final int KEEP_ALIVE = 1;
+
+    private static final BlockingQueue&amp;lt;Runnable&amp;gt; sWorkQueue =
+            new LinkedBlockingQueue&amp;lt;Runnable&amp;gt;(10);
+
+    private static final ThreadFactory sThreadFactory = new ThreadFactory() {
+        private final AtomicInteger mCount = new AtomicInteger(1);
+
+        public Thread More ...newThread(Runnable r) {
+            return new Thread(r, &amp;quot;AsyncTask #&amp;quot; + mCount.getAndIncrement());
+        }
+    };
+
+    private static final ThreadPoolExecutor sExecutor = new ThreadPoolExecutor(CORE_POOL_SIZE,
+            MAXIMUM_POOL_SIZE, KEEP_ALIVE, TimeUnit.SECONDS, sWorkQueue, sThreadFactory);
+
+    private static final int MESSAGE_POST_RESULT = 0x1;
+    private static final int MESSAGE_POST_PROGRESS = 0x2;
+    private static final int MESSAGE_POST_CANCEL = 0x3;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;从代码还可以看出，默认核心线程池的大小是5，缓存任务队列是10。意味着，如果线程池的线程数量小于5，这个时候新添加一个异步任务则会新建一个线程；
+如果线程池的数量大于等于5，这个时候新建一个异步任务这个任务会被放入缓存队列中等待执行。限制一个APP内AsyncTask并发的线程的数量看似是有必要的，
+但也带来了一个问题，假如有人就是需要同时运行10个而不是5个，或者不对线程的多少做限制，例如有些APP的瀑布流页面中的N多图片的加载。&lt;/p&gt;
+
+&lt;p&gt;另一方面，同时运行的任务多，线程也就多，如果这些任务是去访问网络的，会导致短时间内手机那可怜的带宽被占完了，这样总体的表现是谁都很难很快加载完全，
+因为他们是竞争关系。所以，把选择权交给开发者吧。&lt;/p&gt;
+
+&lt;p&gt;事实上，大概从Android从3.0开始，每次新建异步任务的时候AsnycTask内部默认规则是按提交的先后顺序每次只运行一个异步任务。当然了你也可以自己指定自己的线程池。&lt;/p&gt;
+
+&lt;p&gt;可以看出，AsyncTask使用过程中需要注意的地方不少&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;由于Handler需要和主线程交互，而Handler又是内置于AsnycTask中的，所以，AsyncTask的创建必须在主线程。&lt;/li&gt;
+&lt;li&gt;AsyncTaskResult的doInBackground(mParams)方法执行异步任务运行在子线程中，其他方法运行在主线程中，可以操作UI组件。&lt;/li&gt;
+&lt;li&gt;不要手动的去调用AsyncTask的onPreExecute, doInBackground, publishProgress, onProgressUpdate, onPostExecute方法，这些都是由Android系统自动调用的&lt;/li&gt;
+&lt;li&gt;一个任务AsyncTask任务只能被执行一次。&lt;/li&gt;
+&lt;li&gt;运行中可以随时调用cancel(boolean)方法取消任务，如果成功调用isCancelled()会返回true，并且不会执行onPostExecute() 方法了，取而代之的是调用 onCancelled() 方法。而且从源码看，如果这个任务已经执行了这个时候调用cancel是不会真正的把task结束，而是继续执行，只不过改变的是执行之后的回调方法是onPostExecute还是onCancelled。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;AsnyncTask和Activity OnConfiguration&lt;/h2&gt;
+
+&lt;p&gt;上面提到了那么多的注意点，还有其他需要注意的吗？当然有！我们开发App过程中使用AsyncTask请求网络数据的时候，一般都是习惯在onPreExecute显示进度条，
+在数据请求完成之后的onPostExecute关闭进度条。这样做看似完美，但是如果您的App没有明确指定屏幕方向和configChanges时，当用户旋转屏幕的时候Activity就会重新启动，
+而这个时候您的异步加载数据的线程可能正在请求网络。当一个新的Activity被重新创建之后，可能由重新启动了一个新的任务去请求网络，这样之前的一个异步任务不经意间就泄露了，
+假设你还在onPostExecute写了一些其他逻辑，这个时候就会发生意想不到异常。&lt;/p&gt;
+
+&lt;p&gt;一般简单的数据类型的，对付configChanges我们很好处理，我们直接可以通过onSaveInstanceState()和onRestoreInstanceState()进行保存与恢复。
+Android会在销毁你的Activity之前调用onSaveInstanceState()方法，于是，你可以在此方法中存储关于应用状态的数据。然后你可以在onCreate()或onRestoreInstanceState()方法中恢复。&lt;/p&gt;
+
+&lt;p&gt;但是，对于AsyncTask怎么办？问题产生的根源在于Activity销毁重新创建的过程中AsyncTask和之前的Activity失联，最终导致一些问题。
+那么解决问题的思路也可以朝着这个方向发展。&lt;a href=&quot;https://developer.android.com/reference/android/app/Activity.html#onRetainNonConfigurationInstance&quot;&gt;Android官方文档&lt;/a&gt;
+也有一些解决问题的线索。&lt;/p&gt;
+
+&lt;p&gt;这里介绍另外一种使用事件总线的解决方案，是国外一个安卓大牛写的。中间用到了Square开源的EventBus类库http://square.github.io/otto/。
+首先自定义一个AsyncTask的子类，在onPostExecute方法中，把返回结果抛给事件总线，代码如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt; @Override
+    protected String doInBackground(Void... params) {
+        Random random = new Random();
+        final long sleep = random.nextInt(10);
+        try {
+            Thread.sleep(10 * 6000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return &amp;quot;Slept for &amp;quot; + sleep + &amp;quot; seconds&amp;quot;;
+    }
+
+    @Override
+    protected void onPostExecute(String result) {
+        MyBus.getInstance().post(new AsyncTaskResultEvent(result));
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在Activity的onCreate中注册这个事件总线，这样异步线程的消息就会被otta分发到当前注册的activity，这个时候返回结果就在当前activity的onAsyncTaskResult中了，代码如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt; @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.otto_layout);
+
+        findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                new MyAsyncTask().execute();
+            }
+        });
+
+        MyBus.getInstance().register(this);
+    }
+
+    @Override
+    protected void onDestroy() {
+        MyBus.getInstance().unregister(this);
+        super.onDestroy();
+    }
+
+    @Subscribe
+    public void onAsyncTaskResult(AsyncTaskResultEvent event) {
+        Toast.makeText(this, event.getResult(), Toast.LENGTH_LONG).show();
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;个人觉的这个方法相当好，当然更简单的你也可以不用otta这个库，自己单独的用接口回调的方式估计也能实现，大家可以试试。&lt;/p&gt;
+
+&lt;h2&gt;如何监控AsyncTask？&lt;/h2&gt;
+
+&lt;p&gt;不过，AsyncTask虽然很好用，但是问题也不少，需要注意的地方也很多。万一又出现问题了怎么办？客户反馈一个问题，开发人员第一反应是：“这不可能啊，我这里测试没问题的！”
+但是，老板让你解决问题，客户的环境无法复现、操作步骤无法重复，这个时候开发就犯难了......总之，监控这个事情是非常重要的。&lt;/p&gt;
+
+&lt;p&gt;国内基础软件领域的新兴领军企业&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;提供了下一代应用性能管理软件和服务，
+能够帮助企业用户和开发者轻松实现，缓慢的程序代码和SQL语句的实时抓取。OneAPM不仅覆盖了对Java、PHP、Ruby、Python、Node.js以及.Net等等多种语言的监控。还有针对移动端的应用性能监控产品&lt;a href=&quot;http://www.oneapm.com/mi/feature.html&quot;&gt;Mobile Insight&lt;/a&gt;，用户可以访问OneAPM官方网站，下载移动端监控SDK，测试下AsyncTask。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文系&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创。想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
