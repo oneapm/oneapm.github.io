@@ -6,9 +6,289 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Tue, 02 Jun 2015 11:18:29 +0000</pubDate>
-    <lastBuildDate>Tue, 02 Jun 2015 11:18:29 +0000</lastBuildDate>
+    <pubDate>Wed, 10 Jun 2015 08:06:18 +0000</pubDate>
+    <lastBuildDate>Wed, 10 Jun 2015 08:06:18 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Ruby Profiler详解之ruby-prof（I）</title>
+      <link>/ruby/2015/06/08/ruby-prof/</link>
+      <pubDate>Mon, 08 Jun 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/06/08/ruby-prof</guid>
+      <description>&lt;p&gt;项目地址： &lt;a href=&quot;https://github.com/ruby-prof/ruby-prof&quot;&gt;ruby-prof&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;在上一篇&lt;a href=&quot;http://code.oneapm.com/ruby/2015/04/08/ruby-profilers/&quot;&gt;Ruby中的Profiling工具&lt;/a&gt;中，我们列举了几种
+最常用的Profiler，不过只是简单介绍，这一次详细介绍一下ruby-prof的使用方法。&lt;/p&gt;
+
+&lt;p&gt;ruby-prof是比较强大的，支持cpu，内存使用，对象分配等等的性能分析，而且提供了很多友好的输出格式，不仅仅是
+有基于文字，html的格式，还能输出graphviz格式的dot文件，以及适用与&lt;a href=&quot;http://kcachegrind.sourceforge.net/html/Home.html&quot;&gt;KCacheGrind&lt;/a&gt;的&lt;code&gt;call tree&lt;/code&gt;格式，
+其实这个格式是基于&lt;a href=&quot;http://valgrind.org/&quot;&gt;Valgrind&lt;/a&gt;的，这个工具很棒，大家可以去官网了解一下。&lt;/p&gt;
+
+&lt;p&gt;有两种方式运行&lt;code&gt;ruby-prof&lt;/code&gt;，一种是需要在源码中插入&lt;code&gt;ruby-prof&lt;/code&gt;的启动和停止代码：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;ruby-prof&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;RubyProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# 这里写入要进行性能剖析的代码&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;RubyProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;stop&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;# 选择一个Printer&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;printer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;RubyProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;FlatPrinter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;result&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;printer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;STDOUT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;还有一种是在命令行直接运行的，安装了Gem包&lt;code&gt;ruby-prof&lt;/code&gt;之后，会同时安装&lt;code&gt;ruby-prof&lt;/code&gt;命令，使用如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p flat test.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这种方法更灵活，我们使用这种方法来说明&lt;code&gt;ruby-prof&lt;/code&gt;的使用方法。&lt;/p&gt;
+
+&lt;p&gt;直接运行&lt;code&gt;ruby-prof -h&lt;/code&gt;得到&lt;code&gt;ruby-prof&lt;/code&gt;的帮助信息，由于太多，这里就不列出来了，大家可以自己在系统中执行看看。&lt;/p&gt;
+
+&lt;p&gt;其中&lt;code&gt;-p&lt;/code&gt;参数为输出格式，以下就会逐一介绍各个Printer的格式，指数的意义以及相关显示工具的使用。在介绍输出格式的过程中，也会相应的介绍其他的几个参数的用途。&lt;/p&gt;
+
+&lt;h2&gt;输出格式类型&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;flat                   - Prints a flat profile as text (default).
+flat_with_line_numbers - same as flat, with line numbers.
+graph                  - Prints a graph profile as text.
+graph_html             - Prints a graph profile as html.
+call_tree              - format for KCacheGrind
+call_stack             - prints a HTML visualization of the call tree
+dot                    - Prints a graph profile as a dot file
+multi                  - Creates several reports in output directory
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;示例程序&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;string&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1000&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;string&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10000&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;start&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100_000&lt;/span&gt;
+
+  &lt;span class=&quot;mi&quot;&gt;10000&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;times&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这是最基础的测试程序，我们会在介绍&lt;code&gt;ruby-prof&lt;/code&gt;的功能的同时添加其他代码来进行演示。&lt;/p&gt;
+
+&lt;h2&gt;GC对性能剖析的影响&lt;/h2&gt;
+
+&lt;p&gt;进行性能剖析的时候GC的运行总会对结果产生比较大的影响，这里我们暂时不考虑它，我们会有另外一篇文章
+做专门的介绍。&lt;/p&gt;
+
+&lt;h2&gt;最简单的输出格式 - flat&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p flat test.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Measure Mode: wall_time
+Thread ID: 12161840
+Fiber ID: 19223800
+Total: 0.206998
+Sort by: self_time
+
+ %self      total      self      wait     child     calls  name
+ 68.50      0.142     0.142     0.000     0.000    20000   String#*
+ 10.45      0.207     0.022     0.000     0.185        1   Object#start
+  6.82      0.014     0.014     0.000     0.000   100001   Fixnum#&amp;lt;
+  6.46      0.013     0.013     0.000     0.000   100000   Fixnum#+
+  2.84      0.158     0.006     0.000     0.152        1   Integer#times
+  2.52      0.128     0.005     0.000     0.123    10000   Object#m2
+  2.40      0.024     0.005     0.000     0.019    10000   Object#m1
+  0.01      0.207     0.000     0.000     0.207        2   Global#[No method]
+  0.01      0.000     0.000     0.000     0.000        2   IO#set_encoding
+  0.00      0.000     0.000     0.000     0.000        3   Module#method_added
+
+* indicates recursively called methods
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;先来一一解释一下各项指标的意思：&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&quot;text-align: right&quot;&gt;Indicator&lt;/th&gt;
+&lt;th style=&quot;text-align: left&quot;&gt;Explanation&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;%self&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;方法本身执行的时间占比，不包括调用的其他的方法执行时间&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;total&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;方法执行的总时间，包括调用的其他方法的执行时间&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;self&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;方法本身执行的时间，不包括调用的其他的方法执行时间&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;wait&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;多线程中，等待其他线程的时间，在单线程程序中，始终为0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;child&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;方法调用的其他方法的总时间&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align: right&quot;&gt;&lt;strong&gt;calls&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align: left&quot;&gt;方法的调用次数&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;他们之间的基本关系就是：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;total = self + wait + child
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;具体来说就是&lt;code&gt;String#*&lt;/code&gt;这个方法占据程序运行时间的68.50%，花费了0.142秒，执行了20000次，而
+&lt;code&gt;Object#start&lt;/code&gt;方法就是代码中定义的&lt;code&gt;start&lt;/code&gt;方法，它占据程序运行时间的10.45%，花费了0.022秒，调用的
+方法花费了0.185秒，调用了1次，总共花费的时间（total）为0.022 + 0.185 = 0.207，相信现在大家都能明
+白这些指数的意义了。&lt;/p&gt;
+
+&lt;p&gt;现在我们明白了这个输出的指标意思，假如这个程序是存在性能问题的，那么这些数据说明了什么问题？通常情况下，
+我们需要看两个指标，%self和calls，单纯看%self有时候是没有用的，上面这个例子，它的耗时方法是&lt;code&gt;String#*&lt;/code&gt;，
+我们不太可能去改进语言本身的方法，这种情况下，我们发现calls的值比较大，那么就想办法减少对&lt;code&gt;String#*&lt;/code&gt;的方法调用。&lt;/p&gt;
+
+&lt;p&gt;利用flat输出格式，也就只能发现这样简单的问题，如果这时候想要减少&lt;code&gt;String#*&lt;/code&gt;的方法调用，就需要知道是谁调用了它，
+而这个输出格式是体现不出来的，就需要选择其他的输出格式。&lt;/p&gt;
+
+&lt;h2&gt;简单的调用关系输出 - graph&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p graph test.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Measure Mode: wall_time
+Thread ID: 17371960
+Fiber ID: 24397420
+Total Time: 0.21026015281677246
+Sort by: total_time
+
+  %total   %self      total       self       wait      child            calls    Name
+--------------------------------------------------------------------------------
+  99.99%   0.01%      0.210      0.000      0.000      0.210                2      Global#[No method]
+                      0.210      0.022      0.000      0.188              1/1      Object#start
+                      0.000      0.000      0.000      0.000              3/3      Module#method_added
+--------------------------------------------------------------------------------
+                      0.210      0.022      0.000      0.188              1/1      Global#[No method]
+  99.98%  10.34%      0.210      0.022      0.000      0.188                1      Object#start
+                      0.161      0.006      0.000      0.155              1/1      Integer#times
+                      0.014      0.014      0.000      0.000    100001/100001      Fixnum#&amp;lt;
+                      0.014      0.014      0.000      0.000    100000/100000      Fixnum#+
+--------------------------------------------------------------------------------
+                      0.161      0.006      0.000      0.155              1/1      Object#start
+  76.48%   2.68%      0.161      0.006      0.000      0.155                1      Integer#times
+                      0.130      0.005      0.000      0.125      10000/10000      Object#m2
+                      0.025      0.005      0.000      0.020      10000/10000      Object#m1
+--------------------------------------------------------------------------------
+                      0.020      0.020      0.000      0.000      10000/20000      Object#m1
+                      0.125      0.125      0.000      0.000      10000/20000      Object#m2
+  69.23%  69.23%      0.146      0.146      0.000      0.000            20000      String#*
+--------------------------------------------------------------------------------
+                      0.130      0.005      0.000      0.125      10000/10000      Integer#times
+  61.81%   2.28%      0.130      0.005      0.000      0.125            10000      Object#m2
+                      0.125      0.125      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.025      0.005      0.000      0.020      10000/10000      Integer#times
+  11.99%   2.28%      0.025      0.005      0.000      0.020            10000      Object#m1
+                      0.020      0.020      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.014      0.014      0.000      0.000    100001/100001      Object#start
+   6.73%   6.73%      0.014      0.014      0.000      0.000           100001      Fixnum#&amp;lt;
+--------------------------------------------------------------------------------
+                      0.014      0.014      0.000      0.000    100000/100000      Object#start
+   6.42%   6.42%      0.014      0.014      0.000      0.000           100000      Fixnum#+
+--------------------------------------------------------------------------------
+   0.01%   0.01%      0.000      0.000      0.000      0.000                2      IO#set_encoding
+--------------------------------------------------------------------------------
+                      0.000      0.000      0.000      0.000              3/3      Global#[No method]
+   0.00%   0.00%      0.000      0.000      0.000      0.000                3      Module#method_added
+
+* indicates recursively called methods
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这次输出的内容就比较丰富，不过也可能让人头有点晕。我们来慢慢分析一下。&lt;/p&gt;
+
+&lt;p&gt;首先这次排序方式不一样了，是按照&lt;code&gt;total_time&lt;/code&gt;排序的，flat输出格式是按照&lt;code&gt;self_time&lt;/code&gt;排序的。整个报告被虚线分割为
+几部分，每部分中都描述了不定个数的方法调用信息，但是注意最左边两列，就是&lt;code&gt;%total&lt;/code&gt;, &lt;code&gt;%self&lt;/code&gt;那两列不为空的那一行，&lt;/p&gt;
+
+&lt;p&gt;先来看第二部分：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;--------------------------------------------------------------------------------
+                      0.210      0.022      0.000      0.188              1/1      Global#[No method]
+  99.98%  10.34%      0.210      0.022      0.000      0.188                1      Object#start
+                      0.161      0.006      0.000      0.155              1/1      Integer#times
+                      0.014      0.014      0.000      0.000    100001/100001      Fixnum#&amp;lt;
+                      0.014      0.014      0.000      0.000    100000/100000      Fixnum#+
+--------------------------------------------------------------------------------
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code&gt;Object#start&lt;/code&gt;方法的执行花费了99.98%的总时间，不包括子方法调用的话，花费了10.34%的时间，调用了
+一次，并且在&lt;code&gt;start&lt;/code&gt;方法中还调用了&lt;code&gt;Integer#times&lt;/code&gt;、&lt;code&gt;Fixnum#&amp;lt;&lt;/code&gt;和&lt;code&gt;Fixnum#+&lt;/code&gt;三个方法。&lt;/p&gt;
+
+&lt;p&gt;再来看右数第二列(calls)，是被&lt;code&gt;/&lt;/code&gt;分隔的两个数，左边的数是此方法在这一层级调用了多少次&lt;code&gt;Object#start&lt;/code&gt;，右边的数是
+&lt;code&gt;Object#start&lt;/code&gt;这个程序运行过程中总的运行次数。而&lt;code&gt;Object#start&lt;/code&gt;调用的三个方法&lt;code&gt;calls&lt;/code&gt;列出的是在&lt;code&gt;Object#start&lt;/code&gt;
+中执行的次数，以及总的执行次数。&lt;/p&gt;
+
+&lt;p&gt;最开始的一部分中有这样两个方法：&lt;code&gt;Global#[No method]&lt;/code&gt;代表没有caller，可以理解为ruby正在准备执行环境，
+&lt;code&gt;Module#method_added&lt;/code&gt;是当有实例方法添加的时候，这个方法都会被触发。&lt;/p&gt;
+
+&lt;p&gt;那么这种输出格式能解释什么问题呢？在flat输出格式中我们已经定位到了问题是&lt;code&gt;String#*&lt;/code&gt;的调用次数太多，
+那么根据这个graph格式的输出格式我们应该可以找到是谁导致的这个问题。&lt;/p&gt;
+
+&lt;p&gt;先把可以发现问题的部分截出来：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;--------------------------------------------------------------------------------
+                      0.020      0.020      0.000      0.000      10000/20000      Object#m1
+                      0.125      0.125      0.000      0.000      10000/20000      Object#m2
+  69.23%  69.23%      0.146      0.146      0.000      0.000            20000      String#*
+--------------------------------------------------------------------------------
+                      0.130      0.005      0.000      0.125      10000/10000      Integer#times
+  61.81%   2.28%      0.130      0.005      0.000      0.125            10000      Object#m2
+                      0.125      0.125      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.025      0.005      0.000      0.020      10000/10000      Integer#times
+  11.99%   2.28%      0.025      0.005      0.000      0.020            10000      Object#m1
+                      0.020      0.020      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;第一部分说明&lt;code&gt;String#*&lt;/code&gt;在&lt;code&gt;Object#m1&lt;/code&gt;和&lt;code&gt;Object#m1&lt;/code&gt;中各被调用了10000次，一共执行了20000次，次数一样，接着看下面，
+同样是10000次，在&lt;code&gt;Object#m2&lt;/code&gt;中花费的时间是0.125秒，而在&lt;code&gt;Object#m1&lt;/code&gt;中花费的时间是0.020秒，多出了0.105秒，这样，
+我们能定位出问题出在了&lt;code&gt;Object#m2&lt;/code&gt;这里。&lt;/p&gt;
+
+&lt;p&gt;graph可输出为html格式，这里只是演示了纯文本版，html格式更容易交互，需要添加参数&lt;code&gt;-f&lt;/code&gt;指定输出的路径和文件名。&lt;/p&gt;
+
+&lt;h2&gt;GraphViz dot - dot&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p dot test.rb -f dot.dot
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;有工具可以将dot文件转换为pdf查看，也有专门查看dot文件的工具，比如ubuntu上的XDot。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/ruby-prof-dot.png&quot; width=&quot;100%&quot; style=&quot;border: 1px solid #eee;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这张图也明确说明了问题出在了&lt;code&gt;Object#m2&lt;/code&gt;这里。&lt;/p&gt;
+
+&lt;h2&gt;可交互的调用关系 - call_stack&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p call_stack test.rb -f callstack.html
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;img src=&quot;/images/ruby-prof-call-stack.png&quot; width=&quot;100%&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里真是一图胜千言，一目了然，&lt;code&gt;Object#m2&lt;/code&gt;中的&lt;code&gt;String#*&lt;/code&gt;的10000次调用花费了60.52%的时间，不用多解释，快点自己尝试一下吧。&lt;/p&gt;
+
+&lt;h2&gt;终极万能全视角 - call_tree&lt;/h2&gt;
+
+&lt;p&gt;首先安装&lt;code&gt;KCacheGrind&lt;/code&gt;，ubuntu下直接&amp;#39;sudo apt-get install kcachegrind&amp;#39;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;ruby-prof -p call_tree test.rb -f call_tree.out
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;打开&lt;code&gt;KCacheGrind&lt;/code&gt;，然后打开&lt;code&gt;call_tree.out&lt;/code&gt;（文件类型选所有），这个神奇的工具能呈现给你所有真相。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/ruby-prof-grind.png&quot; width=&quot;100%&quot; style=&quot;border: 1px solid #eee;&quot; /&gt;
+&lt;img src=&quot;/images/ruby-prof-grind-1.png&quot; width=&quot;100%&quot;  style=&quot;border: 1px solid #eee;&quot;/&gt;
+&lt;img src=&quot;/images/ruby-prof-grind-2.png&quot; width=&quot;100%&quot;  style=&quot;border: 1px solid #eee;&quot;/&gt;
+&lt;img src=&quot;/images/ruby-prof-grind-3.png&quot; width=&quot;100%&quot;  style=&quot;border: 1px solid #eee;&quot;/&gt;
+&lt;img src=&quot;/images/ruby-prof-grind-4.png&quot; width=&quot;100%&quot;  style=&quot;border: 1px solid #eee;&quot;/&gt;&lt;/p&gt;
+
+&lt;p&gt;有了前面介绍的输出格式说明，看懂这个就很容易了，我们还是会介绍一下，不过是在另一篇，因为这篇有点太长了，下一篇
+会详细介绍一下KCacheGrind的使用方法。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby Profiler详解之ruby-prof（I） &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Ruby Profiler详解之ruby-prof（I） ">
+    <link rel="canonical" href="/ruby/2015/06/08/ruby-prof/">
+    
+    
+    <meta property="og:title" content="Ruby Profiler详解之ruby-prof（I） "/>
+    <meta property="og:url" content="/ruby/2015/06/08/ruby-prof/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="这次我们来想仔细的看看ruby-prof到底提供了哪些功能。"/>
+    <meta name="description" content="这次我们来想仔细的看看ruby-prof到底提供了哪些功能。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Ruby Profiler详解之ruby-prof（I）</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-08-June" title="June 08, 2015">June 08, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-08-June" title="June 08, 2015">June 08, 2015</time>
+            </div>
+            <h1 class="title">Ruby Profiler详解之ruby-prof（I）</h1>
+            
+        </header> -->
+
+        <section>
+            <p>项目地址： <a href="https://github.com/ruby-prof/ruby-prof">ruby-prof</a></p>
+
+<p>在上一篇<a href="http://code.oneapm.com/ruby/2015/04/08/ruby-profilers/">Ruby中的Profiling工具</a>中，我们列举了几种
+最常用的Profiler，不过只是简单介绍，这一次详细介绍一下ruby-prof的使用方法。</p>
+
+<p>ruby-prof是比较强大的，支持cpu，内存使用，对象分配等等的性能分析，而且提供了很多友好的输出格式，不仅仅是
+有基于文字，html的格式，还能输出graphviz格式的dot文件，以及适用与<a href="http://kcachegrind.sourceforge.net/html/Home.html">KCacheGrind</a>的<code>call tree</code>格式，
+其实这个格式是基于<a href="http://valgrind.org/">Valgrind</a>的，这个工具很棒，大家可以去官网了解一下。</p>
+
+<p>有两种方式运行<code>ruby-prof</code>，一种是需要在源码中插入<code>ruby-prof</code>的启动和停止代码：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;ruby-prof&#39;</span>
+
+<span class="no">RubyProf</span><span class="o">.</span><span class="n">start</span>
+<span class="c1"># 这里写入要进行性能剖析的代码</span>
+<span class="n">result</span> <span class="o">=</span> <span class="no">RubyProf</span><span class="o">.</span><span class="n">stop</span>
+
+<span class="c1"># 选择一个Printer</span>
+<span class="n">printer</span> <span class="o">=</span> <span class="no">RubyProf</span><span class="o">::</span><span class="no">FlatPrinter</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+<span class="n">printer</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="no">STDOUT</span><span class="p">)</span>
+</code></pre></div>
+<p>还有一种是在命令行直接运行的，安装了Gem包<code>ruby-prof</code>之后，会同时安装<code>ruby-prof</code>命令，使用如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p flat test.rb
+</code></pre></div>
+<p>这种方法更灵活，我们使用这种方法来说明<code>ruby-prof</code>的使用方法。</p>
+
+<p>直接运行<code>ruby-prof -h</code>得到<code>ruby-prof</code>的帮助信息，由于太多，这里就不列出来了，大家可以自己在系统中执行看看。</p>
+
+<p>其中<code>-p</code>参数为输出格式，以下就会逐一介绍各个Printer的格式，指数的意义以及相关显示工具的使用。在介绍输出格式的过程中，也会相应的介绍其他的几个参数的用途。</p>
+
+<h2>输出格式类型</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">flat                   - Prints a flat profile as text (default).
+flat_with_line_numbers - same as flat, with line numbers.
+graph                  - Prints a graph profile as text.
+graph_html             - Prints a graph profile as html.
+call_tree              - format for KCacheGrind
+call_stack             - prints a HTML visualization of the call tree
+dot                    - Prints a graph profile as a dot file
+multi                  - Creates several reports in output directory
+</code></pre></div>
+<h2>示例程序</h2>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="k">def</span> <span class="nf">m1</span>
+  <span class="s2">&quot;string&quot;</span> <span class="o">*</span> <span class="mi">1000</span>
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="nf">m2</span>
+  <span class="s2">&quot;string&quot;</span> <span class="o">*</span> <span class="mi">10000</span>
+<span class="k">end</span>
+
+<span class="k">def</span> <span class="nf">start</span>
+  <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="n">n</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">while</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">100_000</span>
+
+  <span class="mi">10000</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span>
+    <span class="n">m1</span>
+    <span class="n">m2</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="n">start</span>
+</code></pre></div>
+<p>这是最基础的测试程序，我们会在介绍<code>ruby-prof</code>的功能的同时添加其他代码来进行演示。</p>
+
+<h2>GC对性能剖析的影响</h2>
+
+<p>进行性能剖析的时候GC的运行总会对结果产生比较大的影响，这里我们暂时不考虑它，我们会有另外一篇文章
+做专门的介绍。</p>
+
+<h2>最简单的输出格式 - flat</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p flat test.rb
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">Measure Mode: wall_time
+Thread ID: 12161840
+Fiber ID: 19223800
+Total: 0.206998
+Sort by: self_time
+
+ %self      total      self      wait     child     calls  name
+ 68.50      0.142     0.142     0.000     0.000    20000   String#*
+ 10.45      0.207     0.022     0.000     0.185        1   Object#start
+  6.82      0.014     0.014     0.000     0.000   100001   Fixnum#&lt;
+  6.46      0.013     0.013     0.000     0.000   100000   Fixnum#+
+  2.84      0.158     0.006     0.000     0.152        1   Integer#times
+  2.52      0.128     0.005     0.000     0.123    10000   Object#m2
+  2.40      0.024     0.005     0.000     0.019    10000   Object#m1
+  0.01      0.207     0.000     0.000     0.207        2   Global#[No method]
+  0.01      0.000     0.000     0.000     0.000        2   IO#set_encoding
+  0.00      0.000     0.000     0.000     0.000        3   Module#method_added
+
+* indicates recursively called methods
+</code></pre></div>
+<p>先来一一解释一下各项指标的意思：</p>
+
+<table><thead>
+<tr>
+<th style="text-align: right">Indicator</th>
+<th style="text-align: left">Explanation</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: right"><strong>%self</strong></td>
+<td style="text-align: left">方法本身执行的时间占比，不包括调用的其他的方法执行时间</td>
+</tr>
+<tr>
+<td style="text-align: right"><strong>total</strong></td>
+<td style="text-align: left">方法执行的总时间，包括调用的其他方法的执行时间</td>
+</tr>
+<tr>
+<td style="text-align: right"><strong>self</strong></td>
+<td style="text-align: left">方法本身执行的时间，不包括调用的其他的方法执行时间</td>
+</tr>
+<tr>
+<td style="text-align: right"><strong>wait</strong></td>
+<td style="text-align: left">多线程中，等待其他线程的时间，在单线程程序中，始终为0</td>
+</tr>
+<tr>
+<td style="text-align: right"><strong>child</strong></td>
+<td style="text-align: left">方法调用的其他方法的总时间</td>
+</tr>
+<tr>
+<td style="text-align: right"><strong>calls</strong></td>
+<td style="text-align: left">方法的调用次数</td>
+</tr>
+</tbody></table>
+
+<p>他们之间的基本关系就是：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">total = self + wait + child
+</code></pre></div>
+<p>具体来说就是<code>String#*</code>这个方法占据程序运行时间的68.50%，花费了0.142秒，执行了20000次，而
+<code>Object#start</code>方法就是代码中定义的<code>start</code>方法，它占据程序运行时间的10.45%，花费了0.022秒，调用的
+方法花费了0.185秒，调用了1次，总共花费的时间（total）为0.022 + 0.185 = 0.207，相信现在大家都能明
+白这些指数的意义了。</p>
+
+<p>现在我们明白了这个输出的指标意思，假如这个程序是存在性能问题的，那么这些数据说明了什么问题？通常情况下，
+我们需要看两个指标，%self和calls，单纯看%self有时候是没有用的，上面这个例子，它的耗时方法是<code>String#*</code>，
+我们不太可能去改进语言本身的方法，这种情况下，我们发现calls的值比较大，那么就想办法减少对<code>String#*</code>的方法调用。</p>
+
+<p>利用flat输出格式，也就只能发现这样简单的问题，如果这时候想要减少<code>String#*</code>的方法调用，就需要知道是谁调用了它，
+而这个输出格式是体现不出来的，就需要选择其他的输出格式。</p>
+
+<h2>简单的调用关系输出 - graph</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p graph test.rb
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">Measure Mode: wall_time
+Thread ID: 17371960
+Fiber ID: 24397420
+Total Time: 0.21026015281677246
+Sort by: total_time
+
+  %total   %self      total       self       wait      child            calls    Name
+--------------------------------------------------------------------------------
+  99.99%   0.01%      0.210      0.000      0.000      0.210                2      Global#[No method]
+                      0.210      0.022      0.000      0.188              1/1      Object#start
+                      0.000      0.000      0.000      0.000              3/3      Module#method_added
+--------------------------------------------------------------------------------
+                      0.210      0.022      0.000      0.188              1/1      Global#[No method]
+  99.98%  10.34%      0.210      0.022      0.000      0.188                1      Object#start
+                      0.161      0.006      0.000      0.155              1/1      Integer#times
+                      0.014      0.014      0.000      0.000    100001/100001      Fixnum#&lt;
+                      0.014      0.014      0.000      0.000    100000/100000      Fixnum#+
+--------------------------------------------------------------------------------
+                      0.161      0.006      0.000      0.155              1/1      Object#start
+  76.48%   2.68%      0.161      0.006      0.000      0.155                1      Integer#times
+                      0.130      0.005      0.000      0.125      10000/10000      Object#m2
+                      0.025      0.005      0.000      0.020      10000/10000      Object#m1
+--------------------------------------------------------------------------------
+                      0.020      0.020      0.000      0.000      10000/20000      Object#m1
+                      0.125      0.125      0.000      0.000      10000/20000      Object#m2
+  69.23%  69.23%      0.146      0.146      0.000      0.000            20000      String#*
+--------------------------------------------------------------------------------
+                      0.130      0.005      0.000      0.125      10000/10000      Integer#times
+  61.81%   2.28%      0.130      0.005      0.000      0.125            10000      Object#m2
+                      0.125      0.125      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.025      0.005      0.000      0.020      10000/10000      Integer#times
+  11.99%   2.28%      0.025      0.005      0.000      0.020            10000      Object#m1
+                      0.020      0.020      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.014      0.014      0.000      0.000    100001/100001      Object#start
+   6.73%   6.73%      0.014      0.014      0.000      0.000           100001      Fixnum#&lt;
+--------------------------------------------------------------------------------
+                      0.014      0.014      0.000      0.000    100000/100000      Object#start
+   6.42%   6.42%      0.014      0.014      0.000      0.000           100000      Fixnum#+
+--------------------------------------------------------------------------------
+   0.01%   0.01%      0.000      0.000      0.000      0.000                2      IO#set_encoding
+--------------------------------------------------------------------------------
+                      0.000      0.000      0.000      0.000              3/3      Global#[No method]
+   0.00%   0.00%      0.000      0.000      0.000      0.000                3      Module#method_added
+
+* indicates recursively called methods
+</code></pre></div>
+<p>这次输出的内容就比较丰富，不过也可能让人头有点晕。我们来慢慢分析一下。</p>
+
+<p>首先这次排序方式不一样了，是按照<code>total_time</code>排序的，flat输出格式是按照<code>self_time</code>排序的。整个报告被虚线分割为
+几部分，每部分中都描述了不定个数的方法调用信息，但是注意最左边两列，就是<code>%total</code>, <code>%self</code>那两列不为空的那一行，</p>
+
+<p>先来看第二部分：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">--------------------------------------------------------------------------------
+                      0.210      0.022      0.000      0.188              1/1      Global#[No method]
+  99.98%  10.34%      0.210      0.022      0.000      0.188                1      Object#start
+                      0.161      0.006      0.000      0.155              1/1      Integer#times
+                      0.014      0.014      0.000      0.000    100001/100001      Fixnum#&lt;
+                      0.014      0.014      0.000      0.000    100000/100000      Fixnum#+
+--------------------------------------------------------------------------------
+</code></pre></div>
+<p><code>Object#start</code>方法的执行花费了99.98%的总时间，不包括子方法调用的话，花费了10.34%的时间，调用了
+一次，并且在<code>start</code>方法中还调用了<code>Integer#times</code>、<code>Fixnum#&lt;</code>和<code>Fixnum#+</code>三个方法。</p>
+
+<p>再来看右数第二列(calls)，是被<code>/</code>分隔的两个数，左边的数是此方法在这一层级调用了多少次<code>Object#start</code>，右边的数是
+<code>Object#start</code>这个程序运行过程中总的运行次数。而<code>Object#start</code>调用的三个方法<code>calls</code>列出的是在<code>Object#start</code>
+中执行的次数，以及总的执行次数。</p>
+
+<p>最开始的一部分中有这样两个方法：<code>Global#[No method]</code>代表没有caller，可以理解为ruby正在准备执行环境，
+<code>Module#method_added</code>是当有实例方法添加的时候，这个方法都会被触发。</p>
+
+<p>那么这种输出格式能解释什么问题呢？在flat输出格式中我们已经定位到了问题是<code>String#*</code>的调用次数太多，
+那么根据这个graph格式的输出格式我们应该可以找到是谁导致的这个问题。</p>
+
+<p>先把可以发现问题的部分截出来：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">--------------------------------------------------------------------------------
+                      0.020      0.020      0.000      0.000      10000/20000      Object#m1
+                      0.125      0.125      0.000      0.000      10000/20000      Object#m2
+  69.23%  69.23%      0.146      0.146      0.000      0.000            20000      String#*
+--------------------------------------------------------------------------------
+                      0.130      0.005      0.000      0.125      10000/10000      Integer#times
+  61.81%   2.28%      0.130      0.005      0.000      0.125            10000      Object#m2
+                      0.125      0.125      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+                      0.025      0.005      0.000      0.020      10000/10000      Integer#times
+  11.99%   2.28%      0.025      0.005      0.000      0.020            10000      Object#m1
+                      0.020      0.020      0.000      0.000      10000/20000      String#*
+--------------------------------------------------------------------------------
+</code></pre></div>
+<p>第一部分说明<code>String#*</code>在<code>Object#m1</code>和<code>Object#m1</code>中各被调用了10000次，一共执行了20000次，次数一样，接着看下面，
+同样是10000次，在<code>Object#m2</code>中花费的时间是0.125秒，而在<code>Object#m1</code>中花费的时间是0.020秒，多出了0.105秒，这样，
+我们能定位出问题出在了<code>Object#m2</code>这里。</p>
+
+<p>graph可输出为html格式，这里只是演示了纯文本版，html格式更容易交互，需要添加参数<code>-f</code>指定输出的路径和文件名。</p>
+
+<h2>GraphViz dot - dot</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p dot test.rb -f dot.dot
+</code></pre></div>
+<p>有工具可以将dot文件转换为pdf查看，也有专门查看dot文件的工具，比如ubuntu上的XDot。</p>
+
+<p><img src="/images/ruby-prof-dot.png" width="100%" style="border: 1px solid #eee;" /></p>
+
+<p>这张图也明确说明了问题出在了<code>Object#m2</code>这里。</p>
+
+<h2>可交互的调用关系 - call_stack</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p call_stack test.rb -f callstack.html
+</code></pre></div>
+<p><img src="/images/ruby-prof-call-stack.png" width="100%" /></p>
+
+<p>这里真是一图胜千言，一目了然，<code>Object#m2</code>中的<code>String#*</code>的10000次调用花费了60.52%的时间，不用多解释，快点自己尝试一下吧。</p>
+
+<h2>终极万能全视角 - call_tree</h2>
+
+<p>首先安装<code>KCacheGrind</code>，ubuntu下直接&#39;sudo apt-get install kcachegrind&#39;</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">ruby-prof -p call_tree test.rb -f call_tree.out
+</code></pre></div>
+<p>打开<code>KCacheGrind</code>，然后打开<code>call_tree.out</code>（文件类型选所有），这个神奇的工具能呈现给你所有真相。</p>
+
+<p><img src="/images/ruby-prof-grind.png" width="100%" style="border: 1px solid #eee;" />
+<img src="/images/ruby-prof-grind-1.png" width="100%"  style="border: 1px solid #eee;"/>
+<img src="/images/ruby-prof-grind-2.png" width="100%"  style="border: 1px solid #eee;"/>
+<img src="/images/ruby-prof-grind-3.png" width="100%"  style="border: 1px solid #eee;"/>
+<img src="/images/ruby-prof-grind-4.png" width="100%"  style="border: 1px solid #eee;"/></p>
+
+<p>有了前面介绍的输出格式说明，看懂这个就很容易了，我们还是会介绍一下，不过是在另一篇，因为这篇有点太长了，下一篇
+会详细介绍一下KCacheGrind的使用方法。</p>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创文章 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/06/08/ruby-prof" data-title="Ruby Profiler详解之ruby-prof（I）" data-url="http://code.oneapm.com/ruby/2015/06/08/ruby-prof/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
