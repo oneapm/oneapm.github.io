@@ -6,9 +6,270 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Thu, 11 Jun 2015 10:37:38 +0000</pubDate>
-    <lastBuildDate>Thu, 11 Jun 2015 10:37:38 +0000</lastBuildDate>
+    <pubDate>Wed, 17 Jun 2015 02:26:13 +0000</pubDate>
+    <lastBuildDate>Wed, 17 Jun 2015 02:26:13 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>有关网页渲染，每个前端开发者都该知道的那点事！</title>
+      <link>/javascript/2015/06/16/reflow/</link>
+      <pubDate>Tue, 16 Jun 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/06/16/reflow</guid>
+      <description>&lt;p&gt;【编者按】其实，有关网页渲染的文章很多，但是相关信息比较分散，且论述并不是很完整。如果要想对这个主题有个大致的了解，我们还得学习很多知识。因此，Web开发者Alexander Skutin 决定写一篇文章。他相信，这篇文章不仅能帮助初学者，也能对那些想要刷新知识结构的高级前端开发者有所裨益。&lt;a href=&quot;http://frontendbabel.info/articles/webpage-rendering-101/&quot;&gt;原文地址&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;译文如下：&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;网页渲染必须在很早的阶段进行，可以早到页面布局刚刚定型。因为样式和脚本都会对网页渲染产生关键性的影响。所以专业开发者必须了解一些技巧，从而避免在实践的过程中遇到性能问题。&lt;/p&gt;
+
+&lt;p&gt;这篇文章不会研究浏览器内部的详细机制，而是提出一些通用的规则。毕竟，不同浏览器引擎的工作机制各不相同，这无疑会让开发者对浏览器特性的研究变得更加复杂。&lt;/p&gt;
+
+&lt;h2&gt;浏览器是如何完成网页渲染？&lt;/h2&gt;
+
+&lt;p&gt;首先，我们回顾一下网页渲染时，浏览器的动作：&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;根据来自服务器端的HTML代码形成文档对象模型（DOM）&lt;/li&gt;
+&lt;li&gt;加载并解析样式，形成CSS对象模型。&lt;/li&gt;
+&lt;li&gt;在文档对象模型和CSS对象模型之上，创建一棵由一组待生成渲染的对象组成的渲染树（在Webkit中这些对象被称为渲染器或渲染对象，而在Gecko中称之为“frame”。）渲染树反映了文档对象模型的结构，但是不包含诸如&lt;head&gt;标签或含有&lt;code&gt;display:none&lt;/code&gt;属性的不可见元素。在渲染树中，每一段文本字符串都表现为独立的渲染器。每一个渲染对象都包含与之对应的DOM对象，或者文本块，还加上计算过的样式。换言之，渲染树是一个文档对象模型的直观展示。&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;对渲染树上的每个元素，计算它的坐标，称之为布局。浏览器采用一种流方法，布局一个元素只需通过一次，但是表格元素需要通过多次。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;最后，渲染树上的元素最终展示在浏览器里，这一过程称为“painting”。&lt;/p&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;当用户与网页交互，或者脚本程序改动修改网页时，前文提到的一些操作将会重复执行，因为网页的内在结构已经发生了改变。&lt;/p&gt;
+
+&lt;h2&gt;重绘&lt;/h2&gt;
+
+&lt;p&gt;当改变那些不会影响元素在网页中的位置的元素样式时，譬如background-color(背景色)， border-color(边框色)， visibility(可见性)，浏览器只会用新的样式将元素重绘一次(这就是重绘，或者说重新构造样式)。&lt;/p&gt;
+
+&lt;h2&gt;重排&lt;/h2&gt;
+
+&lt;p&gt;当改变影响到文本内容或结构，或者元素位置时，重排或者说重新布局就会发生。这些改变通常由以下事件触发：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;DOM操作（元素添加，删除，修改，或者元素顺序的改变）;&lt;/li&gt;
+&lt;li&gt;内容变化，包括表单域内的文本改变;&lt;/li&gt;
+&lt;li&gt;CSS属性的计算或改变;&lt;/li&gt;
+&lt;li&gt;添加或删除样式表;&lt;/li&gt;
+&lt;li&gt;更改“类”的属性;&lt;/li&gt;
+&lt;li&gt;浏览器窗口的操作（缩放，滚动）;&lt;/li&gt;
+&lt;li&gt;伪类激活（：悬停）。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;浏览器如何优化渲染？&lt;/h2&gt;
+
+&lt;p&gt;浏览器尽可能将重绘/重构 限制在被改变元素的区域内。比如，对于位置固定或绝对的元素，其大小改变只影响元素本身及其子元素，然而，静态定位元素的大小改变会触发后续所有元素的重流。&lt;/p&gt;
+
+&lt;p&gt;另一种优化技巧是，在运行几段JavaScript代码时，浏览器会缓存这些改变，在代码运行完毕后再将这些改变经一次通过加以应用。举个例子，下面这段代码只会触发一个重构和重绘：
+&lt;code&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;var $body = $(&amp;#39;body&amp;#39;);
+$body.css(&amp;#39;padding&amp;#39;, &amp;#39;1px&amp;#39;); // reflow, repaint
+$body.css(&amp;#39;color&amp;#39;, &amp;#39;red&amp;#39;); // repaint
+$body.css(&amp;#39;margin&amp;#39;, &amp;#39;2px&amp;#39;); // reflow, repaint
+// only 1 reflow and repaint will actually happen
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;然而，如前所述，改变元素的属性会触发强制性的重排。如果我们在上面的代码块中加入一行代码，用来访问元素的属性，就会发生这种现象。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+    var $body = $(&amp;#39;body&amp;#39;);
+    $body.css(&amp;#39;padding&amp;#39;, &amp;#39;1px&amp;#39;);
+    $body.css(&amp;#39;padding&amp;#39;); // reading a property, a forced   reflow
+    $body.css(&amp;#39;color&amp;#39;, &amp;#39;red&amp;#39;);
+    $body.css(&amp;#39;margin&amp;#39;, &amp;#39;2px&amp;#39;);
+  &lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;其结果就是，重排发生了两次。因此，你应该把访问元素属性的操作都组织在一起，从而优化网页性能。（&lt;a href=&quot;http://jsbin.com/duhah/2/edit?html,css,js,output&quot;&gt;你可以在JSBin查到更为详细的例子&lt;/a&gt;）&lt;/p&gt;
+
+&lt;p&gt;有时，你必须触发一个强制性重排。比如，我们必须将同样的属性(比如左边距)两次赋值给同一个元素。起初，它应该设置为100px，且不带动效。接着，它必须通过过渡(transition)动效改变为50px。你现在可以在&lt;a href=&quot;http://jsbin.com/duhah/2/edit?html,css,js,output&quot;&gt;JSbin&lt;/a&gt;上学习这个例子，不过我会在这儿更详细地介绍它。&lt;/p&gt;
+
+&lt;p&gt;首先，我们创建一个带过渡效果的CSS类：
+&lt;code&gt;
+    .has-transition {
+     -webkit-transition: margin-left 1s ease-out;
+         -moz-transition: margin-left 1s ease-out;
+           -o-transition: margin-left 1s ease-out;
+              transition: margin-left 1s ease-out;
+    }
+  &lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;然后继续执行：
+&lt;code&gt;
+    // our element that has a &amp;quot;has-transition&amp;quot; class by default
+    var $targetElem = $(&amp;#39;#targetElemId&amp;#39;);&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;// remove the transition class
+$targetElem.removeClass(&amp;#39;has-transition&amp;#39;);
+
+// change the property expecting the transition to be   off, as the class is not there
+// anymore
+$targetElem.css(&amp;#39;margin-left&amp;#39;, 100);
+
+// put the transition class back
+$targetElem.addClass(&amp;#39;has-transition&amp;#39;);
+
+// change the property
+$targetElem.css(&amp;#39;margin-left&amp;#39;, 50);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/code&gt;
+然而，这个执行无法奏效。所有改变都被缓存，只在代码块末尾加以执行。我们需要的是强制性的重排，我们可以通过以下更改加以实现：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+    // remove the transition class
+    $(this).removeClass(&amp;#39;has-transition&amp;#39;);&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;// change the property
+$(this).css(&amp;#39;margin-left&amp;#39;, 100);
+
+// trigger a forced reflow, so that changes in a    class/property get applied immediately
+$(this)[0].offsetHeight; // an example, other   properties would work, too
+
+// put the transition class back
+$(this).addClass(&amp;#39;has-transition&amp;#39;);
+
+// change the property
+$(this).css(&amp;#39;margin-left&amp;#39;, 50);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/code&gt;
+现在代码如预期那样执行了。&lt;/p&gt;
+
+&lt;h2&gt;有关性能优化的实际建议&lt;/h2&gt;
+
+&lt;p&gt;总结现有的资料，我提出以下建议：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;创建有效的HTML和CSS文件，不要忘记指明文档的编码方式。样式应该包含在&lt;head&gt;标签内，脚本代码则应该加在&lt;body&gt;标签末端。&lt;/li&gt;
+&lt;li&gt;尽量简化和优化CSS选择器（这种优化方式几乎被使用CSS预处理器的开发者统一忽视了）将嵌套程度保持在最低水平。以下是CSS选择器的性能排名（从最快者开始）&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;1. 识别器:#id
+2. 类:.class
+3. 标签：div
+4. 相邻兄弟选择器：a + i
+5. 父类选择器：ul&amp;gt; li
+6. 通用选择器：*
+7. 属性选择：input[type=&amp;quot;text&amp;quot;]
+8. 伪类和伪元素：a:hover
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;你应该记住，浏览器在处理选择器时依照从右到左的原则，因此最右端的选择器应该是最快的：#id或则.class：
+&lt;code&gt;
+    div * {...} // bad
+    .list li {...} // bad
+    .list-item {...} // good
+    #list .list-item {...} // good
+  &lt;/code&gt;
+* 1.在你的脚本代码中，尽可能减少DOM操作。缓存所有东西，包括元素属性以及对象（如果它们被重用的话）。当进行复杂的操作时，使用“孤立”元素会更好，之后可以将其加到DOM中（所谓“孤立”元素是与DOM脱离，仅保存在内存中的元素）。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;2.如果你使用jQuery来选择元素，请遵从jQuery选择器最佳实践方案。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;3.为了改变元素的样式，修改“类”的属性是奏效的方法之一。执行这一改变时，处在DOM渲染树的位置越深越好（这还有助于将逻辑与表象脱离）。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;4.尽量只给位置绝对或者固定的元素添加动画效果。&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;5.在使用滚动时禁用复杂的悬停动效（比如，在&lt;body&gt;中添加一个额外的不悬停类）。读者可以阅读关于这个问题的&lt;a href=&quot;http://habrahabr.ru/post/204238/&quot;&gt;一篇文章&lt;/a&gt;。&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;想了解更多的细节问题，大家也可以看看这两篇文章：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;1,&lt;a href=&quot;http://taligarsiel.com/Projects/howbrowserswork1.htm&quot;&gt;How browsers work？&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2,&lt;a href=&quot;http://www.phpied.com/rendering-repaint-reflowrelayout-restyle/&quot;&gt;Rendering: repaint, reflow/relayout, restyle&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>企业级 Java 应用最重要的4个性能指标</title>
+      <link>/pm/2015/06/16/Java-enterprise/</link>
+      <pubDate>Tue, 16 Jun 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/pm/2015/06/16/Java-enterprise</guid>
+      <description>&lt;h1&gt;企业级Java应用最重要的4个性能指标&lt;/h1&gt;
+
+&lt;p&gt;应用性能管理（APM）是一种即时监控以实现对应用程序性能管理和故障管理的系统化解决方案。目前主要指对企业的关键业务应用进行监测、优化，最终达到提高企业应用的可靠性和质量，保证用户得到良好的服务，降低IT成本的目标。&lt;/p&gt;
+
+&lt;p&gt;虽然很多人都曾预言Java将一蹶不振，但是不可否认的是，很多重要项目中，尤其是银行和政府一些大型项目，Java仍在其中扮演着极其重要的角色。国内APM领军企业OneAPM的Java工程师陶炳哲，多次参与银行、运营商等大型企业的性能优化工作,总结了企业级Java应用最应重视的4个性能指标，主要包括：商业事务，外部服务，垃圾回收以及应用布局。下文将逐一展开阐述：&lt;/p&gt;
+
+&lt;h2&gt;1.商业事务&lt;/h2&gt;
+
+&lt;p&gt;商业事务是真实用户体验的直观反映：它们抓取了用户与应用交互时，用户体验到的实时性能数据。测量商业事务的性能，需要抓取一件商业事务整体的响应时间及其各个组件的响应时间。这些响应时间再与满足业务需求的基准进行比较，从而决定应用是否正常。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/0bHKjRD.png&quot; alt=&quot;图一：OneAPM支持用户自定义自己的商业事务&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;如果你只打算测量应用的一个方面，本文会推荐你测量商业事务的表现。尽管容量指标(container metrics)能帮助你决定何时调节集群规模，但是商业事务才决定了应用本身的性能。你无需询问应用服务器线程池(thread pool)的使用情况，而是关心用户能否迅速完成他们的商业事务，以及这些事务的表现是否正常。&lt;/p&gt;
+
+&lt;p&gt;介绍一点背景知识：商业事务通过其入口进行辨别，即用户与你的业务进行互动的入口。这类互动包括：一个网页请求，一个网页服务调用，或消息队列中的一条消息。当然，你也可以基于一个URL参数为同样的网页请求定义多个入口，或基于一个服务调用的内容定义多个入口点。关键在于：商业交易必须与对你的业务流程相关联，比如说中国移动的空中缴费业务对应到系统中是多个原子服务，我们就应该将这几个原子服务通过相应的关联聚合成一个空中缴费业务来进行监控。&lt;/p&gt;
+
+&lt;p&gt;辨别某个商业交易后，它的性能就会在整个应用生态系统中进行测量。每个商业交易的性能会与其基准进行比较，判定其是否正常。譬如，如果某个商业事务的响应时间大于您设定的阈值，我们便判定其运行异常。&lt;br&gt;
+总而言之，商业事务最能反映用户体验，因此它们也是最重要的抓取维度。&lt;/p&gt;
+
+&lt;h2&gt;2.外部服务&lt;/h2&gt;
+
+&lt;p&gt;外部服务的形式多种多样：从属的网页服务、遗留系统或数据库等。外部服务是与应用交互的系统。运行在外部服务系统中的代码常常无法控制，但是我们可以控制这些系统的配置，因此了解他们是否运行正常以及何时出错也很重要。并且，我们必须有能力区分问题是出自自身应用，还是源于这些外部服务系统。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/TeSURkM.png&quot; alt=&quot;图二: 系统往往会跟很多外部系统进行交互&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;从商业事务的角度来说，我们可以辨别并测量这些处于自身应用的外部服务。有时，我们需要配置监控方法从而辨别那些包裹了外部服务调用的方法。但是对于常见的协议，诸如HTTP和JDBC，外部服务可以自动检测。&lt;/p&gt;
+
+&lt;p&gt;商业事务让你对应用的性能有了全局的掌控，帮助你对性能问题进行分类。但是外部服务总能以意想不到的方式极大地影响应用的运行，所以你必须监控它们。&lt;/p&gt;
+
+&lt;h2&gt;3.垃圾回收&lt;/h2&gt;
+
+&lt;p&gt;从Java发布最早版本开始，一直都保留的核心特性就是垃圾回收，它真是让人又爱又恨。垃圾回收使我们不再需要手动管理内存：当使用完一个对象后，我们只需删除它的引用，然后垃圾回收就会自动释放它。如果你使用过需要手动管理内存的语言，诸如C或C++，你会满怀感激。垃圾回收为程序员们减少了分配、释放内存空间的繁琐步骤。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/F2AegAl.png&quot; alt=&quot;图三: OneAPM提供对于JVM本身各项指标的监控&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;此外，因为垃圾回收器会自动释放没有引用的内存空间，它减少了传统的内容泄露情况，即内存被分配后，该内存的引用在内存释放前就被删除了。听起来就像灵丹妙药，不是么？&lt;/p&gt;
+
+&lt;p&gt;尽管垃圾回收达成了无需手动管理内存的目标，也防止了传统的内存泄露，但是作为代价，垃圾回收过程有时相当笨拙。根据不同的JVM,垃圾回收策略也会不同。深入探讨这些策略超出了本文的主旨。但是，读者应该明白，了解垃圾回收期的工作原理，以及最佳的配置方案至关重要。&lt;/p&gt;
+
+&lt;p&gt;垃圾回收最大的敌人就是传说中的主要(major)或(full)垃圾回收。除了Azul JVM，所有的JVM都有这个问题。通常，垃圾回收大致分为两类：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;次级&lt;/li&gt;
+&lt;li&gt;主要&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;为了释放存活时间较短的对象，次级垃圾回收发生得相对频繁。他们在运行时不会封锁线程，产生的影响较小。&lt;/p&gt;
+
+&lt;p&gt;然而，主要垃圾回收，有时也称为“暂停世界(Stop The World, STW)”垃圾回收，因为他们在运行时会封锁JVM中的所有线程。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/gKvwOV2.png&quot; alt=&quot;图四: 当垃圾回收运行时，它会运行一项可达性测试&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;当垃圾回收运行时，它会运行一项可达性测试(reachability test)，如图四所示。它会创建一个由对象组成的根集合(root set)，该集合包含每个运行线程中的直接可见对象。接着，它会探寻根集合中的对象涉及的其他对象，然后探寻这些对象涉及的对象，直到所有对象都被涉及。在这个过程中，它会记录(mark)下现时活动对象的内存地址，然后把不被使用的所有地址都扫除(sweep)。说得更恰当些，它会把没有根集合对象引用的内存都释放。最终，它会压缩、整理这些内存，这样新的对象才能获得内存分配。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/fEHPxHF.png&quot; alt=&quot;图五: 次级回收&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;根据不同的JVM，次级、主要回收的方式都会不同。图五图六展示了在Sun JVM内次级、主要回收的操作方式。&lt;/p&gt;
+
+&lt;p&gt;在次级回收中，内存主要分配到Eden空间直到将其填满。接着，拷贝收集器(copy collector)会将Eden中的活动对象拷贝到两个幸存者空间(survivor spaces, to space和from space)。遗留在Eden中的对象就会被移除。如果幸存者空间被填满，但还有多余的活动对象，这些对象会被移到tenured空间。只有主要回收才能释放tenured空间的内存。&lt;/p&gt;
+
+&lt;p&gt;最终，tenured空间会被填满，主要回收将会执行。它不会将幸存者空间放不下的活动对象拷贝到tenured空间中。此时，JVM会封锁所有线程，运行可达性测试，清除年轻的数据(Eden和两个幸存者空间)，并压缩tenured空间。我们将之称为主要回收。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://i.imgur.com/iumG8tE.png&quot; alt=&quot;图6：主要回收&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;你或许会想，堆越大，主要回收运行得越不频繁。但是当它执行时，所需时间就会比小堆要长。因此，调整好堆的大小和垃圾回收策略对于应用的性能也很重要。&lt;/p&gt;
+
+&lt;h2&gt;4.应用布局&lt;/h2&gt;
+
+&lt;p&gt;最后要探讨的性能指标是应用布局。因为云的出现，现在的应用变得更加灵活：应用环境可以根据用户需求调节大小。因此，对应用的布局进行检测从而决定实例的多少是否合适是非常重要的。如果你的实例太多，你的云主机成本就会增加。但如果你没有足够的实例，商业事务就会受到影响。&lt;/p&gt;
+
+&lt;p&gt;在评测过程中，下面两个指标尤其重要：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;商业事务的吞吐量&lt;/p&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;容器性能&lt;/p&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;商业事务应该基准化，你应该知道在给定的时间里为了满足基准所需的实例数量。如果你的商业事务的吞吐量增长突然，你就要增加实例以满足用户。&lt;/p&gt;
+
+&lt;p&gt;另一个需要监测的是容器性能。具体来说，你想确定是否有应用中的实例负载过大，如果有，你或许想在那个应用中添加实例。从应用的角度查看实例状态很重要，因为单个实例可能由于垃圾回收之类的因素负载过大，但如果应用中大多数实例都负载过大，则该应用可能已经无法支持它接受的访问量。&lt;/p&gt;
+
+&lt;p&gt;因为应用中的实例可以单个地调节规模，所以分析各个实例的性能进而调整应用布局就至关重要。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>有关网页渲染，每个前端开发者都该知道的那点事！ &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="有关网页渲染，每个前端开发者都该知道的那点事！ ">
+    <link rel="canonical" href="/javascript/2015/06/16/reflow/">
+    
+    
+    <meta property="og:title" content="有关网页渲染，每个前端开发者都该知道的那点事！ "/>
+    <meta property="og:url" content="/javascript/2015/06/16/reflow/"/>
+    
+    
+    <meta property="og:description" content="经常有站长、开发者、运维疑惑：为什么我们的后台服务器很快，但是用户要看网页里面的内容却需要很长时间？我们在上一篇文章《怪兽大作战: 解析网站打开慢的原因》【http://news.yesky.com/prnews/420/58034920.shtml】中简单介绍了影响网站打开速度的几个指标，感兴趣的同学可以再读一下。 今天我们主要讲一下，dom 操作 对网页性能的影响，尤其是ajax回传数据渲染页面和动画，这点在移动端特别明显，在安卓机型、微信内置的webview 性能差距非常大。"/>
+    <meta name="description" content="经常有站长、开发者、运维疑惑：为什么我们的后台服务器很快，但是用户要看网页里面的内容却需要很长时间？我们在上一篇文章《怪兽大作战: 解析网站打开慢的原因》【http://news.yesky.com/prnews/420/58034920.shtml】中简单介绍了影响网站打开速度的几个指标，感兴趣的同学可以再读一下。 今天我们主要讲一下，dom 操作 对网页性能的影响，尤其是ajax回传数据渲染页面和动画，这点在移动端特别明显，在安卓机型、微信内置的webview 性能差距非常大。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">有关网页渲染，每个前端开发者都该知道的那点事！</h1>
+                
+                <div class="meta">
+                    <address>张超</address> &mdash;
+                    <time pubdate datetime="2015-16-June" title="June 16, 2015">June 16, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>张超</address> &mdash;
+                <time pubdate datetime="2015-16-June" title="June 16, 2015">June 16, 2015</time>
+            </div>
+            <h1 class="title">有关网页渲染，每个前端开发者都该知道的那点事！</h1>
+            
+        </header> -->
+
+        <section>
+            <p>【编者按】其实，有关网页渲染的文章很多，但是相关信息比较分散，且论述并不是很完整。如果要想对这个主题有个大致的了解，我们还得学习很多知识。因此，Web开发者Alexander Skutin 决定写一篇文章。他相信，这篇文章不仅能帮助初学者，也能对那些想要刷新知识结构的高级前端开发者有所裨益。<a href="http://frontendbabel.info/articles/webpage-rendering-101/">原文地址</a></p>
+
+<p><strong>译文如下：</strong></p>
+
+<p>网页渲染必须在很早的阶段进行，可以早到页面布局刚刚定型。因为样式和脚本都会对网页渲染产生关键性的影响。所以专业开发者必须了解一些技巧，从而避免在实践的过程中遇到性能问题。</p>
+
+<p>这篇文章不会研究浏览器内部的详细机制，而是提出一些通用的规则。毕竟，不同浏览器引擎的工作机制各不相同，这无疑会让开发者对浏览器特性的研究变得更加复杂。</p>
+
+<h2>浏览器是如何完成网页渲染？</h2>
+
+<p>首先，我们回顾一下网页渲染时，浏览器的动作：</p>
+
+<ol>
+<li>根据来自服务器端的HTML代码形成文档对象模型（DOM）</li>
+<li>加载并解析样式，形成CSS对象模型。</li>
+<li>在文档对象模型和CSS对象模型之上，创建一棵由一组待生成渲染的对象组成的渲染树（在Webkit中这些对象被称为渲染器或渲染对象，而在Gecko中称之为“frame”。）渲染树反映了文档对象模型的结构，但是不包含诸如<head>标签或含有<code>display:none</code>属性的不可见元素。在渲染树中，每一段文本字符串都表现为独立的渲染器。每一个渲染对象都包含与之对应的DOM对象，或者文本块，还加上计算过的样式。换言之，渲染树是一个文档对象模型的直观展示。</li>
+<li><p>对渲染树上的每个元素，计算它的坐标，称之为布局。浏览器采用一种流方法，布局一个元素只需通过一次，但是表格元素需要通过多次。</p></li>
+<li><p>最后，渲染树上的元素最终展示在浏览器里，这一过程称为“painting”。</p></li>
+</ol>
+
+<p>当用户与网页交互，或者脚本程序改动修改网页时，前文提到的一些操作将会重复执行，因为网页的内在结构已经发生了改变。</p>
+
+<h2>重绘</h2>
+
+<p>当改变那些不会影响元素在网页中的位置的元素样式时，譬如background-color(背景色)， border-color(边框色)， visibility(可见性)，浏览器只会用新的样式将元素重绘一次(这就是重绘，或者说重新构造样式)。</p>
+
+<h2>重排</h2>
+
+<p>当改变影响到文本内容或结构，或者元素位置时，重排或者说重新布局就会发生。这些改变通常由以下事件触发：</p>
+
+<ul>
+<li>DOM操作（元素添加，删除，修改，或者元素顺序的改变）;</li>
+<li>内容变化，包括表单域内的文本改变;</li>
+<li>CSS属性的计算或改变;</li>
+<li>添加或删除样式表;</li>
+<li>更改“类”的属性;</li>
+<li>浏览器窗口的操作（缩放，滚动）;</li>
+<li>伪类激活（：悬停）。</li>
+</ul>
+
+<h2>浏览器如何优化渲染？</h2>
+
+<p>浏览器尽可能将重绘/重构 限制在被改变元素的区域内。比如，对于位置固定或绝对的元素，其大小改变只影响元素本身及其子元素，然而，静态定位元素的大小改变会触发后续所有元素的重流。</p>
+
+<p>另一种优化技巧是，在运行几段JavaScript代码时，浏览器会缓存这些改变，在代码运行完毕后再将这些改变经一次通过加以应用。举个例子，下面这段代码只会触发一个重构和重绘：
+<code></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">var $body = $(&#39;body&#39;);
+$body.css(&#39;padding&#39;, &#39;1px&#39;); // reflow, repaint
+$body.css(&#39;color&#39;, &#39;red&#39;); // repaint
+$body.css(&#39;margin&#39;, &#39;2px&#39;); // reflow, repaint
+// only 1 reflow and repaint will actually happen
+</code></pre></div>
+<p></code></p>
+
+<p>然而，如前所述，改变元素的属性会触发强制性的重排。如果我们在上面的代码块中加入一行代码，用来访问元素的属性，就会发生这种现象。</p>
+
+<p><code>
+    var $body = $(&#39;body&#39;);
+    $body.css(&#39;padding&#39;, &#39;1px&#39;);
+    $body.css(&#39;padding&#39;); // reading a property, a forced   reflow
+    $body.css(&#39;color&#39;, &#39;red&#39;);
+    $body.css(&#39;margin&#39;, &#39;2px&#39;);
+  </code></p>
+
+<p>其结果就是，重排发生了两次。因此，你应该把访问元素属性的操作都组织在一起，从而优化网页性能。（<a href="http://jsbin.com/duhah/2/edit?html,css,js,output">你可以在JSBin查到更为详细的例子</a>）</p>
+
+<p>有时，你必须触发一个强制性重排。比如，我们必须将同样的属性(比如左边距)两次赋值给同一个元素。起初，它应该设置为100px，且不带动效。接着，它必须通过过渡(transition)动效改变为50px。你现在可以在<a href="http://jsbin.com/duhah/2/edit?html,css,js,output">JSbin</a>上学习这个例子，不过我会在这儿更详细地介绍它。</p>
+
+<p>首先，我们创建一个带过渡效果的CSS类：
+<code>
+    .has-transition {
+     -webkit-transition: margin-left 1s ease-out;
+         -moz-transition: margin-left 1s ease-out;
+           -o-transition: margin-left 1s ease-out;
+              transition: margin-left 1s ease-out;
+    }
+  </code></p>
+
+<p>然后继续执行：
+<code>
+    // our element that has a &quot;has-transition&quot; class by default
+    var $targetElem = $(&#39;#targetElemId&#39;);</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">// remove the transition class
+$targetElem.removeClass(&#39;has-transition&#39;);
+
+// change the property expecting the transition to be   off, as the class is not there
+// anymore
+$targetElem.css(&#39;margin-left&#39;, 100);
+
+// put the transition class back
+$targetElem.addClass(&#39;has-transition&#39;);
+
+// change the property
+$targetElem.css(&#39;margin-left&#39;, 50);
+</code></pre></div>
+<p></code>
+然而，这个执行无法奏效。所有改变都被缓存，只在代码块末尾加以执行。我们需要的是强制性的重排，我们可以通过以下更改加以实现：</p>
+
+<p><code>
+    // remove the transition class
+    $(this).removeClass(&#39;has-transition&#39;);</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">// change the property
+$(this).css(&#39;margin-left&#39;, 100);
+
+// trigger a forced reflow, so that changes in a    class/property get applied immediately
+$(this)[0].offsetHeight; // an example, other   properties would work, too
+
+// put the transition class back
+$(this).addClass(&#39;has-transition&#39;);
+
+// change the property
+$(this).css(&#39;margin-left&#39;, 50);
+</code></pre></div>
+<p></code>
+现在代码如预期那样执行了。</p>
+
+<h2>有关性能优化的实际建议</h2>
+
+<p>总结现有的资料，我提出以下建议：</p>
+
+<ul>
+<li>创建有效的HTML和CSS文件，不要忘记指明文档的编码方式。样式应该包含在<head>标签内，脚本代码则应该加在<body>标签末端。</li>
+<li>尽量简化和优化CSS选择器（这种优化方式几乎被使用CSS预处理器的开发者统一忽视了）将嵌套程度保持在最低水平。以下是CSS选择器的性能排名（从最快者开始）</li>
+</ul>
+<div class="highlight"><pre><code class="language-text" data-lang="text">1. 识别器:#id
+2. 类:.class
+3. 标签：div
+4. 相邻兄弟选择器：a + i
+5. 父类选择器：ul&gt; li
+6. 通用选择器：*
+7. 属性选择：input[type=&quot;text&quot;]
+8. 伪类和伪元素：a:hover
+</code></pre></div>
+<p>你应该记住，浏览器在处理选择器时依照从右到左的原则，因此最右端的选择器应该是最快的：#id或则.class：
+<code>
+    div * {...} // bad
+    .list li {...} // bad
+    .list-item {...} // good
+    #list .list-item {...} // good
+  </code>
+* 1.在你的脚本代码中，尽可能减少DOM操作。缓存所有东西，包括元素属性以及对象（如果它们被重用的话）。当进行复杂的操作时，使用“孤立”元素会更好，之后可以将其加到DOM中（所谓“孤立”元素是与DOM脱离，仅保存在内存中的元素）。</p>
+
+<ul>
+<li><p>2.如果你使用jQuery来选择元素，请遵从jQuery选择器最佳实践方案。</p></li>
+<li><p>3.为了改变元素的样式，修改“类”的属性是奏效的方法之一。执行这一改变时，处在DOM渲染树的位置越深越好（这还有助于将逻辑与表象脱离）。</p></li>
+<li><p>4.尽量只给位置绝对或者固定的元素添加动画效果。</p></li>
+<li><p>5.在使用滚动时禁用复杂的悬停动效（比如，在<body>中添加一个额外的不悬停类）。读者可以阅读关于这个问题的<a href="http://habrahabr.ru/post/204238/">一篇文章</a>。</p></li>
+</ul>
+
+<p>想了解更多的细节问题，大家也可以看看这两篇文章：</p>
+
+<ul>
+<li>1,<a href="http://taligarsiel.com/Projects/howbrowserswork1.htm">How browsers work？</a></li>
+<li>2,<a href="http://www.phpied.com/rendering-repaint-reflowrelayout-restyle/">Rendering: repaint, reflow/relayout, restyle</a></li>
+</ul>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/webfans.jpg">
+                <p><strong>张超</strong><br>
+                <span class="muted">Browser Insight</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/javascript/2015/06/16/reflow" data-title="有关网页渲染，每个前端开发者都该知道的那点事！" data-url="http://code.oneapm.com/javascript/2015/06/16/reflow/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

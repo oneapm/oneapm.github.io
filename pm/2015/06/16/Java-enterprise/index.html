@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>企业级 Java 应用最重要的4个性能指标 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="企业级 Java 应用最重要的4个性能指标 ">
+    <link rel="canonical" href="/pm/2015/06/16/Java-enterprise/">
+    
+    
+    <meta property="og:title" content="企业级 Java 应用最重要的4个性能指标 "/>
+    <meta property="og:url" content="/pm/2015/06/16/Java-enterprise/"/>
+    
+    
+    <meta property="og:description" content="企业级 Java 应用最重要的4个性能指标"/>
+    <meta name="description" content="企业级 Java 应用最重要的4个性能指标"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">企业级 Java 应用最重要的4个性能指标</h1>
+                
+                <div class="meta">
+                    <address>陶炳哲</address> &mdash;
+                    <time pubdate datetime="2015-16-June" title="June 16, 2015">June 16, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>陶炳哲</address> &mdash;
+                <time pubdate datetime="2015-16-June" title="June 16, 2015">June 16, 2015</time>
+            </div>
+            <h1 class="title">企业级 Java 应用最重要的4个性能指标</h1>
+            
+        </header> -->
+
+        <section>
+            <h1>企业级Java应用最重要的4个性能指标</h1>
+
+<p>应用性能管理（APM）是一种即时监控以实现对应用程序性能管理和故障管理的系统化解决方案。目前主要指对企业的关键业务应用进行监测、优化，最终达到提高企业应用的可靠性和质量，保证用户得到良好的服务，降低IT成本的目标。</p>
+
+<p>虽然很多人都曾预言Java将一蹶不振，但是不可否认的是，很多重要项目中，尤其是银行和政府一些大型项目，Java仍在其中扮演着极其重要的角色。国内APM领军企业OneAPM的Java工程师陶炳哲，多次参与银行、运营商等大型企业的性能优化工作,总结了企业级Java应用最应重视的4个性能指标，主要包括：商业事务，外部服务，垃圾回收以及应用布局。下文将逐一展开阐述：</p>
+
+<h2>1.商业事务</h2>
+
+<p>商业事务是真实用户体验的直观反映：它们抓取了用户与应用交互时，用户体验到的实时性能数据。测量商业事务的性能，需要抓取一件商业事务整体的响应时间及其各个组件的响应时间。这些响应时间再与满足业务需求的基准进行比较，从而决定应用是否正常。</p>
+
+<p><img src="http://i.imgur.com/0bHKjRD.png" alt="图一：OneAPM支持用户自定义自己的商业事务"></p>
+
+<p>如果你只打算测量应用的一个方面，本文会推荐你测量商业事务的表现。尽管容量指标(container metrics)能帮助你决定何时调节集群规模，但是商业事务才决定了应用本身的性能。你无需询问应用服务器线程池(thread pool)的使用情况，而是关心用户能否迅速完成他们的商业事务，以及这些事务的表现是否正常。</p>
+
+<p>介绍一点背景知识：商业事务通过其入口进行辨别，即用户与你的业务进行互动的入口。这类互动包括：一个网页请求，一个网页服务调用，或消息队列中的一条消息。当然，你也可以基于一个URL参数为同样的网页请求定义多个入口，或基于一个服务调用的内容定义多个入口点。关键在于：商业交易必须与对你的业务流程相关联，比如说中国移动的空中缴费业务对应到系统中是多个原子服务，我们就应该将这几个原子服务通过相应的关联聚合成一个空中缴费业务来进行监控。</p>
+
+<p>辨别某个商业交易后，它的性能就会在整个应用生态系统中进行测量。每个商业交易的性能会与其基准进行比较，判定其是否正常。譬如，如果某个商业事务的响应时间大于您设定的阈值，我们便判定其运行异常。<br>
+总而言之，商业事务最能反映用户体验，因此它们也是最重要的抓取维度。</p>
+
+<h2>2.外部服务</h2>
+
+<p>外部服务的形式多种多样：从属的网页服务、遗留系统或数据库等。外部服务是与应用交互的系统。运行在外部服务系统中的代码常常无法控制，但是我们可以控制这些系统的配置，因此了解他们是否运行正常以及何时出错也很重要。并且，我们必须有能力区分问题是出自自身应用，还是源于这些外部服务系统。</p>
+
+<p><img src="http://i.imgur.com/TeSURkM.png" alt="图二: 系统往往会跟很多外部系统进行交互"></p>
+
+<p>从商业事务的角度来说，我们可以辨别并测量这些处于自身应用的外部服务。有时，我们需要配置监控方法从而辨别那些包裹了外部服务调用的方法。但是对于常见的协议，诸如HTTP和JDBC，外部服务可以自动检测。</p>
+
+<p>商业事务让你对应用的性能有了全局的掌控，帮助你对性能问题进行分类。但是外部服务总能以意想不到的方式极大地影响应用的运行，所以你必须监控它们。</p>
+
+<h2>3.垃圾回收</h2>
+
+<p>从Java发布最早版本开始，一直都保留的核心特性就是垃圾回收，它真是让人又爱又恨。垃圾回收使我们不再需要手动管理内存：当使用完一个对象后，我们只需删除它的引用，然后垃圾回收就会自动释放它。如果你使用过需要手动管理内存的语言，诸如C或C++，你会满怀感激。垃圾回收为程序员们减少了分配、释放内存空间的繁琐步骤。</p>
+
+<p><img src="http://i.imgur.com/F2AegAl.png" alt="图三: OneAPM提供对于JVM本身各项指标的监控"></p>
+
+<p>此外，因为垃圾回收器会自动释放没有引用的内存空间，它减少了传统的内容泄露情况，即内存被分配后，该内存的引用在内存释放前就被删除了。听起来就像灵丹妙药，不是么？</p>
+
+<p>尽管垃圾回收达成了无需手动管理内存的目标，也防止了传统的内存泄露，但是作为代价，垃圾回收过程有时相当笨拙。根据不同的JVM,垃圾回收策略也会不同。深入探讨这些策略超出了本文的主旨。但是，读者应该明白，了解垃圾回收期的工作原理，以及最佳的配置方案至关重要。</p>
+
+<p>垃圾回收最大的敌人就是传说中的主要(major)或(full)垃圾回收。除了Azul JVM，所有的JVM都有这个问题。通常，垃圾回收大致分为两类：</p>
+
+<ul>
+<li>次级</li>
+<li>主要</li>
+</ul>
+
+<p>为了释放存活时间较短的对象，次级垃圾回收发生得相对频繁。他们在运行时不会封锁线程，产生的影响较小。</p>
+
+<p>然而，主要垃圾回收，有时也称为“暂停世界(Stop The World, STW)”垃圾回收，因为他们在运行时会封锁JVM中的所有线程。</p>
+
+<p><img src="http://i.imgur.com/gKvwOV2.png" alt="图四: 当垃圾回收运行时，它会运行一项可达性测试"></p>
+
+<p>当垃圾回收运行时，它会运行一项可达性测试(reachability test)，如图四所示。它会创建一个由对象组成的根集合(root set)，该集合包含每个运行线程中的直接可见对象。接着，它会探寻根集合中的对象涉及的其他对象，然后探寻这些对象涉及的对象，直到所有对象都被涉及。在这个过程中，它会记录(mark)下现时活动对象的内存地址，然后把不被使用的所有地址都扫除(sweep)。说得更恰当些，它会把没有根集合对象引用的内存都释放。最终，它会压缩、整理这些内存，这样新的对象才能获得内存分配。</p>
+
+<p><img src="http://i.imgur.com/fEHPxHF.png" alt="图五: 次级回收"></p>
+
+<p>根据不同的JVM，次级、主要回收的方式都会不同。图五图六展示了在Sun JVM内次级、主要回收的操作方式。</p>
+
+<p>在次级回收中，内存主要分配到Eden空间直到将其填满。接着，拷贝收集器(copy collector)会将Eden中的活动对象拷贝到两个幸存者空间(survivor spaces, to space和from space)。遗留在Eden中的对象就会被移除。如果幸存者空间被填满，但还有多余的活动对象，这些对象会被移到tenured空间。只有主要回收才能释放tenured空间的内存。</p>
+
+<p>最终，tenured空间会被填满，主要回收将会执行。它不会将幸存者空间放不下的活动对象拷贝到tenured空间中。此时，JVM会封锁所有线程，运行可达性测试，清除年轻的数据(Eden和两个幸存者空间)，并压缩tenured空间。我们将之称为主要回收。</p>
+
+<p><img src="http://i.imgur.com/iumG8tE.png" alt="图6：主要回收"></p>
+
+<p>你或许会想，堆越大，主要回收运行得越不频繁。但是当它执行时，所需时间就会比小堆要长。因此，调整好堆的大小和垃圾回收策略对于应用的性能也很重要。</p>
+
+<h2>4.应用布局</h2>
+
+<p>最后要探讨的性能指标是应用布局。因为云的出现，现在的应用变得更加灵活：应用环境可以根据用户需求调节大小。因此，对应用的布局进行检测从而决定实例的多少是否合适是非常重要的。如果你的实例太多，你的云主机成本就会增加。但如果你没有足够的实例，商业事务就会受到影响。</p>
+
+<p>在评测过程中，下面两个指标尤其重要：</p>
+
+<ul>
+<li><p>商业事务的吞吐量</p></li>
+<li><p>容器性能</p></li>
+</ul>
+
+<p>商业事务应该基准化，你应该知道在给定的时间里为了满足基准所需的实例数量。如果你的商业事务的吞吐量增长突然，你就要增加实例以满足用户。</p>
+
+<p>另一个需要监测的是容器性能。具体来说，你想确定是否有应用中的实例负载过大，如果有，你或许想在那个应用中添加实例。从应用的角度查看实例状态很重要，因为单个实例可能由于垃圾回收之类的因素负载过大，但如果应用中大多数实例都负载过大，则该应用可能已经无法支持它接受的访问量。</p>
+
+<p>因为应用中的实例可以单个地调节规模，所以分析各个实例的性能进而调整应用布局就至关重要。</p>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创文章 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/taobingzhe.png">
+                <p><strong>陶炳哲</strong><br>
+                <span class="muted">会议室看守者</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/pm/2015/06/16/Java-enterprise" data-title="企业级 Java 应用最重要的4个性能指标" data-url="http://code.oneapm.com/pm/2015/06/16/Java-enterprise/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
