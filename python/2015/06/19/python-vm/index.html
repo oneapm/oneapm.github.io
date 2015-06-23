@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【译】如何使用 Python 创建一个虚拟机解释器？ &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="【译】如何使用 Python 创建一个虚拟机解释器？ ">
+    <link rel="canonical" href="/python/2015/06/19/python-vm/">
+    
+    
+    <meta property="og:title" content="【译】如何使用 Python 创建一个虚拟机解释器？ "/>
+    <meta property="og:url" content="/python/2015/06/19/python-vm/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="本文主要介绍使用 Python 实现一个简单的虚拟机解释器"/>
+    <meta name="description" content="本文主要介绍使用 Python 实现一个简单的虚拟机解释器"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">【译】如何使用 Python 创建一个虚拟机解释器？</h1>
+                
+                <div class="meta">
+                    <address>赵斌</address> &mdash;
+                    <time pubdate datetime="2015-19-June" title="June 19, 2015">June 19, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>赵斌</address> &mdash;
+                <time pubdate datetime="2015-19-June" title="June 19, 2015">June 19, 2015</time>
+            </div>
+            <h1 class="title">【译】如何使用 Python 创建一个虚拟机解释器？</h1>
+            
+        </header> -->
+
+        <section>
+            <p>原文地址：<a href="https://csl.name/post/vm/">Making a simple VM interpreter in Python</a></p>
+
+<p><strong>更新：根据<a href="https://pay.reddit.com/r/Python/comments/35tg6b/making_a_simple_vm_interpreter_in_python/">大家的评论</a>我对代码做了轻微的改动。感谢 robin-gvx、 bs4h 和 Dagur，具体代码见<a href="https://github.com/cslarsen/python-simple-vm">这里</a></strong></p>
+
+<p>Stack Machine 本身并没有任何的寄存器，它将所需要处理的值全部放入堆栈中而后进行处理。Stack Machine 虽然简单但是却十分强大，这也是为神马 Python，Java，PostScript，Forth 和其他语言都选择它作为自己的虚拟机的原因。</p>
+
+<p>首先，我们先来谈谈堆栈。我们需要一个指令指针栈用于保存返回地址。这样当我们调用了一个子例程（比如调用一个函数）的时候我们就能够返回到我们开始调用的地方了。我们可以使用自修改代码(<a href="https://en.wikipedia.org/wiki/Self-modifying_code">self-modifying code</a>)来做这件事，恰如 Donald Knuth 发起的 <a href="https://en.wikipedia.org/wiki/MIX">MIX</a> 所做的那样。但是如果这么做的话你不得不自己维护堆栈从而保证递归能正常工作。在这篇文章中，我并不会真正的实现子例程调用，但是要实现它其实并不难（可以考虑把实现它当成练习）。</p>
+
+<p>有了堆栈之后你会省很多事儿。举个例子来说，考虑这样一个表达式 <code>(2+3)*4</code>。在 Stack Machine 上与这个表达式等价的代码为 <code>2 3 + 4 *</code>。首先，将 <code>2</code> 和 <code>3</code> 推入堆栈中，接下来的是操作符 <code>+</code>，此时让堆栈弹出这两个数值，再把它两加合之后的结果重新入栈。然后将 <code>4</code> 入堆，而后让堆栈弹出两个数值，再把他们相乘之后的结果重新入栈。多么简单啊！</p>
+
+<p>让我们开始写一个简单的堆栈类吧。让这个类继承 <code>collections.deque</code>：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+
+<span class="k">class</span> <span class="nc">Stack</span><span class="p">(</span><span class="n">deque</span><span class="p">):</span>
+    <span class="n">push</span> <span class="o">=</span> <span class="n">deque</span><span class="o">.</span><span class="n">append</span>
+
+    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div>
+<p>现在我们有了 <code>push</code>、<code>pop</code> 和 <code>top</code> 这三个方法。<code>top</code> 方法用于查看栈顶元素。</p>
+
+<p>接下来，我们实现虚拟机这个类。在虚拟机中我们需要两个堆栈以及一些内存空间来存储程序本身（译者注：这里的程序请结合下文理解）。得益于 Pyhton 的动态类型我们可以往 list 中放入任何类型。唯一的问题是我们无法区分出哪些是字符串哪些是内置函数。正确的做法是只将真正的 Python 函数放入 list 中。我可能会在将来实现这一点。</p>
+
+<p>我们同时还需要一个指令指针指向程序中下一个要执行的代码。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">class</span> <span class="nc">Machine</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">return_addr_stack</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span>
+</code></pre></div>
+<p>这时候我们增加一些方便使用的函数省得以后多敲键盘。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">top</span><span class="p">()</span>
+</code></pre></div>
+<p>然后我们增加一个 <code>dispatch</code> 函数来完成每一个操作码做的事儿（我们并不是真正的使用操作码，只是动态展开它，你懂的）。首先，增加一个解释器所必须的循环：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">):</span>
+        <span class="n">opcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">opcode</span><span class="p">)</span>
+</code></pre></div>
+<p>诚如您所见的，这货只好好的做一件事儿，即获取下一条指令，让指令指针执自增，然后根据操作码分别处理。<code>dispatch</code> 函数的代码稍微长了一点。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+    <span class="n">dispatch_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&quot;%&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">mod</span><span class="p">,</span>
+        <span class="s">&quot;*&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span>
+        <span class="s">&quot;+&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">plus</span><span class="p">,</span>
+        <span class="s">&quot;-&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">minus</span><span class="p">,</span>
+        <span class="s">&quot;/&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">div</span><span class="p">,</span>
+        <span class="s">&quot;==&quot;</span><span class="p">:</span>       <span class="bp">self</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+        <span class="s">&quot;cast_int&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast_int</span><span class="p">,</span>
+        <span class="s">&quot;cast_str&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast_str</span><span class="p">,</span>
+        <span class="s">&quot;drop&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">,</span>
+        <span class="s">&quot;dup&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">dup</span><span class="p">,</span>
+        <span class="s">&quot;if&quot;</span><span class="p">:</span>       <span class="bp">self</span><span class="o">.</span><span class="n">if_stmt</span><span class="p">,</span>
+        <span class="s">&quot;jmp&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">jmp</span><span class="p">,</span>
+        <span class="s">&quot;over&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">over</span><span class="p">,</span>
+        <span class="s">&quot;print&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">print_</span><span class="p">,</span>
+        <span class="s">&quot;println&quot;</span><span class="p">:</span>  <span class="bp">self</span><span class="o">.</span><span class="n">println</span><span class="p">,</span>
+        <span class="s">&quot;read&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">,</span>
+        <span class="s">&quot;stack&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">dump_stack</span><span class="p">,</span>
+        <span class="s">&quot;swap&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">swap</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dispatch_map</span><span class="p">:</span>
+        <span class="n">dispatch_map</span><span class="p">[</span><span class="n">op</span><span class="p">]()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="c"># push numbers on the data stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">op</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">op</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">op</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="s">&#39;&quot;&#39;</span><span class="p">:</span>
+        <span class="c"># push quoted strings on the data stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">op</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown opcode: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">op</span><span class="p">)</span>
+</code></pre></div>
+<p>基本上，这段代码只是根据操作码查找是都有对应的处理函数，例如 <code>*</code> 对应 <code>self.mul</code>，<code>drop</code> 对应 <code>self.drop</code>，<code>dup</code> 对应 <code>self.dup</code>。顺便说一句，你在这里看到的这段代码其实本质上就是简单版的 <a href="https://en.wikipedia.org/wiki/Forth_(programming_language)">Forth</a>。而且，Forth 语言还是值得您看看的。</p>
+
+<p>总之捏，它一但发现操作码是 <code>*</code> 的话就直接调用 <code>self.mul</code> 并执行它。就像这样：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">mul</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+</code></pre></div>
+<p>其他的函数也是类似这样的。如果我们在 <code>dispatch_map</code> 中查找不到相应操作函数，我们首先检查他是不是数字类型，如果是的话直接入栈；如果是被引号括起来的字符串的话也是同样处理－－直接入栈。</p>
+
+<p>截止现在，恭喜你，一个虚拟机就完成了。</p>
+
+<p>让我们定义更多的操作，然后使用我们刚完成的虚拟机和<a href="https://en.wikipedia.org/wiki/P-code_machine">p-code 语言</a> 来写程序。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="c"># Allow to use &quot;print&quot; as a name for our own method:</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+
+<span class="c"># ...</span>
+
+<span class="k">def</span> <span class="nf">plus</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+<span class="k">def</span> <span class="nf">minus</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">-</span> <span class="n">last</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">mul</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+<span class="k">def</span> <span class="nf">div</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">/</span> <span class="n">last</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()))</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+<span class="k">def</span> <span class="nf">println</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+</code></pre></div>
+<p>让我们用我们的虚拟机写个与 <code>print((2+3)*4)</code> 等同效果的例子。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Machine([2, 3, &quot;+&quot;, 4, &quot;*&quot;, &quot;println&quot;]).run()
+</code></pre></div>
+<p>你可以试着运行它。</p>
+
+<p>现在引入一个新的操作 jump, 即 go-to 操作</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">jmp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">addr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">=</span> <span class="n">addr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;JMP address must be a valid integer.&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>它只改变指令指针的值。我们再看看分支跳转是怎么做的。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">if_stmt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">false_clause</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">true_clause</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">true_clause</span> <span class="k">if</span> <span class="n">test</span> <span class="k">else</span> <span class="n">false_clause</span><span class="p">)</span>
+</code></pre></div>
+<p>这同样也是很直白的。如果你想要添加一个条件跳转，你只要简单的执行 <code>test-value true-value false-value IF JMP</code> 就可以了.（分支处理是很常见的操作，许多虚拟机都提供类似 <code>JNE</code> 这样的操作。<code>JNE</code> 是 <code>jump if not equal</code> 的缩写）。</p>
+
+<p>下面的程序要求使用者输入两个数字，然后打印出他们的和和乘积。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">Machine</span><span class="p">([</span>
+    <span class="s">&#39;&quot;Enter a number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+    <span class="s">&#39;&quot;Enter another number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+    <span class="s">&quot;over&quot;</span><span class="p">,</span> <span class="s">&quot;over&quot;</span><span class="p">,</span>
+    <span class="s">&#39;&quot;Their sum is: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">,</span>
+    <span class="s">&#39;&quot;Their product is: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span>
+<span class="p">])</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p><code>over</code>、<code>read</code> 和 <code>cast_int</code> 这三个操作是长这样滴：</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">cast_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()))</span>
+
+<span class="k">def</span> <span class="nf">over</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb">raw_input</span><span class="p">())</span>
+</code></pre></div>
+<p>以下这一段程序要求使用者输入一个数字，然后打印出这个数字是奇数还是偶数。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">Machine</span><span class="p">([</span>
+    <span class="s">&#39;&quot;Enter a number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+    <span class="s">&#39;&quot;The number &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;dup&quot;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&#39;&quot; is &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">,</span> <span class="s">&quot;%&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;==&quot;</span><span class="p">,</span> <span class="s">&#39;&quot;even.&quot;&#39;</span><span class="p">,</span> <span class="s">&#39;&quot;odd.&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;if&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">,</span>
+    <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;jmp&quot;</span> <span class="c"># loop forever!</span>
+<span class="p">])</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p>这里有个小练习给你去实现：增加 <code>call</code> 和 <code>return</code> 这两个操作码。<code>call</code> 操作码将会做如下事情 ：将当前地址推入返回堆栈中，然后调用 <code>self.jmp()</code>。<code>return</code> 操作码将会做如下事情：返回堆栈弹栈，将弹栈出来元素的值赋予指令指针（这个值可以让你跳转回去或者从 <code>call</code> 调用中返回）。当你完成这两个命令，那么你的虚拟机就可以调用子例程了。</p>
+
+<h2>一个简单的解析器</h2>
+
+<p>创造一个模仿上述程序的小型语言。我们将把它编译成我们的机器码。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">import</span> <span class="nn">tokenize</span>
+<span class="kn">from</span> <span class="nn">StringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+
+<span class="c"># ...</span>
+
+<span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">generate_tokens</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="o">.</span><span class="n">readline</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">toknum</span><span class="p">,</span> <span class="n">tokval</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">toknum</span> <span class="o">==</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">NUMBER</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="nb">int</span><span class="p">(</span><span class="n">tokval</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">toknum</span> <span class="ow">in</span> <span class="p">[</span><span class="n">tokenize</span><span class="o">.</span><span class="n">OP</span><span class="p">,</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">STRING</span><span class="p">,</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">NAME</span><span class="p">]:</span>
+            <span class="k">yield</span> <span class="n">tokval</span>
+        <span class="k">elif</span> <span class="n">toknum</span> <span class="o">==</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">ENDMARKER</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown token </span><span class="si">%s</span><span class="s">: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="n">tokenize</span><span class="o">.</span><span class="n">tok_name</span><span class="p">[</span><span class="n">toknum</span><span class="p">],</span> <span class="n">tokval</span><span class="p">))</span>
+</code></pre></div>
+<h2>一个简单的优化：常量折叠</h2>
+
+<p>常量折叠（<a href="https://en.wikipedia.org/wiki/Constant_folding">Constant folding</a>）是窥孔优化（<a href="https://en.wikipedia.org/wiki/Peephole_optimization">peephole optimization</a>）的一个例子，也即是说再在编译期间可以针对某些明显的代码片段做些预计算的工作。比如，对于涉及到常量的数学表达式例如 <code>2 3 +</code> 就可以很轻松的实现这种优化。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">constant_fold</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constant-folds simple mathematical expressions like 2 3 + to 5.&quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="c"># Find two consecutive numbers and an arithmetic operator</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">code</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">code</span><span class="p">[</span><span class="mi">2</span><span class="p">:])):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> \
+                    <span class="ow">and</span> <span class="n">op</span> <span class="ow">in</span> <span class="p">{</span><span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="s">&quot;-&quot;</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;/&quot;</span><span class="p">}:</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">op</span><span class="p">))</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                <span class="n">code</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">top</span><span class="p">()]</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Constant-folded </span><span class="si">%s%s%s</span><span class="s"> to </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">op</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">m</span><span class="o">.</span><span class="n">top</span><span class="p">()))</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">code</span>
+</code></pre></div>
+<p>采用常量折叠遇到唯一问题就是我们不得不更新跳转地址，但在很多情况这是很难办到的（例如：<code>test cast_int jmp</code>）。针对这个问题有很多解决方法，其中一个简单的方法就是只允许跳转到程序中的命名标签上，然后在优化之后解析出他们真正的地址。</p>
+
+<p>如果你实现了 Forth words，也即函数，你可以做更多的优化，比如删除可能永远不会被用到的程序代码（<a href="https://en.wikipedia.org/wiki/Dead_code_elimination">dead code elimination</a>）</p>
+
+<h2>REPL</h2>
+
+<p>我们可以创造一个简单的 PERL，就像这样</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="k">def</span> <span class="nf">repl</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Hit CTRL+D or type &quot;exit&quot; to quit.&#39;</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&quot;&gt; &quot;</span><span class="p">)</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="n">source</span><span class="p">))</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">constant_fold</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+            <span class="n">Machine</span><span class="p">(</span><span class="n">code</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;IndexError: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">KeyboardInterrupt&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>用一些简单的程序来测试我们的 REPL </p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">&gt; 2 3 + 4 * println
+Constant-folded 2+3 to 5
+Constant-folded 5*4 to 20
+20
+&gt; 12 dup * println
+144
+&gt; &quot;Hello, world!&quot; dup println println
+Hello, world!
+Hello, world!
+</code></pre></div>
+<p>你可以看到，常量折叠看起来运转正常。在第一个例子中，它把整个程序优化成这样 <code>20 println</code>。</p>
+
+<h2>下一步</h2>
+
+<p>当你添加完 <code>call</code> 和 <code>return</code> 之后，你便可以让使用者定义自己的函数了。在<a href="https://en.wikipedia.org/wiki/Forth_(programming_language)">Forth</a> 中函数被称为 words，他们以冒号开头紧接着是名字然后以分号结束。例如，一个整数平方的 word 是长这样滴</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">: square dup * ;
+</code></pre></div>
+<p>实际上，你可以试试把这一段放在程序中，比如 <a href="https://www.gnu.org/software/gforth/">Gforth</a></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ gforth
+Gforth 0.7.3, Copyright (C) 1995-2008 Free Software Foundation, Inc.
+Gforth comes with ABSOLUTELY NO WARRANTY; for details type `license&#39;
+Type `bye&#39; to exit
+: square dup * ;  ok
+12 square . 144  ok
+</code></pre></div>
+<p>你可以在解析器中通过发现 <code>:</code> 来支持这一点。一旦你发现一个冒号，你必须记录下它的名字及其地址（比如：在程序中的位置）然后把他们插入到符号表（<a href="https://en.wikipedia.org/wiki/Symbol_table">symbol table</a>）中。简单起见，你甚至可以把整个函数的代码（包括分号）放在字典中，譬如：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">symbol_table = {
+  &quot;square&quot;: [&quot;dup&quot;, &quot;*&quot;]
+  # ...
+}
+</code></pre></div>
+<p>当你完成了解析的工作，你可以<a href="https://en.wikipedia.org/wiki/Linker_(computing)">连接</a>你的程序：遍历整个主程序并且在符号表中寻找自定义函数的地方。一旦你找到一个并且它没有在主程序的后面出现，那么你可以把它附加到主程序的后面。然后用 <code>&lt;address&gt; call</code> 替换掉 <code>square</code>，这里的 <code>&lt;address&gt;</code> 是函数插入的地址。</p>
+
+<p>为了保证程序能正常执行，你应该考虑剔除 <code>jmp</code> 操作。否则的话，你不得不解析它们。它确实能执行，但是你得按照用户编写程序的顺序保存它们。举例来说，你想在子例程之间移动，你要格外小心。你可能需要添加 <code>exit</code> 函数用于停止程序（可能需要告诉操作系统返回值），这样主程序就不会继续执行以至于跑到子例程中。</p>
+
+<p>实际上，一个好的程序空间布局很有可能把主程序当成一个名为 <code>main</code> 的子例程。或者由你决定搞成什么样子。</p>
+
+<p>如您所见，这一切都是很有趣的，而且通过这一过程你也学会了很多关于代码生成、链接、程序空间布局相关的知识。</p>
+
+<h2>更多能做的事儿</h2>
+
+<p>你可以使用 Python 字节码生成库来尝试将虚拟机代码为原生的 Python 字节码。或者用 Java 实现运行在 JVM 上面，这样你就可以自由使用 <a href="https://en.wikipedia.org/wiki/Just-in-time_compilation">JITing</a>。</p>
+
+<p>同样的，你也可以尝试下<a href="https://en.wikipedia.org/wiki/Register_machine">register machine</a>。你可以尝试用栈帧（<a href="https://en.wikipedia.org/wiki/Call_stack#STACK-FRAME">stack frames</a>）实现调用栈（<a href="https://en.wikipedia.org/wiki/Call_stack">call stack</a>），并基于此建立调用会话。</p>
+
+<p>最后，如果你不喜欢类似 Forth 这样的语言，你可以创造运行于这个虚拟机之上的自定义语言。譬如，你可以把类似 <code>(2+3)*4</code> 这样的中缀表达式转化成 <code>2 3 + 4 *</code> 然后生成代码。你也可以允许 C 风格的代码块 <code>{ ... }</code> 这样的话，语句 <code>if ( test ) { ... } else { ... }</code> 将会被翻译成</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">&lt;true/false test&gt;
+&lt;address of true block&gt;
+&lt;address of false block&gt;
+if
+jmp
+
+&lt;true block&gt;
+&lt;address of end of entire if-statement&gt; jmp
+
+&lt;false block&gt;
+&lt;address of end of entire if-statement&gt; jmp
+</code></pre></div>
+<p>例子，</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Address  Code
+-------  ----
+ 0       2 3 &gt;
+ 3       7        # Address of true-block
+ 4       11       # Address of false-block
+ 5       if
+ 6       jmp      # Conditional jump based on test
+
+# True-block
+ 7       &quot;Two is greater than three.&quot;
+ 8       println
+ 9       15       # Continue main program
+10       jmp
+
+# False-block (&quot;else { ... }&quot;)
+11       &quot;Two is less than three.&quot;
+12       println
+13       15       # Continue main program
+14       jmp
+
+# If-statement finished, main program continues here
+15       ...
+</code></pre></div>
+<p>对了，你还需要添加比较操作符 <code>!= &lt; &lt;= &gt; &gt;=</code>。</p>
+
+<p>我已经在我的 <a href="https://github.com/cslarsen/stack-machine">C++ stack machine</a> 实现了这些东东，你可以参考下。</p>
+
+<p>我已经把这里呈现出来的代码搞成了个项目 <a href="https://github.com/cslarsen/crianza">Crianza</a>，它使用了更多的优化和实验性质的模型来吧程序编译成 Python 字节码。</p>
+
+<p>祝好运！</p>
+
+<h2>完整的代码</h2>
+
+<p>下面是全部的代码，兼容 Python 2 和 Python 3</p>
+
+<p>你可以通过<a href="https://github.com/cslarsen/python-simple-vm">这里</a> 得到它。</p>
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="c">#!/usr/bin/env python</span>
+<span class="c"># coding: utf-8</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">A simple VM interpreter.</span>
+
+<span class="sd">Code from the post at http://csl.name/post/vm/</span>
+<span class="sd">This version should work on both Python 2 and 3.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">tokenize</span>
+
+
+<span class="k">def</span> <span class="nf">get_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read a string from standard input.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;2&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">raw_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Stack</span><span class="p">(</span><span class="n">deque</span><span class="p">):</span>
+    <span class="n">push</span> <span class="o">=</span> <span class="n">deque</span><span class="o">.</span><span class="n">append</span>
+
+    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">Machine</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">return_stack</span> <span class="o">=</span> <span class="n">Stack</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code</span> <span class="o">=</span> <span class="n">code</span>
+
+    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">push</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="o">.</span><span class="n">top</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">):</span>
+            <span class="n">opcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dispatch</span><span class="p">(</span><span class="n">opcode</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">op</span><span class="p">):</span>
+        <span class="n">dispatch_map</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&quot;%&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">mod</span><span class="p">,</span>
+            <span class="s">&quot;*&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">mul</span><span class="p">,</span>
+            <span class="s">&quot;+&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">plus</span><span class="p">,</span>
+            <span class="s">&quot;-&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">minus</span><span class="p">,</span>
+            <span class="s">&quot;/&quot;</span><span class="p">:</span>        <span class="bp">self</span><span class="o">.</span><span class="n">div</span><span class="p">,</span>
+            <span class="s">&quot;==&quot;</span><span class="p">:</span>       <span class="bp">self</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+            <span class="s">&quot;cast_int&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast_int</span><span class="p">,</span>
+            <span class="s">&quot;cast_str&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cast_str</span><span class="p">,</span>
+            <span class="s">&quot;drop&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">,</span>
+            <span class="s">&quot;dup&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">dup</span><span class="p">,</span>
+            <span class="s">&quot;exit&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">exit</span><span class="p">,</span>
+            <span class="s">&quot;if&quot;</span><span class="p">:</span>       <span class="bp">self</span><span class="o">.</span><span class="n">if_stmt</span><span class="p">,</span>
+            <span class="s">&quot;jmp&quot;</span><span class="p">:</span>      <span class="bp">self</span><span class="o">.</span><span class="n">jmp</span><span class="p">,</span>
+            <span class="s">&quot;over&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">over</span><span class="p">,</span>
+            <span class="s">&quot;print&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="k">print</span><span class="p">,</span>
+            <span class="s">&quot;println&quot;</span><span class="p">:</span>  <span class="bp">self</span><span class="o">.</span><span class="n">println</span><span class="p">,</span>
+            <span class="s">&quot;read&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">,</span>
+            <span class="s">&quot;stack&quot;</span><span class="p">:</span>    <span class="bp">self</span><span class="o">.</span><span class="n">dump_stack</span><span class="p">,</span>
+            <span class="s">&quot;swap&quot;</span><span class="p">:</span>     <span class="bp">self</span><span class="o">.</span><span class="n">swap</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">dispatch_map</span><span class="p">:</span>
+            <span class="n">dispatch_map</span><span class="p">[</span><span class="n">op</span><span class="p">]()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">op</span><span class="p">)</span> <span class="c"># push numbers on stack</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">op</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">op</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">op</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="s">&#39;&quot;&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">op</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="c"># push quoted strings on stack</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown opcode: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="n">op</span><span class="p">)</span>
+
+    <span class="c"># OPERATIONS FOLLOW:</span>
+
+    <span class="k">def</span> <span class="nf">plus</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">exit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">minus</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">-</span> <span class="n">last</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mul</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">div</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">/</span> <span class="n">last</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mod</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">%</span> <span class="n">last</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">dup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">top</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">over</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">drop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">swap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">print</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">println</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">get_input</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">cast_int</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()))</span>
+
+    <span class="k">def</span> <span class="nf">cast_str</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()))</span>
+
+    <span class="k">def</span> <span class="nf">eq</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">if_stmt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">false_clause</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">true_clause</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="n">test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">true_clause</span> <span class="k">if</span> <span class="n">test</span> <span class="k">else</span> <span class="n">false_clause</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">jmp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">addr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">addr</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">addr</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">code</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instruction_pointer</span> <span class="o">=</span> <span class="n">addr</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;JMP address must be a valid integer.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">dump_stack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Data stack (top first):&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_stack</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot; - type </span><span class="si">%s</span><span class="s">, value &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">v</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">parse</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="c"># Note that the tokenizer module is intended for parsing Python source</span>
+    <span class="c"># code, so if you&#39;re going to expand on the parser, you may have to use</span>
+    <span class="c"># another tokenizer.</span>
+
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;2&quot;</span><span class="p">:</span>
+        <span class="n">stream</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">(</span><span class="nb">unicode</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">stream</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+    <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">generate_tokens</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">readline</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">toknum</span><span class="p">,</span> <span class="n">tokval</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">toknum</span> <span class="o">==</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">NUMBER</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="nb">int</span><span class="p">(</span><span class="n">tokval</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">toknum</span> <span class="ow">in</span> <span class="p">[</span><span class="n">tokenize</span><span class="o">.</span><span class="n">OP</span><span class="p">,</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">STRING</span><span class="p">,</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">NAME</span><span class="p">]:</span>
+            <span class="k">yield</span> <span class="n">tokval</span>
+        <span class="k">elif</span> <span class="n">toknum</span> <span class="o">==</span> <span class="n">tokenize</span><span class="o">.</span><span class="n">ENDMARKER</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;Unknown token </span><span class="si">%s</span><span class="s">: &#39;</span><span class="si">%s</span><span class="s">&#39;&quot;</span> <span class="o">%</span>
+                    <span class="p">(</span><span class="n">tokenize</span><span class="o">.</span><span class="n">tok_name</span><span class="p">[</span><span class="n">toknum</span><span class="p">],</span> <span class="n">tokval</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">constant_fold</span><span class="p">(</span><span class="n">code</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constant-folds simple mathematical expressions like 2 3 + to 5.&quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="c"># Find two consecutive numbers and an arithmetic operator</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">code</span><span class="p">,</span> <span class="n">code</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">code</span><span class="p">[</span><span class="mi">2</span><span class="p">:])):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> \
+                    <span class="ow">and</span> <span class="n">op</span> <span class="ow">in</span> <span class="p">{</span><span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="s">&quot;-&quot;</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;/&quot;</span><span class="p">}:</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">((</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">op</span><span class="p">))</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                <span class="n">code</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">top</span><span class="p">()]</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Constant-folded </span><span class="si">%s%s%s</span><span class="s"> to </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">op</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">m</span><span class="o">.</span><span class="n">top</span><span class="p">()))</span>
+                <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">code</span>
+
+<span class="k">def</span> <span class="nf">repl</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Hit CTRL+D or type &quot;exit&quot; to quit.&#39;</span><span class="p">)</span>
+
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">source</span> <span class="o">=</span> <span class="n">get_input</span><span class="p">(</span><span class="s">&quot;&gt; &quot;</span><span class="p">)</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse</span><span class="p">(</span><span class="n">source</span><span class="p">))</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">constant_fold</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+            <span class="n">Machine</span><span class="p">(</span><span class="n">code</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;IndexError: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">KeyboardInterrupt&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">code</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">]):</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Code before optimization: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">code</span><span class="p">))</span>
+    <span class="n">optimized</span> <span class="o">=</span> <span class="n">constant_fold</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Code after optimization: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">optimized</span><span class="p">))</span>
+
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Stack after running original program:&quot;</span><span class="p">)</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+    <span class="n">a</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">a</span><span class="o">.</span><span class="n">dump_stack</span><span class="p">()</span>
+
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Stack after running optimized program:&quot;</span><span class="p">)</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">Machine</span><span class="p">(</span><span class="n">optimized</span><span class="p">)</span>
+    <span class="n">b</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="n">b</span><span class="o">.</span><span class="n">dump_stack</span><span class="p">()</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">data_stack</span> <span class="o">==</span> <span class="n">b</span><span class="o">.</span><span class="n">data_stack</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;Result: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&quot;OK&quot;</span> <span class="k">if</span> <span class="n">result</span> <span class="k">else</span> <span class="s">&quot;FAIL&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+<span class="k">def</span> <span class="nf">examples</span><span class="p">():</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;** Program 1: Runs the code for `print((2+3)*4)`&quot;</span><span class="p">)</span>
+    <span class="n">Machine</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">** Program 2: Ask for numbers, computes sum and product.&quot;</span><span class="p">)</span>
+    <span class="n">Machine</span><span class="p">([</span>
+        <span class="s">&#39;&quot;Enter a number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+        <span class="s">&#39;&quot;Enter another number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+        <span class="s">&quot;over&quot;</span><span class="p">,</span> <span class="s">&quot;over&quot;</span><span class="p">,</span>
+        <span class="s">&#39;&quot;Their sum is: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;+&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">,</span>
+        <span class="s">&#39;&quot;Their product is: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;*&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span>
+    <span class="p">])</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="k">print</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">** Program 3: Shows branching and looping (use CTRL+D to exit).&quot;</span><span class="p">)</span>
+    <span class="n">Machine</span><span class="p">([</span>
+        <span class="s">&#39;&quot;Enter a number: &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;read&quot;</span><span class="p">,</span> <span class="s">&quot;cast_int&quot;</span><span class="p">,</span>
+        <span class="s">&#39;&quot;The number &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&quot;dup&quot;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span> <span class="s">&#39;&quot; is &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;print&quot;</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">,</span> <span class="s">&quot;%&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;==&quot;</span><span class="p">,</span> <span class="s">&#39;&quot;even.&quot;&#39;</span><span class="p">,</span> <span class="s">&#39;&quot;odd.&quot;&#39;</span><span class="p">,</span> <span class="s">&quot;if&quot;</span><span class="p">,</span> <span class="s">&quot;println&quot;</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;jmp&quot;</span> <span class="c"># loop forever!</span>
+    <span class="p">])</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">cmd</span> <span class="o">==</span> <span class="s">&quot;repl&quot;</span><span class="p">:</span>
+                <span class="n">repl</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">cmd</span> <span class="o">==</span> <span class="s">&quot;test&quot;</span><span class="p">:</span>
+                <span class="n">test</span><span class="p">()</span>
+                <span class="n">examples</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;Commands: repl, test&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">repl</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">EOFError</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+</code></pre></div>
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/zhaobin.jpg">
+                <p><strong>赵斌</strong><br>
+                <span class="muted">Python 工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/python/2015/06/19/python-vm" data-title="【译】如何使用 Python 创建一个虚拟机解释器？" data-url="http://code.oneapm.com/python/2015/06/19/python-vm/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
