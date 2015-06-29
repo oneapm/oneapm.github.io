@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动态修改 NodeJS 程序中的变量值 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="动态修改 NodeJS 程序中的变量值 ">
+    <link rel="canonical" href="/nodejs/2015/06/27/intereference/">
+    
+    
+    <meta property="og:title" content="动态修改 NodeJS 程序中的变量值 "/>
+    <meta property="og:url" content="/nodejs/2015/06/27/intereference/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="通过无所不能的 Debugger 可以修改 NodeJS 程序中的变量值。"/>
+    <meta name="description" content="通过无所不能的 Debugger 可以修改 NodeJS 程序中的变量值。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">动态修改 NodeJS 程序中的变量值</h1>
+                
+                <div class="meta">
+                    <address>王龑</address> &mdash;
+                    <time pubdate datetime="2015-27-June" title="June 27, 2015">June 27, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>王龑</address> &mdash;
+                <time pubdate datetime="2015-27-June" title="June 27, 2015">June 27, 2015</time>
+            </div>
+            <h1 class="title">动态修改 NodeJS 程序中的变量值</h1>
+            
+        </header> -->
+
+        <section>
+            <p>如果一个 NodeJS 进程正在运行，有办法修改程序中的变量值么？答案是：通过 V8 的 Debugger 接口可以！本文将详细介绍实现步骤。</p>
+
+<h2>启动一个 HTTP Server</h2>
+
+<p>用简单的 Hello World 做例子吧，不过略作修改。在 <code>global</code> 下放一个变量 <code>message</code>， 然后打印出来：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="c1">// message content will be modified !</span>
+<span class="nx">global</span><span class="p">.</span><span class="nx">message</span> <span class="o">=</span> <span class="s2">&quot;hello world!&quot;</span><span class="p">;</span>
+
+<span class="kd">var</span> <span class="nx">server</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;http&#39;</span><span class="p">).</span><span class="nx">createServer</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">res</span><span class="p">.</span><span class="nx">end</span><span class="p">(</span><span class="nx">global</span><span class="p">.</span><span class="nx">message</span><span class="p">);</span>
+<span class="p">}).</span><span class="nx">listen</span><span class="p">(</span><span class="mi">8001</span><span class="p">);</span>
+
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;pid = %d&#39;</span><span class="p">,</span> <span class="nx">process</span><span class="p">.</span><span class="nx">pid</span><span class="p">);</span>
+</code></pre></div>
+<p>用命令启动 Server，此时，通过用浏览器访问 <code>http://localhost:8001</code> 可以看到网页内容是 <code>hello world!</code>。 
+接下来我们将尝试在不改变代码，不重启进程的情况下把 <code>message</code> 换成 &quot;hello bugs!&quot;。</p>
+
+<h2>使 Server 进程进入 Debug 模式</h2>
+
+<p>V8 引擎在实现的时候留了 Debugger 接口。 通过命令 <code>node --debug-brk=5858 [filename]</code> 可以启动一个脚本，并且立即进入 Debug 模式。</p>
+
+<p>那么如果是已经运行着的 NodeJS 程序，可以进入 Debug 模式吗？也是可以的，在操作系统下给 NodeJS 的进程发一个 <code>SIGUSR1</code> 信号，可以让进程进入 Debug 模式。
+进入 Debug 模式的进程会在本地启动一个 TCP Server 并且默认监听 <code>5858</code> 端口。 </p>
+
+<p>此时在另一个命令行窗口执行命令 <code>node debug localhost:5858</code> 就可以连接到 Debugger 调试端口， 并且可以使用很多常用的 Debug 命令，比如 <code>c</code>继续执行，<code>s</code> 步入， <code>o</code>步出等。</p>
+
+<h2>Debugger 协议</h2>
+
+<p>使用 <code>node debug hostname:port</code> 命令连接到进程进行 Debug 的方式比较简单，但是要完成一些高级的功能就会处处受限，因为它只封装了 Debugger 协议中 command 的一部分。
+下面介绍一下这个简单的协议。</p>
+
+<p>Client 和 Server 的通讯是通过 TCP 进行的。 DebugClient 第一次连接到 DebugServer 的时候会拿到一些 Header，比如 Node 版本， V8 版本等。后面紧跟着一个空的消息1</p>
+
+<p><strong>消息1</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Type: connect\r\n
+V8-Version: 3.28.71.19\r\n
+Protocol-Version: 1\r\n
+Embedding-Host: node v0.12.4\r\n
+Content-Length: 0\r\n
+\r\n
+</code></pre></div>
+<p>消息实体由 Header 和 Body 组成，消息1的 Body 为空，所以 Header 中对应的 Content-Length 为 0。而在下面这个例子里，Body 为一个单行的 JSON 字符串，这是由协议所规定的。</p>
+
+<p><strong>消息2</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Content-Length: 46\r\n
+\r\n
+{&quot;command&quot;:&quot;version&quot;,&quot;type&quot;:&quot;request&quot;,&quot;seq&quot;:1}
+</code></pre></div>
+<p>消息2的类型( type )是 <code>request</code>，代表这是 Client 发给 Server 的命令，其他的可能值是 <code>response</code> 和 <code>event</code> 分别代表 Server 对 Client 的相应，和 Server 端发生的事件。</p>
+
+<p><strong>消息3</strong></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Content-Length: 137\r\n
+\r\n
+{&quot;seq&quot;:1,&quot;request_seq&quot;:1,&quot;type&quot;:&quot;response&quot;,&quot;command&quot;:&quot;version&quot;,&quot;success&quot;:true,&quot;body&quot;:{&quot;V8Version&quot;:&quot;3.28.71.19&quot;},&quot;refs&quot;:[],&quot;running&quot;:true}
+</code></pre></div>
+<p>消息2是 Client 发送给 Server的，消息3是 Server 对 Client 的相应，那么如何判断消息3是不是消息2的结果呢？可以看到消息2中的 seq 值是1，而
+消息3中的 request_seq 值是1。 Debugger 协议正是通过这两个值把异步返回的结果和请求一一对应起来的。</p>
+
+<p>Debugger 协议就是这么的简单。</p>
+
+<h3>实例化一个 Debugger Client</h3>
+
+<p>了解了 Debugger 协议后，相信好奇心强的程序员已经跃跃欲试自己实现一个了。本着不重复发明轮子的原则开始在网上找实现，找了好久找到这个库 <a href="https://www.npmjs.com/package/pDebug">pDebug</a>，
+可惜这个库已经好久不更新了。后来通过阅读 <code>node-inspector</code> 的源码才发现，其实 NodeJS 自带了一个 Debugger 模块, 相关代码在 <code>_debugger</code> 
+模块里(<a href="https://github.com/joyent/node/blob/master/lib/_debugger.js">源码</a>)，由于模块名是以 <code>_</code> 开头的，所以网上找不到它的 API，好在代码注释写的非常详细，很快就能上手。</p>
+
+<p>我们需要的正是这个模块下的 Client， 而 Client 其实是继承于 Socket 的.</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">var</span> <span class="nx">Client</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;_debugger&#39;</span><span class="p">).</span><span class="nx">Client</span><span class="p">;</span>
+<span class="kd">var</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Client</span><span class="p">();</span>
+
+<span class="nx">client</span><span class="p">.</span><span class="nx">connect</span><span class="p">(</span><span class="mi">5858</span><span class="p">);</span>
+<span class="nx">client</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;ready&#39;</span><span class="p">,</span> <span class="kd">function</span> <span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// 连接成功</span>
+<span class="p">});</span>
+</code></pre></div>
+<h3>通过 Debugger 接口执行命令</h3>
+
+<p>接下来我们来看看如何修改这个 global 的变量，代码如下</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">function</span> <span class="nx">modifyTheMessage</span><span class="p">(</span><span class="nx">newMessage</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">msg</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;command&#39;</span><span class="o">:</span> <span class="s1">&#39;evaluate&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;arguments&#39;</span><span class="o">:</span> <span class="p">{</span>
+            <span class="s1">&#39;expression&#39;</span><span class="o">:</span> <span class="s1">&#39;global.message=&quot;&#39;</span> <span class="o">+</span> <span class="nx">newMessage</span> <span class="o">+</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;global&#39;</span><span class="o">:</span> <span class="kc">true</span>
+        <span class="p">}</span>
+    <span class="p">};</span>
+    <span class="nx">client</span><span class="p">.</span><span class="nx">req</span><span class="p">(</span><span class="nx">msg</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">body</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;modified to %s&#39;</span><span class="p">,</span> <span class="nx">newMessage</span><span class="p">);</span>
+    <span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>client.req</code> 方法封装了 <code>type=request</code> 消息类型 和 <code>seq</code> 自增的逻辑，因此在构造 <code>msg</code> JSON对象的时候不需要指明这两个属性。
+我们要修改 message 其实就是在 JavaScript 调用的顶层执行 <code>global.message=newMessage</code></p>
+
+<h3>总结</h3>
+
+<p>此时，再访问 <code>http://localhost:8001</code> 可以看到网页上显示的内容已经由 <code>&#39;hello world!&#39;</code> 变成了 <code>&#39;hello bugs!&#39;</code>，是不是很神奇。</p>
+
+<p>这种方式也带来了很多可能性：</p>
+
+<ul>
+<li>动态修改配置</li>
+</ul>
+
+<p>线上的服务器不用重启就可以应用新的配置</p>
+
+<ul>
+<li>模块注入</li>
+</ul>
+
+<p>通过其他任意语言编写的应用程序为已经运行的 NodeJS 进程注入新的模块</p>
+
+<ul>
+<li>性能监控</li>
+</ul>
+
+<p>可以剥离用户线上代码对第三方性能监控模块的直接依赖</p>
+
+<ul>
+<li>错误监控</li>
+</ul>
+
+<p>发生异常时，通过 Debugger 可以抓到发生错误的函数和行号，并且抓取各个调用栈中的每一个变量，即使是在闭包里</p>
+
+<ul>
+<li>Chrome 调试</li>
+</ul>
+
+<p>由于 Chrome 也是基于 V8 的，上述方法也可以用于 Chrome 相关的功能集成</p>
+
+<h3>关于</h3>
+
+<p>1. 本文相关的源码在：
+<a href="https://github.com/wyvernnot/interference_demo">https://github.com/wyvernnot/interference_demo</a>;</p>
+
+<p>2. 如果你也对 Debugger 协议感兴趣，可以安装 oneapm-debugger 这个工具，它可以帮助你查看 Debug 过程中所有实际发送的数据。
+<a href="https://www.npmjs.com/package/oneapm-debugger">oneapm-debugger</a></p>
+
+<blockquote>
+<p>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创 ，想阅读更多技术文章，请访问<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM官方技术博客</a>。</p>
+</blockquote>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/wangyan.jpg">
+                <p><strong>王龑</strong><br>
+                <span class="muted">NodeJS工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/nodejs/2015/06/27/intereference" data-title="动态修改 NodeJS 程序中的变量值" data-url="http://code.oneapm.com/nodejs/2015/06/27/intereference/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
