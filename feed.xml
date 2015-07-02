@@ -6,9 +6,234 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 29 Jun 2015 09:22:14 +0000</pubDate>
-    <lastBuildDate>Mon, 29 Jun 2015 09:22:14 +0000</lastBuildDate>
+    <pubDate>Thu, 02 Jul 2015 07:29:30 +0000</pubDate>
+    <lastBuildDate>Thu, 02 Jul 2015 07:29:30 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>MariaDB Galera Cluster 部署</title>
+      <link>/database/2015/07/02/mariadb-galera-cluster/</link>
+      <pubDate>Thu, 02 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/database/2015/07/02/mariadb-galera-cluster</guid>
+      <description>&lt;p&gt;MariaDB作为Mysql的一个分支，在开源项目中已经广泛使用，例如大热的openstack，所以，为了保证服务的高可用性，同时提高系统的负载能力，集群部署是必不可少的。&lt;/p&gt;
+
+&lt;h4&gt;MariaDB Galera Cluster 介绍&lt;/h4&gt;
+
+&lt;p&gt;MariaDB集群是MariaDB同步多主机集群。它仅支持XtraDB/ InnoDB存储引擎（虽然有对MyISAM实验支持 - 看wsrep_replicate_myisam系统变量）。&lt;/p&gt;
+
+&lt;p&gt;主要功能:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;同步复制&lt;/li&gt;
+&lt;li&gt;真正的multi-master，即所有节点可以同时读写数据库&lt;/li&gt;
+&lt;li&gt;自动的节点成员控制，失效节点自动被清除&lt;/li&gt;
+&lt;li&gt;新节点加入数据自动复制&lt;/li&gt;
+&lt;li&gt;真正的并行复制，行级&lt;/li&gt;
+&lt;li&gt;用户可以直接连接集群，使用感受上与MySQL完全一致&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;优势:&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;因为是多主，所以不存在Slavelag(延迟)&lt;/li&gt;
+&lt;li&gt;不存在丢失事务的情况&lt;/li&gt;
+&lt;li&gt;同时具有读和写的扩展能力&lt;/li&gt;
+&lt;li&gt;更小的客户端延迟&lt;/li&gt;
+&lt;li&gt;节点间数据是同步的,而Master/Slave模式是异步的,不同slave上的binlog可能是不同的&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;技术:&lt;/p&gt;
+
+&lt;p&gt;Galera集群的复制功能基于Galeralibrary实现,为了让MySQL与Galera library通讯，特别针对MySQL开发了wsrep API。&lt;/p&gt;
+
+&lt;p&gt;Galera插件保证集群同步数据，保持数据的一致性，靠的就是可认证的复制，工作原理如下图：
+&lt;img src=&quot;http://7xk2is.com1.z0.glb.clouddn.com/mariadb-galera-cluster.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;当客户端发出一个commit的指令，在事务被提交之前，所有对数据库的更改都会被 &lt;code&gt;write-set&lt;/code&gt; 收集起来,并且将 &lt;code&gt;write-set&lt;/code&gt; 纪录的内容发送给其他节点。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;write-set&lt;/code&gt; 将在每个节点进行认证测试，测试结果决定着节点是否应用&lt;code&gt;write-set&lt;/code&gt;更改数据。&lt;/p&gt;
+
+&lt;p&gt;如果认证测试失败，节点将丢弃 &lt;code&gt;write-set&lt;/code&gt; ；如果认证测试成功，则事务提交。&lt;/p&gt;
+
+&lt;h6&gt;1 安装环境准备&lt;/h6&gt;
+
+&lt;p&gt;安装MariaDB集群至少需要3台服务器（如果只有两台的话需要特殊配置，请参照&lt;a href=&quot;http://galeracluster.com/documentation-webpages/twonode.html&quot;&gt;官方文档&lt;/a&gt;）&lt;/p&gt;
+
+&lt;p&gt;在这里，我列出试验机器的配置：&lt;/p&gt;
+
+&lt;p&gt;操作系统版本：centos7&lt;/p&gt;
+
+&lt;p&gt;node4:10.128.20.16
+node5:10.128.20.17
+node6:10.128.20.18&lt;/p&gt;
+
+&lt;p&gt;以第一行为例，node4为 &lt;code&gt;hostname&lt;/code&gt; ，10.128.20.16为 &lt;code&gt;ip&lt;/code&gt; ，在三台机器修改 &lt;code&gt;/etc/hosts&lt;/code&gt; 文件，我的文件如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;10.128.20.16 node4
+10.128.20.17 node5
+10.128.20.18 node6
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;为了保证节点间相互通信，需要禁用防火墙设置（如果需要防火墙，则参照&lt;a href=&quot;http://galeracluster.com/documentation-webpages/galerainstallation.html#firewall-configuration&quot;&gt;官方网站&lt;/a&gt;增加防火墙信息设置）&lt;/p&gt;
+
+&lt;p&gt;在三个节点分别执行命令：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;systemctl stop firewalld
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;然后将 &lt;code&gt;/etc/sysconfig/selinux&lt;/code&gt; 的 &lt;code&gt;selinux&lt;/code&gt; 设置成 &lt;code&gt;disabled&lt;/code&gt; ,这样初始化环境就完成了。&lt;/p&gt;
+
+&lt;h6&gt;2 安装 MariaDB Galera Cluster&lt;/h6&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node5 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node6 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h6&gt;3 配置 MariaDB Galera Cluster&lt;/h6&gt;
+
+&lt;p&gt;初始化数据库服务，只在一个节点进行&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 mariadb]# systemctl start mariadb
+[root@node4 mariadb]# mysql_secure_installation
+
+NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB
+      SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!
+
+In order to log into MariaDB to secure it, we&amp;#39;ll need the current
+password for the root user.  If you&amp;#39;ve just installed MariaDB, and
+you haven&amp;#39;t set the root password yet, the password will be blank,
+so you should just press enter here.
+
+Enter current password for root (enter for none):
+OK, successfully used password, moving on...
+
+Setting the root password ensures that nobody can log into the MariaDB
+root user without the proper authorisation.
+
+Set root password? [Y/n]
+New password:
+Re-enter new password:
+Password updated successfully!
+Reloading privilege tables..
+ ... Success!
+
+
+By default, a MariaDB installation has an anonymous user, allowing anyone
+to log into MariaDB without having to have a user account created for
+them.  This is intended only for testing, and to make the installation
+go a bit smoother.  You should remove them before moving into a
+production environment.
+
+Remove anonymous users? [Y/n] n
+ ... skipping.
+
+Normally, root should only be allowed to connect from &amp;#39;localhost&amp;#39;.  This
+ensures that someone cannot guess at the root password from the network.
+
+Disallow root login remotely? [Y/n] y
+ ... Success!
+
+By default, MariaDB comes with a database named &amp;#39;test&amp;#39; that anyone can
+access.  This is also intended only for testing, and should be removed
+before moving into a production environment.
+
+Remove test database and access to it? [Y/n] n
+ ... skipping.
+
+Reloading the privilege tables will ensure that all changes made so far
+will take effect immediately.
+
+Reload privilege tables now? [Y/n] y
+ ... Success!
+
+Cleaning up...
+
+All done!  If you&amp;#39;ve completed all of the above steps, your MariaDB
+installation should now be secure.
+
+Thanks for using MariaDB!
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;关闭数据库，修改 &lt;code&gt;/etc/my.cnf.d/galera.cnf&lt;/code&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 mariadb]# systemctl stop mariadb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 ~]# vim /etc/my.cnf.d/galera.cnf
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;修改以下内容：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[mysqld]
+......
+wsrep_provider = /usr/lib64/galera/libgalera_smm.so
+wsrep_cluster_address = &amp;quot;gcomm://node4,node5,node6&amp;quot;
+wsrep_node_name = node4
+wsrep_node_address=10.128.20.16
+#wsrep_provider_options=&amp;quot;socket.ssl_key=/etc/pki/galera/galera.key; socket.ssl_cert=/etc/pki/galera/galera.crt;&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;提示：如果不用ssl的方式认证的话，请把 &lt;code&gt;wsrep_provider_options&lt;/code&gt; 注释掉。&lt;/p&gt;
+
+&lt;p&gt;将此文件复制到node5、node6，注意要把 &lt;code&gt;wsrep_node_name&lt;/code&gt; 和 &lt;code&gt;wsrep_node_address&lt;/code&gt; 改成相应节点的 &lt;code&gt;hostname&lt;/code&gt; 和 &lt;code&gt;ip&lt;/code&gt;。&lt;/p&gt;
+
+&lt;h6&gt;4 启动 MariaDB Galera Cluster 服务&lt;/h6&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 ~]# /usr/libexec/mysqld --wsrep-new-cluster --user=root &amp;amp;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;观察日志：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 ~]# tail -f /var/log/mariadb/mariadb.log
+
+150701 19:54:17 [Note] WSREP: wsrep_load(): loading provider library &amp;#39;none&amp;#39;
+150701 19:54:17 [Note] /usr/libexec/mysqld: ready for connections.
+Version: &amp;#39;5.5.40-MariaDB-wsrep&amp;#39;  socket: &amp;#39;/var/lib/mysql/mysql.sock&amp;#39;  port: 3306  MariaDB Server, wsrep_25.11.r4026
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;出现 &lt;code&gt;ready for connections&lt;/code&gt; ,证明我们启动成功，继续启动其他节点：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node5 ~]# systemctl start mariadb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node6 ~]# systemctl start mariadb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;可以查看 &lt;code&gt;/var/log/mariadb/mariadb.log&lt;/code&gt;，在日志可以看到节点均加入了集群中。&lt;/p&gt;
+
+&lt;p&gt;警告⚠：&lt;code&gt;--wsrep-new-cluster&lt;/code&gt; 这个参数只能在初始化集群使用，且只能在一个节点使用。&lt;/p&gt;
+
+&lt;h6&gt;5 查看集群状态&lt;/h6&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://7xk2is.com1.z0.glb.clouddn.com/galera-status.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;我们可以关注几个关键的参数：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;wsrep_connected = on&lt;/code&gt;   &lt;em&gt;链接已开启&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;wsrep_local_index = 1&lt;/code&gt;  &lt;em&gt;在集群中的索引值&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;wsrep_cluster_size =3&lt;/code&gt;  &lt;em&gt;集群中节点的数量&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;wsrep_incoming_addresses =  10.128.20.17:3306,10.128.20.16:3306,10.128.20.18:3306&lt;/code&gt;  &lt;em&gt;集群中节点的访问地址&lt;/em&gt;&lt;/p&gt;
+
+&lt;h6&gt;6 验证数据同步&lt;/h6&gt;
+
+&lt;p&gt;我们在 &lt;code&gt;node4&lt;/code&gt; 上新建数据库 &lt;code&gt;galera_test&lt;/code&gt; ,然后在 &lt;code&gt;node5&lt;/code&gt; 和 &lt;code&gt;node6&lt;/code&gt; 上查询，如果可以查询到 &lt;code&gt;galera_test&lt;/code&gt; 这个库，说明数据同步成功，集群运行正常。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node4 ~]# mysql  -uroot  -proot  -e  &amp;quot;create database galera_test&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node5 ~]# mysql  -uroot  -proot  -e  &amp;quot;show databases&amp;quot;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| galera_test        |
+| mysql              |
+| performance_schema |
++--------------------+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;[root@node6 ~]# mysql  -uroot  -proot  -e  &amp;quot;show databases&amp;quot;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| galera_test        |
+| mysql              |
+| performance_schema |
++--------------------+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;至此，我们的 MariaDB Galera Cluster 已经成功部署。&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;参考文章：&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+&lt;li&gt;http://galeracluster.com/documentation-webpages/&lt;/li&gt;
+&lt;li&gt;https://mariadb.com/kb/en/mariadb/getting-started-with-mariadb-galera-cluster/&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
     
     
     <item>

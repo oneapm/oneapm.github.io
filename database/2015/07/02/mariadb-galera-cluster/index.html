@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MariaDB Galera Cluster 部署 &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="MariaDB Galera Cluster 部署 ">
+    <link rel="canonical" href="/database/2015/07/02/mariadb-galera-cluster/">
+    
+    
+    <meta property="og:title" content="MariaDB Galera Cluster 部署 "/>
+    <meta property="og:url" content="/database/2015/07/02/mariadb-galera-cluster/"/>
+    
+    
+    <meta property="og:description" content="着重介绍如何部署基于Galera的Mariadb集群"/>
+    <meta name="description" content="着重介绍如何部署基于Galera的Mariadb集群"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">MariaDB Galera Cluster 部署</h1>
+                <h2 class="subtitle">如何快速部署MariaDB集群</h2>
+                <div class="meta">
+                    <address>陈亮</address> &mdash;
+                    <time pubdate datetime="2015-02-July" title="July 02, 2015">July 02, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>陈亮</address> &mdash;
+                <time pubdate datetime="2015-02-July" title="July 02, 2015">July 02, 2015</time>
+            </div>
+            <h1 class="title">MariaDB Galera Cluster 部署</h1>
+            <h2 class="subtitle">如何快速部署MariaDB集群</h2>
+        </header> -->
+
+        <section>
+            <p>MariaDB作为Mysql的一个分支，在开源项目中已经广泛使用，例如大热的openstack，所以，为了保证服务的高可用性，同时提高系统的负载能力，集群部署是必不可少的。</p>
+
+<h4>MariaDB Galera Cluster 介绍</h4>
+
+<p>MariaDB集群是MariaDB同步多主机集群。它仅支持XtraDB/ InnoDB存储引擎（虽然有对MyISAM实验支持 - 看wsrep_replicate_myisam系统变量）。</p>
+
+<p>主要功能:</p>
+
+<ul>
+<li>同步复制</li>
+<li>真正的multi-master，即所有节点可以同时读写数据库</li>
+<li>自动的节点成员控制，失效节点自动被清除</li>
+<li>新节点加入数据自动复制</li>
+<li>真正的并行复制，行级</li>
+<li>用户可以直接连接集群，使用感受上与MySQL完全一致</li>
+</ul>
+
+<p>优势:</p>
+
+<ul>
+<li>因为是多主，所以不存在Slavelag(延迟)</li>
+<li>不存在丢失事务的情况</li>
+<li>同时具有读和写的扩展能力</li>
+<li>更小的客户端延迟</li>
+<li>节点间数据是同步的,而Master/Slave模式是异步的,不同slave上的binlog可能是不同的</li>
+</ul>
+
+<p>技术:</p>
+
+<p>Galera集群的复制功能基于Galeralibrary实现,为了让MySQL与Galera library通讯，特别针对MySQL开发了wsrep API。</p>
+
+<p>Galera插件保证集群同步数据，保持数据的一致性，靠的就是可认证的复制，工作原理如下图：
+<img src="http://7xk2is.com1.z0.glb.clouddn.com/mariadb-galera-cluster.png" alt=""></p>
+
+<p>当客户端发出一个commit的指令，在事务被提交之前，所有对数据库的更改都会被 <code>write-set</code> 收集起来,并且将 <code>write-set</code> 纪录的内容发送给其他节点。</p>
+
+<p><code>write-set</code> 将在每个节点进行认证测试，测试结果决定着节点是否应用<code>write-set</code>更改数据。</p>
+
+<p>如果认证测试失败，节点将丢弃 <code>write-set</code> ；如果认证测试成功，则事务提交。</p>
+
+<h6>1 安装环境准备</h6>
+
+<p>安装MariaDB集群至少需要3台服务器（如果只有两台的话需要特殊配置，请参照<a href="http://galeracluster.com/documentation-webpages/twonode.html">官方文档</a>）</p>
+
+<p>在这里，我列出试验机器的配置：</p>
+
+<p>操作系统版本：centos7</p>
+
+<p>node4:10.128.20.16
+node5:10.128.20.17
+node6:10.128.20.18</p>
+
+<p>以第一行为例，node4为 <code>hostname</code> ，10.128.20.16为 <code>ip</code> ，在三台机器修改 <code>/etc/hosts</code> 文件，我的文件如下：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">10.128.20.16 node4
+10.128.20.17 node5
+10.128.20.18 node6
+</code></pre></div>
+<p>为了保证节点间相互通信，需要禁用防火墙设置（如果需要防火墙，则参照<a href="http://galeracluster.com/documentation-webpages/galerainstallation.html#firewall-configuration">官方网站</a>增加防火墙信息设置）</p>
+
+<p>在三个节点分别执行命令：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">systemctl stop firewalld
+</code></pre></div>
+<p>然后将 <code>/etc/sysconfig/selinux</code> 的 <code>selinux</code> 设置成 <code>disabled</code> ,这样初始化环境就完成了。</p>
+
+<h6>2 安装 MariaDB Galera Cluster</h6>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node5 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node6 ~]# yum install -y mariadb mariadb-galera-server mariadb-galera-common galera rsync
+</code></pre></div>
+<h6>3 配置 MariaDB Galera Cluster</h6>
+
+<p>初始化数据库服务，只在一个节点进行</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 mariadb]# systemctl start mariadb
+[root@node4 mariadb]# mysql_secure_installation
+
+NOTE: RUNNING ALL PARTS OF THIS SCRIPT IS RECOMMENDED FOR ALL MariaDB
+      SERVERS IN PRODUCTION USE!  PLEASE READ EACH STEP CAREFULLY!
+
+In order to log into MariaDB to secure it, we&#39;ll need the current
+password for the root user.  If you&#39;ve just installed MariaDB, and
+you haven&#39;t set the root password yet, the password will be blank,
+so you should just press enter here.
+
+Enter current password for root (enter for none):
+OK, successfully used password, moving on...
+
+Setting the root password ensures that nobody can log into the MariaDB
+root user without the proper authorisation.
+
+Set root password? [Y/n]
+New password:
+Re-enter new password:
+Password updated successfully!
+Reloading privilege tables..
+ ... Success!
+
+
+By default, a MariaDB installation has an anonymous user, allowing anyone
+to log into MariaDB without having to have a user account created for
+them.  This is intended only for testing, and to make the installation
+go a bit smoother.  You should remove them before moving into a
+production environment.
+
+Remove anonymous users? [Y/n] n
+ ... skipping.
+
+Normally, root should only be allowed to connect from &#39;localhost&#39;.  This
+ensures that someone cannot guess at the root password from the network.
+
+Disallow root login remotely? [Y/n] y
+ ... Success!
+
+By default, MariaDB comes with a database named &#39;test&#39; that anyone can
+access.  This is also intended only for testing, and should be removed
+before moving into a production environment.
+
+Remove test database and access to it? [Y/n] n
+ ... skipping.
+
+Reloading the privilege tables will ensure that all changes made so far
+will take effect immediately.
+
+Reload privilege tables now? [Y/n] y
+ ... Success!
+
+Cleaning up...
+
+All done!  If you&#39;ve completed all of the above steps, your MariaDB
+installation should now be secure.
+
+Thanks for using MariaDB!
+</code></pre></div>
+<p>关闭数据库，修改 <code>/etc/my.cnf.d/galera.cnf</code></p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 mariadb]# systemctl stop mariadb
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 ~]# vim /etc/my.cnf.d/galera.cnf
+</code></pre></div>
+<p>修改以下内容：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[mysqld]
+......
+wsrep_provider = /usr/lib64/galera/libgalera_smm.so
+wsrep_cluster_address = &quot;gcomm://node4,node5,node6&quot;
+wsrep_node_name = node4
+wsrep_node_address=10.128.20.16
+#wsrep_provider_options=&quot;socket.ssl_key=/etc/pki/galera/galera.key; socket.ssl_cert=/etc/pki/galera/galera.crt;&quot;
+</code></pre></div>
+<p>提示：如果不用ssl的方式认证的话，请把 <code>wsrep_provider_options</code> 注释掉。</p>
+
+<p>将此文件复制到node5、node6，注意要把 <code>wsrep_node_name</code> 和 <code>wsrep_node_address</code> 改成相应节点的 <code>hostname</code> 和 <code>ip</code>。</p>
+
+<h6>4 启动 MariaDB Galera Cluster 服务</h6>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 ~]# /usr/libexec/mysqld --wsrep-new-cluster --user=root &amp;
+</code></pre></div>
+<p>观察日志：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 ~]# tail -f /var/log/mariadb/mariadb.log
+
+150701 19:54:17 [Note] WSREP: wsrep_load(): loading provider library &#39;none&#39;
+150701 19:54:17 [Note] /usr/libexec/mysqld: ready for connections.
+Version: &#39;5.5.40-MariaDB-wsrep&#39;  socket: &#39;/var/lib/mysql/mysql.sock&#39;  port: 3306  MariaDB Server, wsrep_25.11.r4026
+</code></pre></div>
+<p>出现 <code>ready for connections</code> ,证明我们启动成功，继续启动其他节点：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node5 ~]# systemctl start mariadb
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node6 ~]# systemctl start mariadb
+</code></pre></div>
+<p>可以查看 <code>/var/log/mariadb/mariadb.log</code>，在日志可以看到节点均加入了集群中。</p>
+
+<p>警告⚠：<code>--wsrep-new-cluster</code> 这个参数只能在初始化集群使用，且只能在一个节点使用。</p>
+
+<h6>5 查看集群状态</h6>
+
+<p><img src="http://7xk2is.com1.z0.glb.clouddn.com/galera-status.png" alt=""></p>
+
+<p>我们可以关注几个关键的参数：</p>
+
+<p><code>wsrep_connected = on</code>   <em>链接已开启</em></p>
+
+<p><code>wsrep_local_index = 1</code>  <em>在集群中的索引值</em></p>
+
+<p><code>wsrep_cluster_size =3</code>  <em>集群中节点的数量</em></p>
+
+<p><code>wsrep_incoming_addresses =  10.128.20.17:3306,10.128.20.16:3306,10.128.20.18:3306</code>  <em>集群中节点的访问地址</em></p>
+
+<h6>6 验证数据同步</h6>
+
+<p>我们在 <code>node4</code> 上新建数据库 <code>galera_test</code> ,然后在 <code>node5</code> 和 <code>node6</code> 上查询，如果可以查询到 <code>galera_test</code> 这个库，说明数据同步成功，集群运行正常。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">[root@node4 ~]# mysql  -uroot  -proot  -e  &quot;create database galera_test&quot;
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node5 ~]# mysql  -uroot  -proot  -e  &quot;show databases&quot;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| galera_test        |
+| mysql              |
+| performance_schema |
++--------------------+
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">[root@node6 ~]# mysql  -uroot  -proot  -e  &quot;show databases&quot;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| galera_test        |
+| mysql              |
+| performance_schema |
++--------------------+
+</code></pre></div>
+<p>至此，我们的 MariaDB Galera Cluster 已经成功部署。</p>
+
+<blockquote>
+<p>参考文章：</p>
+</blockquote>
+
+<ul>
+<li>http://galeracluster.com/documentation-webpages/</li>
+<li>https://mariadb.com/kb/en/mariadb/getting-started-with-mariadb-galera-cluster/</li>
+</ul>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/chenliang.jpg">
+                <p><strong>陈亮</strong><br>
+                <span class="muted">运维开发工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/database/2015/07/02/mariadb-galera-cluster" data-title="MariaDB Galera Cluster 部署" data-url="http://code.oneapm.com/database/2015/07/02/mariadb-galera-cluster/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
