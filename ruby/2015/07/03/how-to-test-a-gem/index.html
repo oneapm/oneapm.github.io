@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>如何测试你自己的 RubyGem &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="如何测试你自己的 RubyGem ">
+    <link rel="canonical" href="/ruby/2015/07/03/how-to-test-a-gem/">
+    
+    
+    <meta property="og:title" content="如何测试你自己的 RubyGem "/>
+    <meta property="og:url" content="/ruby/2015/07/03/how-to-test-a-gem/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="不测试怎么敢用呢，还是测试完了再发布出去吧。"/>
+    <meta name="description" content="不测试怎么敢用呢，还是测试完了再发布出去吧。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">如何测试你自己的 RubyGem</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-03-July" title="July 03, 2015">July 03, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-03-July" title="July 03, 2015">July 03, 2015</time>
+            </div>
+            <h1 class="title">如何测试你自己的 RubyGem</h1>
+            
+        </header> -->
+
+        <section>
+            <h2>如何测试一个Gem</h2>
+
+<p>gem开发完了，想要给别人用，那就需要测试啊，测试一个gem其实很简单，这里我们用minitest为例，rspec也一样适用。先来看看我们当前这个gem的目录结构：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">-rw-rw-r-- 1 lizhe lizhe   90  7月  2 15:52 Gemfile
+-rw-rw-r-- 1 lizhe lizhe  379  7月  3 10:09 Gemfile.lock
+drwxrwxr-x 3 lizhe lizhe 4096  7月  2 15:52 lib
+-rw-rw-r-- 1 lizhe lizhe 1062  7月  2 15:52 LICENSE.txt
+-rw-rw-r-- 1 lizhe lizhe  923  7月  3 10:09 mygem.gemspec
+drwxrwxr-x 2 lizhe lizhe 4096  7月  2 18:33 pkg
+-rw-rw-r-- 1 lizhe lizhe  187  7月  3 10:35 Rakefile
+-rw-rw-r-- 1 lizhe lizhe  556  7月  2 15:52 README.md
+</code></pre></div>
+<p>打开mygem.gemspec，添加<code>minitest</code>：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;minitest&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 5.7.0&quot;</span>
+</code></pre></div>
+<p>执行<code>bundle install</code>安装<code>minitest</code>。</p>
+
+<p>新建一个<code>test</code>文件夹，存放我们的测试的用例，然后新建一个<code>test_helper.rb</code>文件，放在里面。<code>test_helper.rb</code>的内容如下：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="vg">$LOAD_PATH</span> <span class="o">&lt;&lt;</span> <span class="s2">&quot;./lib&quot;</span> <span class="c1"># 把lib添加到load path</span>
+
+<span class="nb">require</span> <span class="s1">&#39;minitest/autorun&#39;</span>  <span class="c1"># 引进minitest</span>
+<span class="nb">require</span> <span class="s1">&#39;mygem&#39;</span>
+</code></pre></div>
+<p>再来新建一个测试用例，<code>test_mygem.rb</code>：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s2">&quot;test_helper&quot;</span>
+
+<span class="k">class</span> <span class="nc">MygemTest</span> <span class="o">&lt;</span> <span class="no">Minitest</span><span class="o">::</span><span class="no">Test</span>
+
+  <span class="k">def</span> <span class="nf">test_hello_output</span>
+    <span class="n">assert_equal</span><span class="p">(</span><span class="no">Mygem</span><span class="o">.</span><span class="n">hello</span><span class="p">,</span> <span class="s2">&quot;hello from my gem&quot;</span><span class="p">)</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</code></pre></div>
+<p>现在就来执行测试吧：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ ruby test/test_mygem.rb
+
+/home/lizhe/.rvm/rubies/ruby-2.1.5/lib/ruby/site_ruby/2.1.0/rubygems/core_ext/kernel_require.rb:54:in `require&#39;: cannot load such file -- test_helper (LoadError)
+    from /home/lizhe/.rvm/rubies/ruby-2.1.5/lib/ruby/site_ruby/2.1.0/rubygems/core_ext/kernel_require.rb:54:in `require&#39;
+    from test/test_mygem.rb:1:in `&lt;main&gt;&#39;  
+</code></pre></div>
+<p>出错了！找不到<code>test_helper</code>，因为它没有在加载路径里嘛，那就来换个方式，<code>require_relative &#39;test_helper&#39;</code>，因为我们的命令是在gem根目录下的，所以相对路径就是当前的路径，如果是在test目录下执行，就需要写成<code>require_relative &#39;../test_helper&#39;</code>了，还挺麻烦。好，执行一下试一试：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ ruby test/test_mygem.rb
+
+Run options: --seed 30741
+
+# Running:
+
+.
+
+Finished in 0.000793s, 1260.9959 runs/s, 1260.9959 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+</code></pre></div>
+<h2>利用Rake::TestTask简化测试流程</h2>
+
+<p>前面的测试方法中，我们要手动添加lib目录到load path，然后在每个测试用例文件中要<code>require_relative &#39;test_helper&#39;</code>，很是麻烦，现在来简化这一个流程。</p>
+
+<p>首先添加<code>Rake::TestTask</code>到<code>Rakefile</code>中：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;rake/testtask&#39;</span>
+
+<span class="no">Rake</span><span class="o">::</span><span class="no">TestTask</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="o">|</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">libs</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;test&#39;</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;lib&#39;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;test/test_*.rb&quot;</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>现在把test<em>helper中的`$LOAD</em>PATH &lt;&lt; &#39;./lib&#39;<code>去掉，再把测试用例文件中的</code>require_relative<code>替换为</code>require<code>，因为rak test task已经把test和lib两个目录都添加到load path中了，然后执行</code>rake test`：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ rake test
+
+Run options: --seed 29947
+
+# Running:
+
+.
+
+Finished in 0.000969s, 1031.6447 runs/s, 1031.6447 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+</code></pre></div>
+<p>进一步简化，每个测试用例文件都要<code>require &#39;test_helper&#39;</code>，也是够麻烦的，能不能让它自动执行这个动作呢？可以，只需要再加上一个选项即可：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;rake/testtask&#39;</span>
+
+<span class="no">Rake</span><span class="o">::</span><span class="no">TestTask</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="o">|</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">libs</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;test&#39;</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;lib&#39;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;test/test_*.rb&quot;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">ruby_opts</span> <span class="o">&lt;&lt;</span> <span class="s2">&quot;-r test_helper&quot;</span> <span class="c1"># 添加ruby运行参数，require指定的文件</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>现在把测试用例中的<code>require &#39;test_helper&#39;</code>这一行也去掉，执行<code>rake test</code>，同样可以运行测试，又少写了一行，:smile:</p>
+
+<p>现在来设置默认的task：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s1">&#39;rake/testtask&#39;</span>
+
+<span class="no">Rake</span><span class="o">::</span><span class="no">TestTask</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">t</span><span class="o">|</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">libs</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;test&#39;</span> <span class="o">&lt;&lt;</span> <span class="s1">&#39;lib&#39;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">pattern</span> <span class="o">=</span> <span class="s2">&quot;test/test_*.rb&quot;</span>
+  <span class="n">t</span><span class="o">.</span><span class="n">ruby_opts</span> <span class="o">&lt;&lt;</span> <span class="s2">&quot;-r test_helper&quot;</span> <span class="c1"># 添加ruby运行参数，require指定的文件</span>
+<span class="k">end</span>
+
+<span class="n">task</span> <span class="ss">:default</span> <span class="o">=&gt;</span> <span class="ss">:test</span>
+</code></pre></div>
+<p>这样我就可以直接执行<code>rake</code>就可以跑测试了，连那个<code>test</code>都省了。</p>
+
+<p>如果我们有多个测使用例，这个rake test task会跑所有测试，如果想跑指定的某一个怎么做呢？指定一个TEST参数即可：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">rake test TEST=test/test_mygem.rb
+</code></pre></div>
+<p>参考链接：</p>
+
+<ul>
+<li><a href="http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html">Rake::TestTask</a></li>
+</ul>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创文章 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/07/03/how-to-test-a-gem" data-title="如何测试你自己的 RubyGem" data-url="http://code.oneapm.com/ruby/2015/07/03/how-to-test-a-gem/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

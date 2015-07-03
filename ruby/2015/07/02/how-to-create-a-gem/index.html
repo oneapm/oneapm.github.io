@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>如何开发一个自己的 RubyGem &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="如何开发一个自己的 RubyGem ">
+    <link rel="canonical" href="/ruby/2015/07/02/how-to-create-a-gem/">
+    
+    
+    <meta property="og:title" content="如何开发一个自己的 RubyGem "/>
+    <meta property="og:url" content="/ruby/2015/07/02/how-to-create-a-gem/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="大家一直都在用RubyGem，但是你开发过自己的Gem吗？"/>
+    <meta name="description" content="大家一直都在用RubyGem，但是你开发过自己的Gem吗？"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">如何开发一个自己的 RubyGem</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-02-July" title="July 02, 2015">July 02, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-02-July" title="July 02, 2015">July 02, 2015</time>
+            </div>
+            <h1 class="title">如何开发一个自己的 RubyGem</h1>
+            
+        </header> -->
+
+        <section>
+            <h2>什么是 RubyGem</h2>
+
+<p>RubyGem是Ruby语言的标准源码打包格式。</p>
+
+<p>大家一直都在用<code>gem</code>这个命令，但是很少有人知道这个东西是怎么来的，这里我从网上扒下一些资料汇总一下，分享给大家。最后面会有这些链接，想进一步了解的，可以点进去看看。Ruby语言深受其他几种脚本语言的影响，其中就有Perl，而Perl有个CPAN（Comprehensive Perl Archive Network），这个东西也就像是现在的RubyGems.org，但是当时Ruby是没有这样一个东西的。像CPAN和RubyGem，它们仅仅是定义好的一种源码的打包和安装方式，另外还有一些组织，会提供这种免费的公共的源码包的存储，这也就现在大家每天都要使用的安装方式：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">gem install rails
+</code></pre></div>
+<p>在RubyGem的发展历史当中，有几位重要的人物，这里也作为八卦知识给大家晒一晒，就当做大家茶余饭后的谈点吧。Ruby社区的人应该都知道Jim Weirich这个人，他已经在2014年2月份去世了，是一个可爱的白胡子大叔，他和另外的四位Rich Kilmer, Chad Fowler, David Black, Paul Brannan在2003年制定了RubyGem的基本规范和实现，但是其实RubyGem最早是Ryan Leavengood在2001年开发的，可惜没有流行起来，最后到了2003年，前面的5个人经过Ryan Leavengood的同意，使用了RubyGem这个名称，开发了新版的RubyGem，其中并没有使用Ryan Leavengood的代码。这里附上rubygems的执行文件链接，看看注释，里面有上面几个人的名字 <a href="https://github.com/rubygems/rubygems/blob/master/bin/gem">rubygems/blob/master/bin/gem</a></p>
+
+<p>rubygems有默认的源，也可以更改，国内的基本就是<code>https://rubygems.taobao.org</code>了，有些公司有自己的需求，也会搭建自己的私源。当前的官方源为<code>https://rubygems.org</code>，这个源也是几经辗转，早期的Ruby用户都知道<code>http://gems.rubyforge.org</code>和<code>http://gemcutter.org</code>，甚至github都曾经作为源使用过，也就是<code>http://gems.github.com</code>，这三个现在都已经弃用了。</p>
+
+<p>看看，一个简单的<code>gem install</code>历史还不少啊。</p>
+
+<h2>RubyGem的基本使用方法</h2>
+<div class="highlight"><pre><code class="language-text" data-lang="text">gem install rails  //安装rails
+gem install rails -v 4.2.0   //安装指定版本的rails
+gem search rails  //查找所有名称中含有rails的gem
+gem search ^rails  //查找所有名称中以rails开头的gem
+gem search ^rails -d  //查找所有名称中以rails开头的gem，并显示描述
+gem build package.gemspec  //构建一个gem，就是把你自己写的gem源码，打包成一个.gem文件
+gem push pack-1.0.gem  //发布到源上，默认是rubygems.org
+</code></pre></div>
+<p>这里只是简单列出了最常用的使用方法，大家看看就好，命令很有限，也很简单，执行<code>gem --help</code>，基本上所有的东西你都能10分钟内学会。</p>
+
+<h2>如何制作一个自己的RubyGem</h2>
+
+<p>前几年还是有这样那样的工具，现在用<code>bundler</code>就够了。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ bundler gem mygem
+      create  mygem/Gemfile
+      create  mygem/Rakefile
+      create  mygem/LICENSE.txt
+      create  mygem/README.md
+      create  mygem/.gitignore
+      create  mygem/mygem.gemspec
+      create  mygem/lib/mygem.rb
+      create  mygem/lib/mygem/version.rb
+Initializing git repo in /home/lizhe/Workspace/mygem
+</code></pre></div>
+<p>一个bundler命令就搞定了。来看看mygem这个文件夹下的东西：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">total 24
+-rw-rw-r-- 1 lizhe lizhe   90  7月  2 15:52 Gemfile
+drwxrwxr-x 3 lizhe lizhe 4096  7月  2 15:52 lib
+-rw-rw-r-- 1 lizhe lizhe 1062  7月  2 15:52 LICENSE.txt
+-rw-rw-r-- 1 lizhe lizhe  850  7月  2 15:52 mygem.gemspec
+-rw-rw-r-- 1 lizhe lizhe   29  7月  2 15:52 Rakefile
+-rw-rw-r-- 1 lizhe lizhe  556  7月  2 15:52 README.md
+</code></pre></div>
+<p>现在来看看gemspec这个文件，它描述了这个Gem的各种信息</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="c1"># coding: utf-8</span>
+<span class="n">lib</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">expand_path</span><span class="p">(</span><span class="s1">&#39;../lib&#39;</span><span class="p">,</span> <span class="bp">__FILE__</span><span class="p">)</span>
+<span class="vg">$LOAD_PATH</span><span class="o">.</span><span class="n">unshift</span><span class="p">(</span><span class="n">lib</span><span class="p">)</span> <span class="k">unless</span> <span class="vg">$LOAD_PATH</span><span class="o">.</span><span class="n">include?</span><span class="p">(</span><span class="n">lib</span><span class="p">)</span>
+<span class="nb">require</span> <span class="s1">&#39;mygem/version&#39;</span>
+
+<span class="no">Gem</span><span class="o">::</span><span class="no">Specification</span><span class="o">.</span><span class="n">new</span> <span class="k">do</span> <span class="o">|</span><span class="n">spec</span><span class="o">|</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">name</span>          <span class="o">=</span> <span class="s2">&quot;mygem&quot;</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">version</span>       <span class="o">=</span> <span class="no">Mygem</span><span class="o">::</span><span class="no">VERSION</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">authors</span>       <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;lizhe&quot;</span><span class="o">]</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">email</span>         <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;lizhe@oneapm.com&quot;</span><span class="o">]</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">summary</span>       <span class="o">=</span> <span class="sx">%q{TODO: Write a short summary. Required.}</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">description</span>   <span class="o">=</span> <span class="sx">%q{TODO: Write a longer description. Optional.}</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">homepage</span>      <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">license</span>       <span class="o">=</span> <span class="s2">&quot;MIT&quot;</span>
+
+  <span class="n">spec</span><span class="o">.</span><span class="n">files</span>         <span class="o">=</span> <span class="sb">`git ls-files -z`</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\x0</span><span class="s2">&quot;</span><span class="p">)</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">executables</span>   <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">grep</span><span class="p">(</span><span class="sr">%r{^bin/}</span><span class="p">)</span> <span class="p">{</span> <span class="o">|</span><span class="n">f</span><span class="o">|</span> <span class="no">File</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">}</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">test_files</span>    <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">grep</span><span class="p">(</span><span class="sr">%r{^(test|spec|features)/}</span><span class="p">)</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">require_paths</span> <span class="o">=</span> <span class="o">[</span><span class="s2">&quot;lib&quot;</span><span class="o">]</span>
+
+  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;bundler&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 1.7&quot;</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;rake&quot;</span><span class="p">,</span> <span class="s2">&quot;~&gt; 10.0&quot;</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>我发现有人看到这个文件的内容时，倒是关心那个<code>&#39;git ls-files -z&#39;.split(&quot;\x0&quot;)</code>是什么意思？以及那个<code>\x0</code>是什么？附上一个链接，解释一下，<a href="http://stackoverflow.com/questions/25192836/what-does-the-ruby-method-split-x0-return">参考链接</a>。这个文件最上面先把lib文件夹添加到load path中，Gem::Specification的第一部分主要是描述这个gem的信息，包括名称，版本等等，第二部分是这个gem都包括哪些文件，执行文件，测试文件以及哪些路径下的文件可以添加到load path中。第三部分是开发mygem需要依赖的其他gem。这些信息都可以自定义，先按照默认走。让我们build第一个gem吧。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ rake build
+
+rake aborted!
+WARNING:  See http://guides.rubygems.org/specification-reference/ for help
+ERROR:  While executing gem ... (Gem::InvalidSpecificationException)
+    &quot;FIXME&quot; or &quot;TODO&quot; is not a description
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:149:in `sh&#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:57:in `build_gem&#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:39:in `block in install&#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/bin/ruby_executable_hooks:15:in `eval&#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/bin/ruby_executable_hooks:15:in `&lt;main&gt;&#39;
+Tasks: TOP =&gt; build
+(See full trace by running task with --trace)
+</code></pre></div>
+<p>这个警告是提醒我们需要替换gemspec中的<code>FIXME</code>和<code>TODO</code>，这个警告如果不解决是无法build一个gem的，直接删除掉summary和description中的<code>TODO</code>：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby">  <span class="n">spec</span><span class="o">.</span><span class="n">summary</span>       <span class="o">=</span> <span class="sx">%q{Write a short summary. Required.}</span>
+  <span class="n">spec</span><span class="o">.</span><span class="n">description</span>   <span class="o">=</span> <span class="sx">%q{Write a longer description. Optional.}</span>
+</code></pre></div>
+<p>再来执行：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ rake build
+
+mygem 0.0.1 built to pkg/mygem-0.0.1.gem.
+</code></pre></div>
+<p>好了，第一个gem诞生了。它就在当前目录的pkg下：mygem-0.0.1.gem。如何使用呢？不考虑bundler的情况下，如果你开起了一个irb或者pry的session时，一般都会这样写：<code>require &quot;mygem&quot;</code>，如果你现在这样做，那肯定不行，因为它还没有被安装到ruby的load path中，那就把它安装上。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">$ rake install
+
+mygem 0.0.1 built to pkg/mygem-0.0.1.gem.
+mygem (0.0.1) installed.
+</code></pre></div>
+<p>安装好了，那就来使用一下，打开irb：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">require &quot;mygem&quot;
+=&gt; true
+Mygem
+=&gt; Mygem
+</code></pre></div>
+<p>看，已经可以使用这个module了，不过这个gem啥也干不了，那么我们就给它添加一个方法吧，打开lib/mygem.rb，添加一个方法：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s2">&quot;mygem/version&quot;</span>
+
+<span class="k">module</span> <span class="nn">Mygem</span>
+  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">hello</span>
+    <span class="nb">p</span> <span class="s2">&quot;hello from my gem&quot;</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>保存，然后执行<code>rake install</code>，这个命令会先build然后install，再重新打开irb：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">require &quot;mygem&quot;
+=&gt; true
+Mygem.hello
+=&gt; &quot;hello from my gem&quot;
+</code></pre></div>
+<p>能够正常运行了，那就来发布第一个gem吧：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">rake release
+// 输入你在rubygems.org上的账号和密码
+</code></pre></div>
+<p>如果你的一个rails应用正好需要输出一个<code>hello from my gem</code>，那么现在你可以在Gemfile中添加这个gem了：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">gem</span> <span class="s1">&#39;mygem&#39;</span>
+</code></pre></div>
+<p>添加完执行<code>bundle install</code>，你就可以在你的rails应用中使用它了。</p>
+
+<p>参考链接：</p>
+
+<ul>
+<li><a href="http://www.linuxjournal.com/article/8967">RubyGems</a></li>
+<li><a href="http://www.rubyinside.com/gemcutter-is-the-new-official-default-rubygem-host-2659.html">Gemcutter Is The New Official Default RubyGem Host</a></li>
+<li><a href="https://github.com/blog/515-gem-building-is-defunct">Gem Building is Defunct</a></li>
+</ul>
+
+<p><strong>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创文章 ，想阅读更多技术文章，请访问OneAPM<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">官方技术博客</a>。</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/07/02/how-to-create-a-gem" data-title="如何开发一个自己的 RubyGem" data-url="http://code.oneapm.com/ruby/2015/07/02/how-to-create-a-gem/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

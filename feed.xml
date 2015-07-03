@@ -6,9 +6,133 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Thu, 02 Jul 2015 07:29:30 +0000</pubDate>
-    <lastBuildDate>Thu, 02 Jul 2015 07:29:30 +0000</lastBuildDate>
+    <pubDate>Fri, 03 Jul 2015 04:08:40 +0000</pubDate>
+    <lastBuildDate>Fri, 03 Jul 2015 04:08:40 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>如何测试你自己的 RubyGem</title>
+      <link>/ruby/2015/07/03/how-to-test-a-gem/</link>
+      <pubDate>Fri, 03 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/07/03/how-to-test-a-gem</guid>
+      <description>&lt;h2&gt;如何测试一个Gem&lt;/h2&gt;
+
+&lt;p&gt;gem开发完了，想要给别人用，那就需要测试啊，测试一个gem其实很简单，这里我们用minitest为例，rspec也一样适用。先来看看我们当前这个gem的目录结构：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;-rw-rw-r-- 1 lizhe lizhe   90  7月  2 15:52 Gemfile
+-rw-rw-r-- 1 lizhe lizhe  379  7月  3 10:09 Gemfile.lock
+drwxrwxr-x 3 lizhe lizhe 4096  7月  2 15:52 lib
+-rw-rw-r-- 1 lizhe lizhe 1062  7月  2 15:52 LICENSE.txt
+-rw-rw-r-- 1 lizhe lizhe  923  7月  3 10:09 mygem.gemspec
+drwxrwxr-x 2 lizhe lizhe 4096  7月  2 18:33 pkg
+-rw-rw-r-- 1 lizhe lizhe  187  7月  3 10:35 Rakefile
+-rw-rw-r-- 1 lizhe lizhe  556  7月  2 15:52 README.md
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;打开mygem.gemspec，添加&lt;code&gt;minitest&lt;/code&gt;：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_development_dependency&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;minitest&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;~&amp;gt; 5.7.0&amp;quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;执行&lt;code&gt;bundle install&lt;/code&gt;安装&lt;code&gt;minitest&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;新建一个&lt;code&gt;test&lt;/code&gt;文件夹，存放我们的测试的用例，然后新建一个&lt;code&gt;test_helper.rb&lt;/code&gt;文件，放在里面。&lt;code&gt;test_helper.rb&lt;/code&gt;的内容如下：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;vg&quot;&gt;$LOAD_PATH&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;./lib&amp;quot;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 把lib添加到load path&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;minitest/autorun&amp;#39;&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 引进minitest&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;mygem&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;再来新建一个测试用例，&lt;code&gt;test_mygem.rb&lt;/code&gt;：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test_helper&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MygemTest&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Minitest&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Test&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;test_hello_output&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;assert_equal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Mygem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hello&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;hello from my gem&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在就来执行测试吧：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ ruby test/test_mygem.rb
+
+/home/lizhe/.rvm/rubies/ruby-2.1.5/lib/ruby/site_ruby/2.1.0/rubygems/core_ext/kernel_require.rb:54:in `require&amp;#39;: cannot load such file -- test_helper (LoadError)
+    from /home/lizhe/.rvm/rubies/ruby-2.1.5/lib/ruby/site_ruby/2.1.0/rubygems/core_ext/kernel_require.rb:54:in `require&amp;#39;
+    from test/test_mygem.rb:1:in `&amp;lt;main&amp;gt;&amp;#39;  
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;出错了！找不到&lt;code&gt;test_helper&lt;/code&gt;，因为它没有在加载路径里嘛，那就来换个方式，&lt;code&gt;require_relative &amp;#39;test_helper&amp;#39;&lt;/code&gt;，因为我们的命令是在gem根目录下的，所以相对路径就是当前的路径，如果是在test目录下执行，就需要写成&lt;code&gt;require_relative &amp;#39;../test_helper&amp;#39;&lt;/code&gt;了，还挺麻烦。好，执行一下试一试：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ ruby test/test_mygem.rb
+
+Run options: --seed 30741
+
+# Running:
+
+.
+
+Finished in 0.000793s, 1260.9959 runs/s, 1260.9959 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h2&gt;利用Rake::TestTask简化测试流程&lt;/h2&gt;
+
+&lt;p&gt;前面的测试方法中，我们要手动添加lib目录到load path，然后在每个测试用例文件中要&lt;code&gt;require_relative &amp;#39;test_helper&amp;#39;&lt;/code&gt;，很是麻烦，现在来简化这一个流程。&lt;/p&gt;
+
+&lt;p&gt;首先添加&lt;code&gt;Rake::TestTask&lt;/code&gt;到&lt;code&gt;Rakefile&lt;/code&gt;中：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rake/testtask&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Rake&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TestTask&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;libs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;test&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;lib&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test/test_*.rb&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在把test&lt;em&gt;helper中的`$LOAD&lt;/em&gt;PATH &amp;lt;&amp;lt; &amp;#39;./lib&amp;#39;&lt;code&gt;去掉，再把测试用例文件中的&lt;/code&gt;require_relative&lt;code&gt;替换为&lt;/code&gt;require&lt;code&gt;，因为rak test task已经把test和lib两个目录都添加到load path中了，然后执行&lt;/code&gt;rake test`：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ rake test
+
+Run options: --seed 29947
+
+# Running:
+
+.
+
+Finished in 0.000969s, 1031.6447 runs/s, 1031.6447 assertions/s.
+
+1 runs, 1 assertions, 0 failures, 0 errors, 0 skips
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;进一步简化，每个测试用例文件都要&lt;code&gt;require &amp;#39;test_helper&amp;#39;&lt;/code&gt;，也是够麻烦的，能不能让它自动执行这个动作呢？可以，只需要再加上一个选项即可：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rake/testtask&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Rake&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TestTask&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;libs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;test&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;lib&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test/test_*.rb&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ruby_opts&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;-r test_helper&amp;quot;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 添加ruby运行参数，require指定的文件&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在把测试用例中的&lt;code&gt;require &amp;#39;test_helper&amp;#39;&lt;/code&gt;这一行也去掉，执行&lt;code&gt;rake test&lt;/code&gt;，同样可以运行测试，又少写了一行，:smile:&lt;/p&gt;
+
+&lt;p&gt;现在来设置默认的task：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;rake/testtask&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Rake&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TestTask&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;libs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;test&amp;#39;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;lib&amp;#39;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;test/test_*.rb&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ruby_opts&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;-r test_helper&amp;quot;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 添加ruby运行参数，require指定的文件&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;task&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:default&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:test&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这样我就可以直接执行&lt;code&gt;rake&lt;/code&gt;就可以跑测试了，连那个&lt;code&gt;test&lt;/code&gt;都省了。&lt;/p&gt;
+
+&lt;p&gt;如果我们有多个测使用例，这个rake test task会跑所有测试，如果想跑指定的某一个怎么做呢？指定一个TEST参数即可：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;rake test TEST=test/test_mygem.rb
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;参考链接：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://ruby-doc.org/stdlib-2.2.2/libdoc/rake/rdoc/Rake/TestTask.html&quot;&gt;Rake::TestTask&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
@@ -231,6 +355,158 @@ Version: &amp;#39;5.5.40-MariaDB-wsrep&amp;#39;  socket: &amp;#39;/var/lib/mysql
 &lt;li&gt;http://galeracluster.com/documentation-webpages/&lt;/li&gt;
 &lt;li&gt;https://mariadb.com/kb/en/mariadb/getting-started-with-mariadb-galera-cluster/&lt;/li&gt;
 &lt;/ul&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>如何开发一个自己的 RubyGem</title>
+      <link>/ruby/2015/07/02/how-to-create-a-gem/</link>
+      <pubDate>Thu, 02 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/07/02/how-to-create-a-gem</guid>
+      <description>&lt;h2&gt;什么是 RubyGem&lt;/h2&gt;
+
+&lt;p&gt;RubyGem是Ruby语言的标准源码打包格式。&lt;/p&gt;
+
+&lt;p&gt;大家一直都在用&lt;code&gt;gem&lt;/code&gt;这个命令，但是很少有人知道这个东西是怎么来的，这里我从网上扒下一些资料汇总一下，分享给大家。最后面会有这些链接，想进一步了解的，可以点进去看看。Ruby语言深受其他几种脚本语言的影响，其中就有Perl，而Perl有个CPAN（Comprehensive Perl Archive Network），这个东西也就像是现在的RubyGems.org，但是当时Ruby是没有这样一个东西的。像CPAN和RubyGem，它们仅仅是定义好的一种源码的打包和安装方式，另外还有一些组织，会提供这种免费的公共的源码包的存储，这也就现在大家每天都要使用的安装方式：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;gem install rails
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在RubyGem的发展历史当中，有几位重要的人物，这里也作为八卦知识给大家晒一晒，就当做大家茶余饭后的谈点吧。Ruby社区的人应该都知道Jim Weirich这个人，他已经在2014年2月份去世了，是一个可爱的白胡子大叔，他和另外的四位Rich Kilmer, Chad Fowler, David Black, Paul Brannan在2003年制定了RubyGem的基本规范和实现，但是其实RubyGem最早是Ryan Leavengood在2001年开发的，可惜没有流行起来，最后到了2003年，前面的5个人经过Ryan Leavengood的同意，使用了RubyGem这个名称，开发了新版的RubyGem，其中并没有使用Ryan Leavengood的代码。这里附上rubygems的执行文件链接，看看注释，里面有上面几个人的名字 &lt;a href=&quot;https://github.com/rubygems/rubygems/blob/master/bin/gem&quot;&gt;rubygems/blob/master/bin/gem&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;rubygems有默认的源，也可以更改，国内的基本就是&lt;code&gt;https://rubygems.taobao.org&lt;/code&gt;了，有些公司有自己的需求，也会搭建自己的私源。当前的官方源为&lt;code&gt;https://rubygems.org&lt;/code&gt;，这个源也是几经辗转，早期的Ruby用户都知道&lt;code&gt;http://gems.rubyforge.org&lt;/code&gt;和&lt;code&gt;http://gemcutter.org&lt;/code&gt;，甚至github都曾经作为源使用过，也就是&lt;code&gt;http://gems.github.com&lt;/code&gt;，这三个现在都已经弃用了。&lt;/p&gt;
+
+&lt;p&gt;看看，一个简单的&lt;code&gt;gem install&lt;/code&gt;历史还不少啊。&lt;/p&gt;
+
+&lt;h2&gt;RubyGem的基本使用方法&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;gem install rails  //安装rails
+gem install rails -v 4.2.0   //安装指定版本的rails
+gem search rails  //查找所有名称中含有rails的gem
+gem search ^rails  //查找所有名称中以rails开头的gem
+gem search ^rails -d  //查找所有名称中以rails开头的gem，并显示描述
+gem build package.gemspec  //构建一个gem，就是把你自己写的gem源码，打包成一个.gem文件
+gem push pack-1.0.gem  //发布到源上，默认是rubygems.org
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里只是简单列出了最常用的使用方法，大家看看就好，命令很有限，也很简单，执行&lt;code&gt;gem --help&lt;/code&gt;，基本上所有的东西你都能10分钟内学会。&lt;/p&gt;
+
+&lt;h2&gt;如何制作一个自己的RubyGem&lt;/h2&gt;
+
+&lt;p&gt;前几年还是有这样那样的工具，现在用&lt;code&gt;bundler&lt;/code&gt;就够了。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ bundler gem mygem
+      create  mygem/Gemfile
+      create  mygem/Rakefile
+      create  mygem/LICENSE.txt
+      create  mygem/README.md
+      create  mygem/.gitignore
+      create  mygem/mygem.gemspec
+      create  mygem/lib/mygem.rb
+      create  mygem/lib/mygem/version.rb
+Initializing git repo in /home/lizhe/Workspace/mygem
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;一个bundler命令就搞定了。来看看mygem这个文件夹下的东西：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;total 24
+-rw-rw-r-- 1 lizhe lizhe   90  7月  2 15:52 Gemfile
+drwxrwxr-x 3 lizhe lizhe 4096  7月  2 15:52 lib
+-rw-rw-r-- 1 lizhe lizhe 1062  7月  2 15:52 LICENSE.txt
+-rw-rw-r-- 1 lizhe lizhe  850  7月  2 15:52 mygem.gemspec
+-rw-rw-r-- 1 lizhe lizhe   29  7月  2 15:52 Rakefile
+-rw-rw-r-- 1 lizhe lizhe  556  7月  2 15:52 README.md
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;现在来看看gemspec这个文件，它描述了这个Gem的各种信息&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;c1&quot;&gt;# coding: utf-8&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;expand_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;../lib&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;__FILE__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;vg&quot;&gt;$LOAD_PATH&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unshift&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;unless&lt;/span&gt; &lt;span class=&quot;vg&quot;&gt;$LOAD_PATH&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;include?&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lib&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;mygem/version&amp;#39;&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;Gem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Specification&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;          &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;mygem&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;version&lt;/span&gt;       &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;Mygem&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;VERSION&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;authors&lt;/span&gt;       &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;lizhe&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;email&lt;/span&gt;         &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;lizhe@oneapm.com&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;summary&lt;/span&gt;       &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;%q{TODO: Write a short summary. Required.}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;description&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;%q{TODO: Write a longer description. Optional.}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;homepage&lt;/span&gt;      &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;license&lt;/span&gt;       &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;MIT&amp;quot;&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;files&lt;/span&gt;         &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sb&quot;&gt;`git ls-files -z`&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\x0&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;executables&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;grep&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sr&quot;&gt;%r{^bin/}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;File&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;basename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;test_files&lt;/span&gt;    &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;files&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;grep&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sr&quot;&gt;%r{^(test|spec|features)/}&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;require_paths&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;lib&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_development_dependency&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;bundler&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;~&amp;gt; 1.7&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;add_development_dependency&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;rake&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;~&amp;gt; 10.0&amp;quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;我发现有人看到这个文件的内容时，倒是关心那个&lt;code&gt;&amp;#39;git ls-files -z&amp;#39;.split(&amp;quot;\x0&amp;quot;)&lt;/code&gt;是什么意思？以及那个&lt;code&gt;\x0&lt;/code&gt;是什么？附上一个链接，解释一下，&lt;a href=&quot;http://stackoverflow.com/questions/25192836/what-does-the-ruby-method-split-x0-return&quot;&gt;参考链接&lt;/a&gt;。这个文件最上面先把lib文件夹添加到load path中，Gem::Specification的第一部分主要是描述这个gem的信息，包括名称，版本等等，第二部分是这个gem都包括哪些文件，执行文件，测试文件以及哪些路径下的文件可以添加到load path中。第三部分是开发mygem需要依赖的其他gem。这些信息都可以自定义，先按照默认走。让我们build第一个gem吧。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ rake build
+
+rake aborted!
+WARNING:  See http://guides.rubygems.org/specification-reference/ for help
+ERROR:  While executing gem ... (Gem::InvalidSpecificationException)
+    &amp;quot;FIXME&amp;quot; or &amp;quot;TODO&amp;quot; is not a description
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:149:in `sh&amp;#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:57:in `build_gem&amp;#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/gems/bundler-1.7.12/lib/bundler/gem_helper.rb:39:in `block in install&amp;#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/bin/ruby_executable_hooks:15:in `eval&amp;#39;
+/home/lizhe/.rvm/gems/ruby-2.1.5@global/bin/ruby_executable_hooks:15:in `&amp;lt;main&amp;gt;&amp;#39;
+Tasks: TOP =&amp;gt; build
+(See full trace by running task with --trace)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这个警告是提醒我们需要替换gemspec中的&lt;code&gt;FIXME&lt;/code&gt;和&lt;code&gt;TODO&lt;/code&gt;，这个警告如果不解决是无法build一个gem的，直接删除掉summary和description中的&lt;code&gt;TODO&lt;/code&gt;：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;summary&lt;/span&gt;       &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;%q{Write a short summary. Required.}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;spec&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;description&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;sx&quot;&gt;%q{Write a longer description. Optional.}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;再来执行：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ rake build
+
+mygem 0.0.1 built to pkg/mygem-0.0.1.gem.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;好了，第一个gem诞生了。它就在当前目录的pkg下：mygem-0.0.1.gem。如何使用呢？不考虑bundler的情况下，如果你开起了一个irb或者pry的session时，一般都会这样写：&lt;code&gt;require &amp;quot;mygem&amp;quot;&lt;/code&gt;，如果你现在这样做，那肯定不行，因为它还没有被安装到ruby的load path中，那就把它安装上。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;$ rake install
+
+mygem 0.0.1 built to pkg/mygem-0.0.1.gem.
+mygem (0.0.1) installed.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;安装好了，那就来使用一下，打开irb：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;require &amp;quot;mygem&amp;quot;
+=&amp;gt; true
+Mygem
+=&amp;gt; Mygem
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;看，已经可以使用这个module了，不过这个gem啥也干不了，那么我们就给它添加一个方法吧，打开lib/mygem.rb，添加一个方法：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;mygem/version&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;module&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;Mygem&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;hello&lt;/span&gt;
+    &lt;span class=&quot;nb&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;hello from my gem&amp;quot;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;保存，然后执行&lt;code&gt;rake install&lt;/code&gt;，这个命令会先build然后install，再重新打开irb：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;require &amp;quot;mygem&amp;quot;
+=&amp;gt; true
+Mygem.hello
+=&amp;gt; &amp;quot;hello from my gem&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;能够正常运行了，那就来发布第一个gem吧：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;rake release
+// 输入你在rubygems.org上的账号和密码
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;如果你的一个rails应用正好需要输出一个&lt;code&gt;hello from my gem&lt;/code&gt;，那么现在你可以在Gemfile中添加这个gem了：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;gem&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;mygem&amp;#39;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;添加完执行&lt;code&gt;bundle install&lt;/code&gt;，你就可以在你的rails应用中使用它了。&lt;/p&gt;
+
+&lt;p&gt;参考链接：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.linuxjournal.com/article/8967&quot;&gt;RubyGems&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.rubyinside.com/gemcutter-is-the-new-official-default-rubygem-host-2659.html&quot;&gt;Gemcutter Is The New Official Default RubyGem Host&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://github.com/blog/515-gem-building-is-defunct&quot;&gt;Gem Building is Defunct&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
 </description>
     </item>
     
