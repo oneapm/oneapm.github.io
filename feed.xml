@@ -6,13 +6,141 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Fri, 03 Jul 2015 04:08:40 +0000</pubDate>
-    <lastBuildDate>Fri, 03 Jul 2015 04:08:40 +0000</lastBuildDate>
+    <pubDate>Mon, 06 Jul 2015 02:33:13 +0000</pubDate>
+    <lastBuildDate>Mon, 06 Jul 2015 02:33:13 +0000</lastBuildDate>
 
     
     
     <item>
-      <title>如何测试你自己的 RubyGem</title>
+      <title>Ruby Profiler详解之stackprof</title>
+      <link>/ruby/2015/07/06/stack-prof/</link>
+      <pubDate>Mon, 06 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/ruby/2015/07/06/stack-prof</guid>
+      <description>&lt;h2&gt;简介&lt;/h2&gt;
+
+&lt;p&gt;stackprof是基于采样的一个调优工具，采样有什么好处呢？好处就是你可以线上使用，按照内置的算法抓取一部分数据，只影响一小部分性能。它会产生一系列的dump文件，然后你在线下分析这些文件，从而定位出问题，google有一篇基于采样的论文，也基本证明了采样是可行的。而stackprof也是深受google的perftools的影响，采用了采样的方式来做调优。&lt;/p&gt;
+
+&lt;h2&gt;基本使用方法&lt;/h2&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;no&quot;&gt;StackProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;./stackprof.dump&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;# 你的代码&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里我们给出一段示例代码，来作为测试目标：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;nb&quot;&gt;require&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;stackprof&amp;quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Compute&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m1&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;string&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;100&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;m2&lt;/span&gt;
+    &lt;span class=&quot;s2&quot;&gt;&amp;quot;string&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;10000&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+  &lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;start&lt;/span&gt;
+    &lt;span class=&quot;mi&quot;&gt;100_000&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;times&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;m1&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;m2&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+
+&lt;span class=&quot;no&quot;&gt;StackProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;./stackprof.dump&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+  &lt;span class=&quot;no&quot;&gt;Compute&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;new&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;start&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;保存为test.rb，同时执行&lt;code&gt;ruby test.rb&lt;/code&gt;就会在当前目录下生成stackprof.dump文件，我们用stackprof打开这个文件：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;stackprof stackprof.dump --text
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;==================================
+  Mode: cpu(1000)
+  Samples: 1793 (0.61% miss rate)
+  GC: 587 (32.74%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+      1106  (61.7%)        1106  (61.7%)     Compute#m2
+        98   (5.5%)          98   (5.5%)     Compute#m1
+      1206  (67.3%)           2   (0.1%)     block in Compute#start
+      1206  (67.3%)           0   (0.0%)     &amp;lt;main&amp;gt;
+      1206  (67.3%)           0   (0.0%)     Compute#start
+      1206  (67.3%)           0   (0.0%)     &amp;lt;main&amp;gt;
+      1206  (67.3%)           0   (0.0%)     block in &amp;lt;main&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这里可以很明显的看出是m2方法比较慢，占据了大部分的执行时间，相比其他的调优工具，它只是列出了用户自己的方法所占时间比，在ruby-prof中的测试中，它是会显示&lt;code&gt;String#*&lt;/code&gt;这个方法的占比的，但是对于我们来说，它的意义不大，而stackprof是不会理会标准库里的方法的。同时stackprof也是可以过滤方法的，比如我们发现了m2这个方法有问题，那么就可以把它过滤出来，看看细节：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;stackprof stackprof.dump --text --method &amp;#39;Compute#m2&amp;#39;
+
+Compute#m2 (/Users/lizhe/Workspace/ruby-performance-tuning/test.rb:9)
+  samples:  1106 self (61.7%)  /   1106 total (61.7%)
+  callers:
+    1106  (  100.0%)  block in Compute#start
+  code:
+                                  |     9  |   end
+ 1106   (61.7%) /  1106  (61.7%)  |    10  |
+                                  |    11  |   def start
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;我们可以看到m2这个方法定义在哪一个文件的哪一行，同时是谁调用了它，以及还显示了它在源码中的上下文。假如有多个方法调用了m2，还会显示出这几个方法，以及他们调用m2所占的比例，也就是上面的callers部分，因为只有一个start方法调用了m2，所以它是100%。&lt;/p&gt;
+
+&lt;h2&gt;在rack中的使用方法&lt;/h2&gt;
+
+&lt;p&gt;stackprof本身实现了一个rack middleware，所以可以很方便的挂载到一个rack应用中：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;StackProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Middleware&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;enabled&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;save_every&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;在rails中使用，先在Gemfile中添加stackprof，然后添加middleware：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;middleware&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;use&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;StackProf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Middleware&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;enabled&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;mode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:cpu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;save_every&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;然后请求你的应用，多请求几次，每5秒钟它会保存一次输出结果到tmp目录中，查看其中某一个结果：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;==================================
+  Mode: cpu(1000)
+  Samples: 155 (0.00% miss rate)
+  GC: 11 (7.10%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+        18  (11.6%)          18  (11.6%)     Hike::Index#entries
+        12   (7.7%)          12   (7.7%)     Hike::Index#stat
+         9   (5.8%)           9   (5.8%)     #&amp;lt;Module:0x007fb72a0c7b08&amp;gt;.load_with_autoloading
+        18  (11.6%)           9   (5.8%)     Sprockets::Cache::FileStore#[]
+         6   (3.9%)           6   (3.9%)     block (2 levels) in BindingOfCaller::BindingExtensions#callers
+         5   (3.2%)           5   (3.2%)     Time.parse
+         5   (3.2%)           5   (3.2%)     Sprockets::Mime#mime_types
+         5   (3.2%)           5   (3.2%)     Pathname#chop_basename
+         4   (2.6%)           4   (2.6%)     block in ActionView::PathResolver#find_template_paths
+         4   (2.6%)           4   (2.6%)     block in BetterErrors::ExceptionExtension#set_backtrace
+        15   (9.7%)           3   (1.9%)     block in ActiveSupport::Dependencies#load_file
+         2   (1.3%)           2   (1.3%)     Temple::Mixins::CompiledDispatcher::DispatchNode#initialize
+         5   (3.2%)           2   (1.3%)     ActionDispatch::Cookies::EncryptedCookieJar#initialize
+         2   (1.3%)           2   (1.3%)     ActiveSupport::KeyGenerator#generate_key
+         2   (1.3%)           2   (1.3%)     block in ActionView::PathResolver#query
+         4   (2.6%)           2   (1.3%)     Slim::Parser#initialize
+       113  (72.9%)           2   (1.3%)     ActionView::Renderer#render_template
+         2   (1.3%)           2   (1.3%)     Hike::Trail#stat
+         2   (1.3%)           2   (1.3%)     block in ActiveSupport::Dependencies#search_for_file
+        22  (14.2%)           2   (1.3%)     block in Temple::Filters::MultiFlattener#on_multi
+        20  (12.9%)           2   (1.3%)     Temple::Filters::ControlFlow#dispatcher
+        15   (9.7%)           2   (1.3%)     ActionView::Renderer#render_partial
+         1   (0.6%)           1   (0.6%)     block in Slim::Parser#initialize
+         1   (0.6%)           1   (0.6%)     Pathname#prepend_prefix
+         1   (0.6%)           1   (0.6%)     String#blank?
+         1   (0.6%)           1   (0.6%)     ActiveSupport::SafeBuffer#initialize
+        10   (6.5%)           1   (0.6%)     Sprockets::Asset#dependency_fresh?
+         1   (0.6%)           1   (0.6%)     Sprockets::Asset#init_with
+         1   (0.6%)           1   (0.6%)     Hike::Index#sort_matches
+         1   (0.6%)           1   (0.6%)     block in ActiveSupport::Dependencies::Loadable#require
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;可以利用这样的方式调试线上的环境。&lt;/p&gt;
+
+&lt;p&gt;参考链接：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/tmm1/stackprof&quot;&gt;https://github.com/tmm1/stackprof&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://oneapm.com/index.html?utm_source=RubyChina&amp;amp;utm_medium=Post&amp;amp;utm_content=lizhe&amp;amp;utm_campaign=TechnicalPost&amp;amp;from=opcofisiru&quot;&gt;OneAPM&lt;/a&gt;工程师原创，欢迎大家来&lt;a href=&quot;http://oneapm.com/index.html?utm_source=RubyChina&amp;amp;utm_medium=Post&amp;amp;utm_content=lizhe&amp;amp;utm_campaign=TechnicalPost&amp;amp;from=opcofisiru&quot;&gt;OneAPM&lt;/a&gt;做客，共同讨论各种技术问题&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>如何测试你自己的 RubyGem？</title>
       <link>/ruby/2015/07/03/how-to-test-a-gem/</link>
       <pubDate>Fri, 03 Jul 2015 00:00:00 +0000</pubDate>
       <author></author>
@@ -361,7 +489,7 @@ Version: &amp;#39;5.5.40-MariaDB-wsrep&amp;#39;  socket: &amp;#39;/var/lib/mysql
     
     
     <item>
-      <title>如何开发一个自己的 RubyGem</title>
+      <title>如何开发一个自己的 RubyGem？</title>
       <link>/ruby/2015/07/02/how-to-create-a-gem/</link>
       <pubDate>Thu, 02 Jul 2015 00:00:00 +0000</pubDate>
       <author></author>

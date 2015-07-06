@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruby Profiler详解之stackprof &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Ruby Profiler详解之stackprof ">
+    <link rel="canonical" href="/ruby/2015/07/06/stack-prof/">
+    
+    
+    <meta property="og:title" content="Ruby Profiler详解之stackprof "/>
+    <meta property="og:url" content="/ruby/2015/07/06/stack-prof/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="stackprof是基于采样的性能调优工具，采样有什么好处？stackprof又是如何使用的？"/>
+    <meta name="description" content="stackprof是基于采样的性能调优工具，采样有什么好处？stackprof又是如何使用的？"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Ruby Profiler详解之stackprof</h1>
+                
+                <div class="meta">
+                    <address>李哲</address> &mdash;
+                    <time pubdate datetime="2015-06-July" title="July 06, 2015">July 06, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>李哲</address> &mdash;
+                <time pubdate datetime="2015-06-July" title="July 06, 2015">July 06, 2015</time>
+            </div>
+            <h1 class="title">Ruby Profiler详解之stackprof</h1>
+            
+        </header> -->
+
+        <section>
+            <h2>简介</h2>
+
+<p>stackprof是基于采样的一个调优工具，采样有什么好处呢？好处就是你可以线上使用，按照内置的算法抓取一部分数据，只影响一小部分性能。它会产生一系列的dump文件，然后你在线下分析这些文件，从而定位出问题，google有一篇基于采样的论文，也基本证明了采样是可行的。而stackprof也是深受google的perftools的影响，采用了采样的方式来做调优。</p>
+
+<h2>基本使用方法</h2>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="no">StackProf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="ss">mode</span><span class="p">:</span> <span class="ss">:cpu</span><span class="p">,</span> <span class="ss">out</span><span class="p">:</span> <span class="s1">&#39;./stackprof.dump&#39;</span><span class="p">)</span> <span class="k">do</span>
+  <span class="c1"># 你的代码</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>这里我们给出一段示例代码，来作为测试目标：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="nb">require</span> <span class="s2">&quot;stackprof&quot;</span>
+
+<span class="k">class</span> <span class="nc">Compute</span>
+
+  <span class="k">def</span> <span class="nf">m1</span>
+    <span class="s2">&quot;string&quot;</span> <span class="o">*</span> <span class="mi">100</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">m2</span>
+    <span class="s2">&quot;string&quot;</span> <span class="o">*</span> <span class="mi">10000</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">start</span>
+    <span class="mi">100_000</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span>
+      <span class="n">m1</span>
+      <span class="n">m2</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="no">StackProf</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="ss">mode</span><span class="p">:</span> <span class="ss">:cpu</span><span class="p">,</span> <span class="ss">out</span><span class="p">:</span> <span class="s1">&#39;./stackprof.dump&#39;</span><span class="p">)</span> <span class="k">do</span>
+  <span class="no">Compute</span><span class="o">.</span><span class="n">new</span><span class="o">.</span><span class="n">start</span>
+<span class="k">end</span>
+</code></pre></div>
+<p>保存为test.rb，同时执行<code>ruby test.rb</code>就会在当前目录下生成stackprof.dump文件，我们用stackprof打开这个文件：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">stackprof stackprof.dump --text
+</code></pre></div><div class="highlight"><pre><code class="language-text" data-lang="text">==================================
+  Mode: cpu(1000)
+  Samples: 1793 (0.61% miss rate)
+  GC: 587 (32.74%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+      1106  (61.7%)        1106  (61.7%)     Compute#m2
+        98   (5.5%)          98   (5.5%)     Compute#m1
+      1206  (67.3%)           2   (0.1%)     block in Compute#start
+      1206  (67.3%)           0   (0.0%)     &lt;main&gt;
+      1206  (67.3%)           0   (0.0%)     Compute#start
+      1206  (67.3%)           0   (0.0%)     &lt;main&gt;
+      1206  (67.3%)           0   (0.0%)     block in &lt;main&gt;
+</code></pre></div>
+<p>这里可以很明显的看出是m2方法比较慢，占据了大部分的执行时间，相比其他的调优工具，它只是列出了用户自己的方法所占时间比，在ruby-prof中的测试中，它是会显示<code>String#*</code>这个方法的占比的，但是对于我们来说，它的意义不大，而stackprof是不会理会标准库里的方法的。同时stackprof也是可以过滤方法的，比如我们发现了m2这个方法有问题，那么就可以把它过滤出来，看看细节：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">stackprof stackprof.dump --text --method &#39;Compute#m2&#39;
+
+Compute#m2 (/Users/lizhe/Workspace/ruby-performance-tuning/test.rb:9)
+  samples:  1106 self (61.7%)  /   1106 total (61.7%)
+  callers:
+    1106  (  100.0%)  block in Compute#start
+  code:
+                                  |     9  |   end
+ 1106   (61.7%) /  1106  (61.7%)  |    10  |
+                                  |    11  |   def start
+</code></pre></div>
+<p>我们可以看到m2这个方法定义在哪一个文件的哪一行，同时是谁调用了它，以及还显示了它在源码中的上下文。假如有多个方法调用了m2，还会显示出这几个方法，以及他们调用m2所占的比例，也就是上面的callers部分，因为只有一个start方法调用了m2，所以它是100%。</p>
+
+<h2>在rack中的使用方法</h2>
+
+<p>stackprof本身实现了一个rack middleware，所以可以很方便的挂载到一个rack应用中：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">use</span> <span class="no">StackProf</span><span class="o">::</span><span class="no">Middleware</span><span class="p">,</span> <span class="ss">enabled</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">mode</span><span class="p">:</span> <span class="ss">:cpu</span><span class="p">,</span> <span class="ss">save_every</span><span class="p">:</span> <span class="mi">5</span>
+</code></pre></div>
+<p>在rails中使用，先在Gemfile中添加stackprof，然后添加middleware：</p>
+<div class="highlight"><pre><code class="language-ruby" data-lang="ruby"><span class="n">config</span><span class="o">.</span><span class="n">middleware</span><span class="o">.</span><span class="n">use</span> <span class="no">StackProf</span><span class="o">::</span><span class="no">Middleware</span><span class="p">,</span> <span class="ss">enabled</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">mode</span><span class="p">:</span> <span class="ss">:cpu</span><span class="p">,</span> <span class="ss">save_every</span><span class="p">:</span> <span class="mi">5</span>
+</code></pre></div>
+<p>然后请求你的应用，多请求几次，每5秒钟它会保存一次输出结果到tmp目录中，查看其中某一个结果：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">==================================
+  Mode: cpu(1000)
+  Samples: 155 (0.00% miss rate)
+  GC: 11 (7.10%)
+==================================
+     TOTAL    (pct)     SAMPLES    (pct)     FRAME
+        18  (11.6%)          18  (11.6%)     Hike::Index#entries
+        12   (7.7%)          12   (7.7%)     Hike::Index#stat
+         9   (5.8%)           9   (5.8%)     #&lt;Module:0x007fb72a0c7b08&gt;.load_with_autoloading
+        18  (11.6%)           9   (5.8%)     Sprockets::Cache::FileStore#[]
+         6   (3.9%)           6   (3.9%)     block (2 levels) in BindingOfCaller::BindingExtensions#callers
+         5   (3.2%)           5   (3.2%)     Time.parse
+         5   (3.2%)           5   (3.2%)     Sprockets::Mime#mime_types
+         5   (3.2%)           5   (3.2%)     Pathname#chop_basename
+         4   (2.6%)           4   (2.6%)     block in ActionView::PathResolver#find_template_paths
+         4   (2.6%)           4   (2.6%)     block in BetterErrors::ExceptionExtension#set_backtrace
+        15   (9.7%)           3   (1.9%)     block in ActiveSupport::Dependencies#load_file
+         2   (1.3%)           2   (1.3%)     Temple::Mixins::CompiledDispatcher::DispatchNode#initialize
+         5   (3.2%)           2   (1.3%)     ActionDispatch::Cookies::EncryptedCookieJar#initialize
+         2   (1.3%)           2   (1.3%)     ActiveSupport::KeyGenerator#generate_key
+         2   (1.3%)           2   (1.3%)     block in ActionView::PathResolver#query
+         4   (2.6%)           2   (1.3%)     Slim::Parser#initialize
+       113  (72.9%)           2   (1.3%)     ActionView::Renderer#render_template
+         2   (1.3%)           2   (1.3%)     Hike::Trail#stat
+         2   (1.3%)           2   (1.3%)     block in ActiveSupport::Dependencies#search_for_file
+        22  (14.2%)           2   (1.3%)     block in Temple::Filters::MultiFlattener#on_multi
+        20  (12.9%)           2   (1.3%)     Temple::Filters::ControlFlow#dispatcher
+        15   (9.7%)           2   (1.3%)     ActionView::Renderer#render_partial
+         1   (0.6%)           1   (0.6%)     block in Slim::Parser#initialize
+         1   (0.6%)           1   (0.6%)     Pathname#prepend_prefix
+         1   (0.6%)           1   (0.6%)     String#blank?
+         1   (0.6%)           1   (0.6%)     ActiveSupport::SafeBuffer#initialize
+        10   (6.5%)           1   (0.6%)     Sprockets::Asset#dependency_fresh?
+         1   (0.6%)           1   (0.6%)     Sprockets::Asset#init_with
+         1   (0.6%)           1   (0.6%)     Hike::Index#sort_matches
+         1   (0.6%)           1   (0.6%)     block in ActiveSupport::Dependencies::Loadable#require
+</code></pre></div>
+<p>可以利用这样的方式调试线上的环境。</p>
+
+<p>参考链接：</p>
+
+<p><a href="https://github.com/tmm1/stackprof">https://github.com/tmm1/stackprof</a></p>
+
+<p><strong>本文由<a href="http://oneapm.com/index.html?utm_source=RubyChina&amp;utm_medium=Post&amp;utm_content=lizhe&amp;utm_campaign=TechnicalPost&amp;from=opcofisiru">OneAPM</a>工程师原创，欢迎大家来<a href="http://oneapm.com/index.html?utm_source=RubyChina&amp;utm_medium=Post&amp;utm_content=lizhe&amp;utm_campaign=TechnicalPost&amp;from=opcofisiru">OneAPM</a>做客，共同讨论各种技术问题</strong></p>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/lizhe.jpg">
+                <p><strong>李哲</strong><br>
+                <span class="muted">Ruby工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/ruby/2015/07/06/stack-prof" data-title="Ruby Profiler详解之stackprof" data-url="http://code.oneapm.com/ruby/2015/07/06/stack-prof/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
