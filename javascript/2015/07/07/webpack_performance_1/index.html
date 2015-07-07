@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webpack 性能优化 （一） &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="Webpack 性能优化 （一） ">
+    <link rel="canonical" href="/javascript/2015/07/07/webpack_performance_1/">
+    
+    
+    <meta property="og:title" content="Webpack 性能优化 （一） "/>
+    <meta property="og:url" content="/javascript/2015/07/07/webpack_performance_1/"/>
+    
+    <meta property="og:image" content="/images/home_bg.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="一步步地介绍如何把 Webpack 打包的过程从 650ms 缩减到 49ms。"/>
+    <meta name="description" content="一步步地介绍如何把 Webpack 打包的过程从 650ms 缩减到 49ms。"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/home_bg.png);">
+
+    <!-- <img src="/images/home_bg.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">Webpack 性能优化 （一）</h1>
+                <h2 class="subtitle">使用别名做重定向</h2>
+                <div class="meta">
+                    <address>王龑</address> &mdash;
+                    <time pubdate datetime="2015-07-July" title="July 07, 2015">July 07, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>王龑</address> &mdash;
+                <time pubdate datetime="2015-07-July" title="July 07, 2015">July 07, 2015</time>
+            </div>
+            <h1 class="title">Webpack 性能优化 （一）</h1>
+            <h2 class="subtitle">使用别名做重定向</h2>
+        </header> -->
+
+        <section>
+            <h2>前言</h2>
+
+<p>Webpack 是 OneAPM 前端技术栈中很重要的一部分，它非常好用，如果你还不了解它，建议你阅读这篇 <a href="http://segmentfault.com/a/1190000002551952">Webpack 入门指迷</a> 
+，在 OneAPM 我们用它完成静态资源打包，ES6 代码的转换 ，React 组件的组织等，在接下来的日子里，我们将通过一系列文章和业界分享我们在使用 Webpack 过程中关于性能方面的经验。</p>
+
+<p>作为系列文章的第一篇，我们会重点介绍 Webpack 中的 <code>resolve.alias</code> ，也就是请求重定向。不过请注意 Webpack 里的请求是对模块的依赖，也就是一个 <code>require</code> 语句，而不是一个 HTTP 请求。</p>
+
+<p><strong>必要的准备</strong></p>
+
+<ul>
+<li>需要你有一定的 Node.js 基础</li>
+<li>电脑上装有最新版的 Webpack (<code>npm install webpack -g</code>)</li>
+<li>了解 Webpack 配置文件的格式</li>
+</ul>
+
+<p><strong>例子：本地时钟</strong></p>
+
+<p>要实现的功能很简单，就是在页面上用中文显示当前时间，需要用到 <a href="http://momentjs.com/"><code>moment</code></a> 这个库，这个库封装了很多和日期相关的函数，而且自带了国际化的支持。</p>
+
+<h3>新建一个 Node.js 项目</h3>
+
+<p>使用 <code>npm init</code> 初始化你的项目，然后通过 <code>npm install moment -D</code> 加上 <code>moment</code> 的开发者依赖。</p>
+
+<p>新建一个 <code>entry.js</code> 作为入口文件，当然你也可以用 <code>app.js</code> 这样的名字，只是大部分的 Webpack 示例都是用的是 <code>entry.js</code>。</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">var</span> <span class="nx">moment</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;moment&#39;</span><span class="p">);</span>
+<span class="nb">document</span><span class="p">.</span><span class="nx">write</span><span class="p">(</span><span class="nx">moment</span><span class="p">().</span><span class="nx">locale</span><span class="p">(</span><span class="s1">&#39;zh-cn&#39;</span><span class="p">).</span><span class="nx">format</span><span class="p">(</span><span class="s1">&#39;LLLL&#39;</span><span class="p">));</span>
+</code></pre></div>
+<p>新建一个页面 <code>index.html</code>, 引用 <code>bundle.js</code>:</p>
+<div class="highlight"><pre><code class="language-html" data-lang="html"><span class="nt">&lt;body&gt;</span>
+<span class="nt">&lt;h5&gt;</span>当前时间:<span class="nt">&lt;/h5&gt;</span>
+<span class="nt">&lt;script </span><span class="na">src=</span><span class="s">&quot;dist/bundle.js&quot;</span><span class="nt">&gt;&lt;/script&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+</code></pre></div>
+<p>此时的文件目录看起来是这样的:</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">index.html
+package.json
+entry.js
+node_modules/moment
+</code></pre></div>
+<p>到目前为止 <code>bundle.js</code> 这个文件还不存在，不过别着急，接下来的工作就交给 Webpack 来完成。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">index.html  ------------------------+               
+package.json                        |               
+                                    +--&gt; &lt;Clock App&gt;
+entry.js    --------+               |               
+                    +--&gt;bundle.js+--+               
+node_modules/moment-+                                                                                                      
+</code></pre></div>
+<p>如图，Webpack 会把 <code>entry.js</code> 和 <code>moment</code> 模块一起打包成一个 bundle.js 文件，和 <code>index.html</code> 一起构成了我们的 Clock App。怎么样，是不是已经听到 Clock App 滴答作响了？</p>
+
+<h3>使用 webpack 打包代码</h3>
+
+<p>在命令行执行：</p>
+<div class="highlight"><pre><code class="language-sh" data-lang="sh">webpack --entry ./entry.js --output-path dist --output-file bundle.js
+</code></pre></div>
+<p>你会看到类似下面的输出结果:</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Hash: bf9007fb1e0cb30e3ef7
+Version: webpack 1.10.0
+Time: 650ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  378 kB       0  [emitted]  null
+   [0] ./entry.js 125 bytes {0} [built]
+    + 86 hidden modules
+</code></pre></div>
+<p>可以看到，耗时 650ms，这么慢着实让人意外，一定要想办法提高“新一代神器”速度；另一方面，最后一行的 <strong>+ 86 hidden modules</strong> 非常让人怀疑：明明是一个简单的 Clock App，怎么会有这么多的依赖。</p>
+
+<h2>如何快速定位 Webpack 速度慢的原因</h2>
+
+<p>再一次，在命令行输入：</p>
+<div class="highlight"><pre><code class="language-sh" data-lang="sh">webpack --entry ./entry.js --output-path dist --output-file bundle.js <span class="se">\</span>
+--colors <span class="se">\</span>
+--profile <span class="se">\</span>
+--display-modules
+</code></pre></div>
+<p>不过这次新增加了三个参数，这三个参数的含义分别是：</p>
+
+<ul>
+<li><code>--colors</code> 输出结果带彩色，比如：会用红色显示耗时较长的步骤</li>
+<li><code>--profile</code> 输出性能数据，可以看到每一步的耗时</li>
+<li><code>--display-modules</code> 默认情况下 <code>node_modules</code> 下的模块会被隐藏，加上这个参数可以显示这些被隐藏的模块</li>
+</ul>
+
+<p>这次命令行的结果已经很有参考价值，可以帮助我们定位耗时比较长的步骤</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Hash: bf9007fb1e0cb30e3ef7
+Version: webpack 1.10.0
+Time: 650ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  378 kB       0  [emitted]  null
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:11ms building:8ms = 19ms
+   [1] ../~/moment/moment.js 102 kB {0} [built]
+       [0] 19ms -&gt; factory:7ms building:141ms = 167ms
+   [2] (webpack)/buildin/module.js 251 bytes {0} [built]
+       [0] 19ms -&gt; [1] 148ms -&gt; factory:132ms building:159ms = 458ms
+   [3] ../~/moment/locale ^\.\/.*$ 2.01 kB {0} [optional] [built]
+       [0] 19ms -&gt; [1] 148ms -&gt; factory:6ms building:10ms dependencies:113ms = 296ms
+   [4] ../~/moment/locale/af.js 2.57 kB {0} [optional] [built]
+       [0] 19ms -&gt; [1] 148ms -&gt; [3] 16ms -&gt; factory:52ms building:65ms dependencies:138ms = 438ms
+                  ..... 广告分割线，Node.js 工程师简历请发 nodejs@oneapm.com ......
+   [85] ../~/moment/locale/zh-cn.js 4.31 kB {0} [optional] [built]
+        [0] 22ms -&gt; [1] 162ms -&gt; [3] 18ms -&gt; factory:125ms building:145ms dependencies:22ms = 494ms
+   [86] ../~/moment/locale/zh-tw.js 3.07 kB {0} [optional] [built]
+        [0] 22ms -&gt; [1] 162ms -&gt; [3] 18ms -&gt; factory:126ms building:146ms dependencies:21ms = 495ms
+</code></pre></div>
+<p>从命令行的结果里可以看到从 Request[4] 到 Request[86] 都是在解析 <code>moment.js</code> 附带的大量本地化文件。所以我们遇到的速度慢的问题其实是由 <code>moment</code> 引起的。</p>
+
+<p>如果你想知道为什么 Webpack 会加载这么多的模块，可以参考这篇文章 <a href="https://github.com/wyvernnot/webpack_performance/tree/master/moment-example/WHY_LOCALES.md"> Why Enormous Locales During Webpack MomentJS</a></p>
+
+<p>我们再来看看 <code>entry.js</code> 代码的第一行,标准的 <code>CommonJS</code> 写法:</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">var</span> <span class="nx">moment</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;moment&#39;</span><span class="p">);</span>
+</code></pre></div>
+<p>也就是说，请求的是 <code>moment</code> 的源码。实际上，通过 NPM 安装 <code>moment</code> 的时候会同时安装 <code>moment</code> 的源码和压缩后的代码，试验证明下面这种写法也是可行的：</p>
+<div class="highlight"><pre><code class="language-js" data-lang="js"><span class="kd">var</span> <span class="nx">moment</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;moment/min/moment-with-locales.min.js&#39;</span><span class="p">);</span>
+</code></pre></div>
+<p>只不过这样改，可读性会有所下降，而且每一个用到 <code>moment</code> 的地方都得这么写。另外，如果同样的问题出现在第三方模块中，修改别人代码就不那么方便了。下面来看看用 Webpack 怎么解决这个问题。</p>
+
+<h3>在 Webpack 中使用别名</h3>
+
+<p>别名（<code>resolve.alias</code>） 是 Webpack 的一个配置项，它的作用是把用户的一个请求重定向到另一个路径，例如通过修改 <code>webpack.config.js</code> 配置文件，加入：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">  resolve: {
+    alias: {
+        moment: &quot;moment/min/moment-with-locales.min.js&quot;
+    }
+  }
+</code></pre></div>
+<p>这样待打包的脚本中的 <code>require(&#39;moment&#39;);</code> 其实就等价于 <code>require(&#39;moment/min/moment-with-locales.min.js&#39;);</code> 。通过别名的使用在本例中可以减少几乎一半的时间。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Hash: cdea65709b783ee0741a
+Version: webpack 1.10.0
+Time: 320ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  148 kB       0  [emitted]  main
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:11ms building:9ms = 20ms
+   [1] ../~/moment/min/moment-with-locales.min.js 146 kB {0} [built] [1 warning]
+       [0] 20ms -&gt; factory:8ms building:263ms = 291ms
+   [2] (webpack)/buildin/module.js 251 bytes {0} [built]
+       [0] 20ms -&gt; [1] 271ms -&gt; factory:3ms building:1ms = 295ms
+
+WARNING in ../~/moment/min/moment-with-locales.min.js
+Module not found: Error: Cannot resolve &#39;file&#39; or &#39;directory&#39; ./locale in */webpack_performance/node_modules/moment/min
+ @ ../~/moment/min/moment-with-locales.min.js 1:2731-2753
+</code></pre></div>
+<h3>在 Webpack 中忽略对已知文件的解析</h3>
+
+<p><code>module.noParse</code> 是 <code>webpack</code> 的另一个很有用的配置项，如果你 <strong>确定一个模块中没有其它新的依赖</strong> 就可以配置这项，<code>webpack</code> 将不再扫描这个文件中的依赖。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">  module: {
+    noParse: [/moment-with-locales/]
+  }
+</code></pre></div>
+<p>这样修改，再结合前面重命名的例子，更新后的流程是： </p>
+
+<ul>
+<li><code>webpack</code> 检查到 <code>entry.js</code> 文件对 <code>moment</code> 的请求；</li>
+<li>请求被 <code>alias</code> 重定向，转而请求 <code>moment/min/moment-with-locales.min.js</code>；</li>
+<li><code>noParse</code> 规则中的 <code>/moment-with-locales/</code> 一条生效，所以 <code>webpack</code> 就直接把依赖打包进了 <code>bundle.js</code> 。</li>
+</ul>
+<div class="highlight"><pre><code class="language-text" data-lang="text">Hash: 907880ed7638b4ed70b9
+Version: webpack 1.10.0
+Time: 76ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  147 kB       0  [emitted]  main
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:13ms building:13ms = 26ms
+   [1] ../~/moment/min/moment-with-locales.min.js 146 kB {0} [built]
+       [0] 26ms -&gt; factory:13ms building:5ms = 44ms
+</code></pre></div>
+<p>时间进一步被压缩，只需要 76ms，比前一步还减少了 75%。</p>
+
+<h3>在 Webpack 中使用公用 CDN</h3>
+
+<p>Webpack 是如此的强大，用其打包的脚本可以运行在多种环境下，Web 环境只是其默认的一种，也是最常用的一种。考虑到 Web 上有很多的公用 CDN 服务，那么
+怎么将 Webpack 和公用的 CDN 结合使用呢？方法是使用 <code>externals</code> 声明一个外部依赖。</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">  externals: {
+    moment: true
+  }
+</code></pre></div>
+<p>当然了 HTML 代码里需要加上一行</p>
+<div class="highlight"><pre><code class="language-html" data-lang="html"><span class="nt">&lt;script </span><span class="na">src=</span><span class="s">&quot;//apps.bdimg.com/libs/moment/2.8.3/moment-with-locales.min.js&quot;</span><span class="nt">&gt;&lt;/script&gt;</span>
+</code></pre></div>
+<p>这次打包，结果只用了 49 ms，几乎达到了极限。</p>
+
+<h2>总结</h2>
+
+<p>本文结合本地时钟的例子，展示了定位 Webpack 性能问题的步骤，以及所需要的两个参数 ：<code>--display-modules</code> 和 <code>--profile</code>。然后，重点介绍了 <code>resolve.alias</code> 
+即利用别名做重定向的方法和场景，在此基础上，配合 <code>module.noParse</code> 忽略某些模块的解析可以进一步加快速度。最后介绍了用 <code>externals</code> 定义外部依赖方法来使用公用 CDN。</p>
+
+<h3>关于</h3>
+
+<p>本文相关的源码在：
+<a href="https://github.com/wyvernnot/webpack_performance/tree/master/moment-example">https://github.com/wyvernnot/webpack_performance/tree/master/moment-example</a>;</p>
+
+<blockquote>
+<p>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创 ，想阅读更多技术文章，请访问<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM官方技术博客</a>。</p>
+</blockquote>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/wangyan.jpg">
+                <p><strong>王龑</strong><br>
+                <span class="muted">NodeJS工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/javascript/2015/07/07/webpack_performance_1" data-title="Webpack 性能优化 （一）" data-url="http://code.oneapm.com/javascript/2015/07/07/webpack_performance_1/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>

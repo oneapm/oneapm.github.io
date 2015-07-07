@@ -6,9 +6,213 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 06 Jul 2015 02:33:13 +0000</pubDate>
-    <lastBuildDate>Mon, 06 Jul 2015 02:33:13 +0000</lastBuildDate>
+    <pubDate>Tue, 07 Jul 2015 06:29:10 +0000</pubDate>
+    <lastBuildDate>Tue, 07 Jul 2015 06:29:10 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>Webpack 性能优化 （一）</title>
+      <link>/javascript/2015/07/07/webpack_performance_1/</link>
+      <pubDate>Tue, 07 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/07/07/webpack_performance_1</guid>
+      <description>&lt;h2&gt;前言&lt;/h2&gt;
+
+&lt;p&gt;Webpack 是 OneAPM 前端技术栈中很重要的一部分，它非常好用，如果你还不了解它，建议你阅读这篇 &lt;a href=&quot;http://segmentfault.com/a/1190000002551952&quot;&gt;Webpack 入门指迷&lt;/a&gt; 
+，在 OneAPM 我们用它完成静态资源打包，ES6 代码的转换 ，React 组件的组织等，在接下来的日子里，我们将通过一系列文章和业界分享我们在使用 Webpack 过程中关于性能方面的经验。&lt;/p&gt;
+
+&lt;p&gt;作为系列文章的第一篇，我们会重点介绍 Webpack 中的 &lt;code&gt;resolve.alias&lt;/code&gt; ，也就是请求重定向。不过请注意 Webpack 里的请求是对模块的依赖，也就是一个 &lt;code&gt;require&lt;/code&gt; 语句，而不是一个 HTTP 请求。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;必要的准备&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;需要你有一定的 Node.js 基础&lt;/li&gt;
+&lt;li&gt;电脑上装有最新版的 Webpack (&lt;code&gt;npm install webpack -g&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;了解 Webpack 配置文件的格式&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;例子：本地时钟&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;要实现的功能很简单，就是在页面上用中文显示当前时间，需要用到 &lt;a href=&quot;http://momentjs.com/&quot;&gt;&lt;code&gt;moment&lt;/code&gt;&lt;/a&gt; 这个库，这个库封装了很多和日期相关的函数，而且自带了国际化的支持。&lt;/p&gt;
+
+&lt;h3&gt;新建一个 Node.js 项目&lt;/h3&gt;
+
+&lt;p&gt;使用 &lt;code&gt;npm init&lt;/code&gt; 初始化你的项目，然后通过 &lt;code&gt;npm install moment -D&lt;/code&gt; 加上 &lt;code&gt;moment&lt;/code&gt; 的开发者依赖。&lt;/p&gt;
+
+&lt;p&gt;新建一个 &lt;code&gt;entry.js&lt;/code&gt; 作为入口文件，当然你也可以用 &lt;code&gt;app.js&lt;/code&gt; 这样的名字，只是大部分的 Webpack 示例都是用的是 &lt;code&gt;entry.js&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;moment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;moment&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;moment&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;locale&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;zh-cn&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;LLLL&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;新建一个页面 &lt;code&gt;index.html&lt;/code&gt;, 引用 &lt;code&gt;bundle.js&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-html&quot; data-lang=&quot;html&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;body&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;h5&amp;gt;&lt;/span&gt;当前时间:&lt;span class=&quot;nt&quot;&gt;&amp;lt;/h5&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;script &lt;/span&gt;&lt;span class=&quot;na&quot;&gt;src=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;dist/bundle.js&amp;quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&amp;lt;/script&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;nt&quot;&gt;&amp;lt;/body&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;此时的文件目录看起来是这样的:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;index.html
+package.json
+entry.js
+node_modules/moment
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;到目前为止 &lt;code&gt;bundle.js&lt;/code&gt; 这个文件还不存在，不过别着急，接下来的工作就交给 Webpack 来完成。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;index.html  ------------------------+               
+package.json                        |               
+                                    +--&amp;gt; &amp;lt;Clock App&amp;gt;
+entry.js    --------+               |               
+                    +--&amp;gt;bundle.js+--+               
+node_modules/moment-+                                                                                                      
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;如图，Webpack 会把 &lt;code&gt;entry.js&lt;/code&gt; 和 &lt;code&gt;moment&lt;/code&gt; 模块一起打包成一个 bundle.js 文件，和 &lt;code&gt;index.html&lt;/code&gt; 一起构成了我们的 Clock App。怎么样，是不是已经听到 Clock App 滴答作响了？&lt;/p&gt;
+
+&lt;h3&gt;使用 webpack 打包代码&lt;/h3&gt;
+
+&lt;p&gt;在命令行执行：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;webpack --entry ./entry.js --output-path dist --output-file bundle.js
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;你会看到类似下面的输出结果:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Hash: bf9007fb1e0cb30e3ef7
+Version: webpack 1.10.0
+Time: 650ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  378 kB       0  [emitted]  null
+   [0] ./entry.js 125 bytes {0} [built]
+    + 86 hidden modules
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;可以看到，耗时 650ms，这么慢着实让人意外，一定要想办法提高“新一代神器”速度；另一方面，最后一行的 &lt;strong&gt;+ 86 hidden modules&lt;/strong&gt; 非常让人怀疑：明明是一个简单的 Clock App，怎么会有这么多的依赖。&lt;/p&gt;
+
+&lt;h2&gt;如何快速定位 Webpack 速度慢的原因&lt;/h2&gt;
+
+&lt;p&gt;再一次，在命令行输入：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;webpack --entry ./entry.js --output-path dist --output-file bundle.js &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+--colors &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+--profile &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+--display-modules
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;不过这次新增加了三个参数，这三个参数的含义分别是：&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;--colors&lt;/code&gt; 输出结果带彩色，比如：会用红色显示耗时较长的步骤&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--profile&lt;/code&gt; 输出性能数据，可以看到每一步的耗时&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--display-modules&lt;/code&gt; 默认情况下 &lt;code&gt;node_modules&lt;/code&gt; 下的模块会被隐藏，加上这个参数可以显示这些被隐藏的模块&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;这次命令行的结果已经很有参考价值，可以帮助我们定位耗时比较长的步骤&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Hash: bf9007fb1e0cb30e3ef7
+Version: webpack 1.10.0
+Time: 650ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  378 kB       0  [emitted]  null
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:11ms building:8ms = 19ms
+   [1] ../~/moment/moment.js 102 kB {0} [built]
+       [0] 19ms -&amp;gt; factory:7ms building:141ms = 167ms
+   [2] (webpack)/buildin/module.js 251 bytes {0} [built]
+       [0] 19ms -&amp;gt; [1] 148ms -&amp;gt; factory:132ms building:159ms = 458ms
+   [3] ../~/moment/locale ^\.\/.*$ 2.01 kB {0} [optional] [built]
+       [0] 19ms -&amp;gt; [1] 148ms -&amp;gt; factory:6ms building:10ms dependencies:113ms = 296ms
+   [4] ../~/moment/locale/af.js 2.57 kB {0} [optional] [built]
+       [0] 19ms -&amp;gt; [1] 148ms -&amp;gt; [3] 16ms -&amp;gt; factory:52ms building:65ms dependencies:138ms = 438ms
+                  ..... 广告分割线，Node.js 工程师简历请发 nodejs@oneapm.com ......
+   [85] ../~/moment/locale/zh-cn.js 4.31 kB {0} [optional] [built]
+        [0] 22ms -&amp;gt; [1] 162ms -&amp;gt; [3] 18ms -&amp;gt; factory:125ms building:145ms dependencies:22ms = 494ms
+   [86] ../~/moment/locale/zh-tw.js 3.07 kB {0} [optional] [built]
+        [0] 22ms -&amp;gt; [1] 162ms -&amp;gt; [3] 18ms -&amp;gt; factory:126ms building:146ms dependencies:21ms = 495ms
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;从命令行的结果里可以看到从 Request[4] 到 Request[86] 都是在解析 &lt;code&gt;moment.js&lt;/code&gt; 附带的大量本地化文件。所以我们遇到的速度慢的问题其实是由 &lt;code&gt;moment&lt;/code&gt; 引起的。&lt;/p&gt;
+
+&lt;p&gt;如果你想知道为什么 Webpack 会加载这么多的模块，可以参考这篇文章 &lt;a href=&quot;https://github.com/wyvernnot/webpack_performance/tree/master/moment-example/WHY_LOCALES.md&quot;&gt; Why Enormous Locales During Webpack MomentJS&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;我们再来看看 &lt;code&gt;entry.js&lt;/code&gt; 代码的第一行,标准的 &lt;code&gt;CommonJS&lt;/code&gt; 写法:&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;moment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;moment&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;也就是说，请求的是 &lt;code&gt;moment&lt;/code&gt; 的源码。实际上，通过 NPM 安装 &lt;code&gt;moment&lt;/code&gt; 的时候会同时安装 &lt;code&gt;moment&lt;/code&gt; 的源码和压缩后的代码，试验证明下面这种写法也是可行的：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;moment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;require&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;moment/min/moment-with-locales.min.js&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;只不过这样改，可读性会有所下降，而且每一个用到 &lt;code&gt;moment&lt;/code&gt; 的地方都得这么写。另外，如果同样的问题出现在第三方模块中，修改别人代码就不那么方便了。下面来看看用 Webpack 怎么解决这个问题。&lt;/p&gt;
+
+&lt;h3&gt;在 Webpack 中使用别名&lt;/h3&gt;
+
+&lt;p&gt;别名（&lt;code&gt;resolve.alias&lt;/code&gt;） 是 Webpack 的一个配置项，它的作用是把用户的一个请求重定向到另一个路径，例如通过修改 &lt;code&gt;webpack.config.js&lt;/code&gt; 配置文件，加入：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;  resolve: {
+    alias: {
+        moment: &amp;quot;moment/min/moment-with-locales.min.js&amp;quot;
+    }
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这样待打包的脚本中的 &lt;code&gt;require(&amp;#39;moment&amp;#39;);&lt;/code&gt; 其实就等价于 &lt;code&gt;require(&amp;#39;moment/min/moment-with-locales.min.js&amp;#39;);&lt;/code&gt; 。通过别名的使用在本例中可以减少几乎一半的时间。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Hash: cdea65709b783ee0741a
+Version: webpack 1.10.0
+Time: 320ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  148 kB       0  [emitted]  main
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:11ms building:9ms = 20ms
+   [1] ../~/moment/min/moment-with-locales.min.js 146 kB {0} [built] [1 warning]
+       [0] 20ms -&amp;gt; factory:8ms building:263ms = 291ms
+   [2] (webpack)/buildin/module.js 251 bytes {0} [built]
+       [0] 20ms -&amp;gt; [1] 271ms -&amp;gt; factory:3ms building:1ms = 295ms
+
+WARNING in ../~/moment/min/moment-with-locales.min.js
+Module not found: Error: Cannot resolve &amp;#39;file&amp;#39; or &amp;#39;directory&amp;#39; ./locale in */webpack_performance/node_modules/moment/min
+ @ ../~/moment/min/moment-with-locales.min.js 1:2731-2753
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h3&gt;在 Webpack 中忽略对已知文件的解析&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;module.noParse&lt;/code&gt; 是 &lt;code&gt;webpack&lt;/code&gt; 的另一个很有用的配置项，如果你 &lt;strong&gt;确定一个模块中没有其它新的依赖&lt;/strong&gt; 就可以配置这项，&lt;code&gt;webpack&lt;/code&gt; 将不再扫描这个文件中的依赖。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;  module: {
+    noParse: [/moment-with-locales/]
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这样修改，再结合前面重命名的例子，更新后的流程是： &lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;webpack&lt;/code&gt; 检查到 &lt;code&gt;entry.js&lt;/code&gt; 文件对 &lt;code&gt;moment&lt;/code&gt; 的请求；&lt;/li&gt;
+&lt;li&gt;请求被 &lt;code&gt;alias&lt;/code&gt; 重定向，转而请求 &lt;code&gt;moment/min/moment-with-locales.min.js&lt;/code&gt;；&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;noParse&lt;/code&gt; 规则中的 &lt;code&gt;/moment-with-locales/&lt;/code&gt; 一条生效，所以 &lt;code&gt;webpack&lt;/code&gt; 就直接把依赖打包进了 &lt;code&gt;bundle.js&lt;/code&gt; 。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;Hash: 907880ed7638b4ed70b9
+Version: webpack 1.10.0
+Time: 76ms
+    Asset    Size  Chunks             Chunk Names
+bundle.js  147 kB       0  [emitted]  main
+   [0] ./entry.js 125 bytes {0} [built]
+       factory:13ms building:13ms = 26ms
+   [1] ../~/moment/min/moment-with-locales.min.js 146 kB {0} [built]
+       [0] 26ms -&amp;gt; factory:13ms building:5ms = 44ms
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;时间进一步被压缩，只需要 76ms，比前一步还减少了 75%。&lt;/p&gt;
+
+&lt;h3&gt;在 Webpack 中使用公用 CDN&lt;/h3&gt;
+
+&lt;p&gt;Webpack 是如此的强大，用其打包的脚本可以运行在多种环境下，Web 环境只是其默认的一种，也是最常用的一种。考虑到 Web 上有很多的公用 CDN 服务，那么
+怎么将 Webpack 和公用的 CDN 结合使用呢？方法是使用 &lt;code&gt;externals&lt;/code&gt; 声明一个外部依赖。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;  externals: {
+    moment: true
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;当然了 HTML 代码里需要加上一行&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-html&quot; data-lang=&quot;html&quot;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;script &lt;/span&gt;&lt;span class=&quot;na&quot;&gt;src=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;//apps.bdimg.com/libs/moment/2.8.3/moment-with-locales.min.js&amp;quot;&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;&amp;gt;&amp;lt;/script&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;这次打包，结果只用了 49 ms，几乎达到了极限。&lt;/p&gt;
+
+&lt;h2&gt;总结&lt;/h2&gt;
+
+&lt;p&gt;本文结合本地时钟的例子，展示了定位 Webpack 性能问题的步骤，以及所需要的两个参数 ：&lt;code&gt;--display-modules&lt;/code&gt; 和 &lt;code&gt;--profile&lt;/code&gt;。然后，重点介绍了 &lt;code&gt;resolve.alias&lt;/code&gt; 
+即利用别名做重定向的方法和场景，在此基础上，配合 &lt;code&gt;module.noParse&lt;/code&gt; 忽略某些模块的解析可以进一步加快速度。最后介绍了用 &lt;code&gt;externals&lt;/code&gt; 定义外部依赖方法来使用公用 CDN。&lt;/p&gt;
+
+&lt;h3&gt;关于&lt;/h3&gt;
+
+&lt;p&gt;本文相关的源码在：
+&lt;a href=&quot;https://github.com/wyvernnot/webpack_performance/tree/master/moment-example&quot;&gt;https://github.com/wyvernnot/webpack_performance/tree/master/moment-example&lt;/a&gt;;&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创 ，想阅读更多技术文章，请访问&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM官方技术博客&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
     
     
     <item>
