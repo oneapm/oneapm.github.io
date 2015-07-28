@@ -6,9 +6,124 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Fri, 24 Jul 2015 06:06:12 +0000</pubDate>
-    <lastBuildDate>Fri, 24 Jul 2015 06:06:12 +0000</lastBuildDate>
+    <pubDate>Tue, 28 Jul 2015 10:26:33 +0000</pubDate>
+    <lastBuildDate>Tue, 28 Jul 2015 10:26:33 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>JavaScript 性能分析新工具 OneProfile</title>
+      <link>/javascript/2015/07/28/oneprofile/</link>
+      <pubDate>Tue, 28 Jul 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/07/28/oneprofile</guid>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;OneProfile 是一个网页版的小工具，可以用全新的方式展示 JavaScript 性能分析的结果，帮助开发者洞悉函数调用关系，优化应用性能。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/cpuprofile_topology/&quot;&gt;点击打开 OneProfile&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2&gt;背景&lt;/h2&gt;
+
+&lt;p&gt;Chrome Dev Tools 自带的 CPU Profile 功能非常好用。用它可以方便的生成 JavaScript 的 &lt;code&gt;Flame Chart&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneprofile/screenshot_chrome.png&quot; alt=&quot;Flame Chart&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;更棒的是你可以把 &lt;code&gt;Flame Chart&lt;/code&gt; 导出，留着下次或者拷贝到其它机器上查看，特别好奇它是怎么实现的。&lt;/p&gt;
+
+&lt;p&gt;但是网上关于它的文件格式以及怎么画图的文档非常稀有，所以我自己摸索了一下它的文件格式,并尝试着用另一种方式展示 CPU Profile 的结果。&lt;/p&gt;
+
+&lt;h2&gt;如何生成 CPU Profile 文件&lt;/h2&gt;
+
+&lt;p&gt;使用最新版的 Chrome 打开任意一个 &lt;a href=&quot;http://oneapm.com&quot;&gt;测试网站&lt;/a&gt;，按 F12 打开 &lt;code&gt;Devtools&lt;/code&gt;， 切换到 &lt;code&gt;Profiles&lt;/code&gt; 页，点击 &lt;code&gt;Start&lt;/code&gt; 开始
+收集 Profile 信息，在当前页面任意滑动鼠标等待大约5秒后， 点击 &lt;code&gt;Stop&lt;/code&gt; 停止 Profile。在生成的 CPU Profile 名字上单击右键可以导出 &lt;code&gt;.cpuprofile&lt;/code&gt; 后缀名的文件。&lt;/p&gt;
+
+&lt;p&gt;你可以自己生成一个，也可以直接下载这个用来测试 &lt;a href=&quot;https://raw.githubusercontent.com/wyvernnot/javascript_performance_measurement/gh-pages/cpuprofile_topology/sample.cpuprofile&quot;&gt;sample.cpuprofile&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2&gt;理解 .cpuprofile 文件格式&lt;/h2&gt;
+
+&lt;p&gt;用你的编辑器打开 &lt;code&gt;sample.cpuprofile&lt;/code&gt; ，你会惊奇的发现：&lt;/p&gt;
+
+&lt;p&gt;1. &lt;code&gt;sample.cpuprofile&lt;/code&gt; 其实就是一个 JSON 格式的文件，有 &lt;code&gt;head&lt;/code&gt;, &lt;code&gt;timestamps&lt;/code&gt;, &lt;code&gt;samples&lt;/code&gt; 等几个重要的属性&lt;/p&gt;
+
+&lt;p&gt;2. &lt;code&gt;head&lt;/code&gt; 指向一个结点，官方的名字叫&lt;code&gt;CpuProfileNode&lt;/code&gt;，同时它的 &lt;code&gt;children&lt;/code&gt; 指向子结点, 因此是一个嵌套结构&lt;/p&gt;
+
+&lt;p&gt;3. &lt;code&gt;CpuProfileNode&lt;/code&gt; 有很多重要的属性，包括 functionName，lineNumber，columnNumber，hitCount 等&lt;/p&gt;
+
+&lt;p&gt;4. &lt;code&gt;timestamps&lt;/code&gt; 是一个数组，记录着 Profiling 过程中每个采样点的时间戳&lt;/p&gt;
+
+&lt;p&gt;5. 对应 &lt;code&gt;timestamps&lt;/code&gt; 下的每个时间点，&lt;code&gt;samples&lt;/code&gt; 数组相同的位置都会有一个数字，这个数字比较神秘，后面解释&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;CpuProfileNode 详解&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-js&quot; data-lang=&quot;js&quot;&gt;&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;functionName&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;lineTo&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;scriptId&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;0&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;url&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;lineNumber&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;columnNumber&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;hitCount&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;45&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;         &lt;span class=&quot;c1&quot;&gt;// 被采样到的次数&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;callUID&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;           &lt;span class=&quot;c1&quot;&gt;// 函数入口的 UID&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;children&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[],&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;positionTicks&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;      
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;s2&quot;&gt;&amp;quot;line&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;s2&quot;&gt;&amp;quot;ticks&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;45&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;],&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;deoptReason&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;&amp;quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;c1&quot;&gt;// 逆优化的原因&lt;/span&gt;
+  &lt;span class=&quot;s2&quot;&gt;&amp;quot;id&amp;quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;11&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;strong&gt;samples, timestamps 和 CpuProfileNode 的关系&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;如果从 &lt;code&gt;head&lt;/code&gt; 开始，对 &lt;code&gt;head&lt;/code&gt; 结点及其 &lt;code&gt;children&lt;/code&gt; 属性下的结点做一次深度优先的遍历，每个可能路径都会有一个编号。
+研究表明这个数字正对应于 &lt;code&gt;samples&lt;/code&gt; 的值。因此知道了路径编号，便可以知道那些函数处在激活状态。在 &lt;code&gt;OneProfile&lt;/code&gt; 中用蓝色表示。&lt;/p&gt;
+
+&lt;h2&gt;OneProfile 使用说明&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;链接地址&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;使用 Chrome 打开： &lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/cpuprofile_topology/&quot;&gt;OneProfile&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;图例&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;黑色&lt;/code&gt;      系统函数&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;暗红色&lt;/code&gt;    存在逆优化的函数，鼠标悬停可见原因&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;蓝色&lt;/code&gt;      当前采样点活动的函数&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;操作&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;滚轮&lt;/code&gt;       缩放窗口&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;prev&lt;/code&gt;      前一个采样点&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;next&lt;/code&gt;      后一个采样点&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;一些用例&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;某在线地图网站的前端代码，红色较多说明存在大量 v8 无法优化的代码&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneprofile/baidumaps.png&quot; alt=&quot;baidu&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;是不是很像外星人&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneprofile/xiaodian.jpg&quot; alt=&quot;xiaodian&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;( 请原谅作者笑点低 &amp;gt;&amp;lt; )&lt;/p&gt;
+
+&lt;h3&gt;关于&lt;/h3&gt;
+
+&lt;p&gt;本文相关的源码在：
+&lt;a href=&quot;https://github.com/wyvernnot/javascript_performance_measurement/tree/gh-pages/cpuprofile_topology&quot;&gt;https://github.com/wyvernnot/javascript&lt;em&gt;performance&lt;/em&gt;measurement/tree/gh-pages/cpuprofile_topology&lt;/a&gt;;&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创 ，想阅读更多技术文章，请访问&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM官方技术博客&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
     
     
     <item>
