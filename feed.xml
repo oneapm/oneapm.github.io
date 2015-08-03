@@ -6,9 +6,366 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Tue, 28 Jul 2015 10:26:33 +0000</pubDate>
-    <lastBuildDate>Tue, 28 Jul 2015 10:26:33 +0000</lastBuildDate>
+    <pubDate>Mon, 03 Aug 2015 06:37:34 +0000</pubDate>
+    <lastBuildDate>Mon, 03 Aug 2015 06:37:34 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>JavaScript 堆内存分析新工具 OneHeap</title>
+      <link>/javascript/2015/08/03/oneheap/</link>
+      <pubDate>Mon, 03 Aug 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/08/03/oneheap</guid>
+      <description>&lt;blockquote&gt;
+&lt;p&gt;OneHeap 关注于运行中的 JavaScript 内存信息的展示，用可视化的方式还原了 HeapGraph，有助于理解 v8 内存管理。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2&gt;背景&lt;/h2&gt;
+
+&lt;p&gt;JavaScript 运行过程中的大部分数据都保存在堆 (Heap) 中，所以 JavaScript 性能分析另一个比较重要的方面是内存，也就是堆的分析。&lt;/p&gt;
+
+&lt;p&gt;利用 Chrome Dev Tools 可以生成应用程序某个时刻的堆快照 (HeapSnapshot)，它较完整地记录了各种对象和引用的情况，堪称查找内存泄露问题的神器。
+和 Profile 结果一样，快照可以被导出成 &lt;code&gt;.heapsnapshot&lt;/code&gt; 文件。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/dog.png&quot; alt=&quot;heapsnapshot&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;上周发布了工具 &lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/cpuprofile_topology/&quot;&gt;OneProfile&lt;/a&gt; ，
+可以用来动态地展示 Profile 的结果，分析各种函数的调用关系。周末我用类似的思路研究了一下 &lt;code&gt;.heapsnapshot&lt;/code&gt; 文件，做了这个网页小工具，把 Heap Snapshot 
+用有向图的方式展现出来。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/screenshot.gif&quot; alt=&quot;screenshot&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;OneHeap 名字的由来&lt;/h2&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;There are only two hard things in Computer Science: cache invalidation and naming things. -- Phil Karlton&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;目前还没有时间想一个高端、大气、上档次的名字，因为我供职的公司名叫 &lt;a href=&quot;http://www.oneapm.com/info/about.html&quot;&gt;OneAPM&lt;/a&gt; 
+( 省去软广1000字，总之做性能监控很牛)，所以就取名 OneHeap 啦。 它是 &lt;a href=&quot;https://github.com/wyvernnot/javascript_performance_measurement/&quot;&gt;Toolkit&lt;/a&gt; 里的第二个。&lt;/p&gt;
+
+&lt;h2&gt;如何生成 Heap Snapshot 文件&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;浏览器&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;使用 Chrome 打开 &lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/dog.html&quot;&gt;测试页面&lt;/a&gt;
+按 F12 打开 &lt;code&gt;Devtools&lt;/code&gt;，切换到 &lt;code&gt;Profiles&lt;/code&gt; 页，选择 &lt;code&gt;Take Heap Snapshot&lt;/code&gt;。稍等片刻，在生成的 &lt;code&gt;Snapshot&lt;/code&gt; 上点击右键可以导出，文件后缀一般是 &lt;code&gt;.heapsnapshot&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Node.JS&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;如果你是 Node.JS 工程师，可以安装 &lt;code&gt;heapdump&lt;/code&gt; 这个很有名的模块。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/bnoordhuis/node-heapdump&quot;&gt;https://github.com/bnoordhuis/node-heapdump&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;上面两种方法都可以生成 &lt;code&gt;.heapsnapshot&lt;/code&gt; 文件，这个是用来测试的 &lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/nodejs.heapsnapshot&quot;&gt;nodejs.heapsnapshot&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2&gt;理解 .heapsnapshot 文件格式&lt;/h2&gt;
+
+&lt;p&gt;打开测试用的 &lt;code&gt;nodejs.heapsnapshot&lt;/code&gt; 文件，这是一个很大的 JSON 对象：&lt;/p&gt;
+
+&lt;p&gt;1. &lt;code&gt;snapshot&lt;/code&gt; 属性保存了关于快照的一些基本信息，如 uid，快照名，节点个数等&lt;/p&gt;
+
+&lt;p&gt;2. &lt;code&gt;nodes&lt;/code&gt; 保存了是所有节点的 id，name，大小信息等,对应 v8 源码里的 &lt;a href=&quot;https://github.com/joyent/node/blob/master/deps/v8/include/v8-profiler.h#L219&quot;&gt;&lt;code&gt;HeapGraphNode&lt;/code&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;3. &lt;code&gt;edges&lt;/code&gt; 属性保存了节点间的映射关系，对应 v8 源码的 &lt;a href=&quot;https://github.com/joyent/node/blob/master/deps/v8/include/v8-profiler.h#L183&quot;&gt;&lt;code&gt;HeapGraphEdge&lt;/code&gt;&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;4. &lt;code&gt;strings&lt;/code&gt; 保存了所有的字符串， &lt;code&gt;nodes&lt;/code&gt; 和 &lt;code&gt;edges&lt;/code&gt; 中不会直接存字符串，而是存了字符串在 &lt;code&gt;strings&lt;/code&gt; 中的索引&lt;/p&gt;
+
+&lt;p&gt;堆快照其实是一个有向图的数据结构，但是 &lt;code&gt;.heapsnapshot&lt;/code&gt; 文件在存储的过程中使用了数组来存储图的结构，这一设计十分巧妙而且减少了所需磁盘空间的大小。&lt;/p&gt;
+
+&lt;h3&gt;nodes 属性&lt;/h3&gt;
+
+&lt;p&gt;nodes 是一个很长一维的数组，但是为了阅读方便，v8 在序列化的时候会自动加上换行。按照 v8 版本的不同，可能是5个一行，也可能是6个一行，如果是 6 个一行，则多出来的一个 &lt;code&gt;trace_node_id&lt;/code&gt; 属性。&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;下标&lt;/th&gt;
+&lt;th&gt;属性&lt;/th&gt;
+&lt;th&gt;类型&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;n&lt;/td&gt;
+&lt;td&gt;type&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+1&lt;/td&gt;
+&lt;td&gt;name&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+2&lt;/td&gt;
+&lt;td&gt;id&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+3&lt;/td&gt;
+&lt;td&gt;self_size&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+4&lt;/td&gt;
+&lt;td&gt;edge_count&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;其中 type 是一个 0~12 的数字，目前的 Chrome 只有 0~9 这几个属性，它们对应的含义分别是&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;编号&lt;/th&gt;
+&lt;th&gt;属性&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;hidden&lt;/td&gt;
+&lt;td&gt;Hidden node, may be filtered when shown to user.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;array&lt;/td&gt;
+&lt;td&gt;An array of elements.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;string&lt;/td&gt;
+&lt;td&gt;A string.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;object&lt;/td&gt;
+&lt;td&gt;A JS object (except for arrays and strings).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;code&lt;/td&gt;
+&lt;td&gt;Compiled code.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;closure&lt;/td&gt;
+&lt;td&gt;Function closure.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;regexp&lt;/td&gt;
+&lt;td&gt;RegExp.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;7&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;td&gt;Number stored in the heap.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;8&lt;/td&gt;
+&lt;td&gt;native&lt;/td&gt;
+&lt;td&gt;Native object (not from V8 heap).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;9&lt;/td&gt;
+&lt;td&gt;synthetic&lt;/td&gt;
+&lt;td&gt;Synthetic object, usualy used for grouping snapshot items together.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;10&lt;/td&gt;
+&lt;td&gt;concatenated string&lt;/td&gt;
+&lt;td&gt;Concatenated string. A pair of pointers to strings.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;11&lt;/td&gt;
+&lt;td&gt;sliced string&lt;/td&gt;
+&lt;td&gt;Sliced string. A fragment of another string.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;12&lt;/td&gt;
+&lt;td&gt;symbol&lt;/td&gt;
+&lt;td&gt;A Symbol (ES6).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;h3&gt;edges 属性&lt;/h3&gt;
+
+&lt;p&gt;&lt;code&gt;edges&lt;/code&gt; 也是一个一维数组，长度要比 &lt;code&gt;nodes&lt;/code&gt; 大好几倍，并且相对于 &lt;code&gt;nodes&lt;/code&gt; 要复杂一些：&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;下标&lt;/th&gt;
+&lt;th&gt;属性&lt;/th&gt;
+&lt;th&gt;类型&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;n&lt;/td&gt;
+&lt;td&gt;type&lt;/td&gt;
+&lt;td&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+1&lt;/td&gt;
+&lt;td&gt;name&lt;em&gt;or&lt;/em&gt;index&lt;/td&gt;
+&lt;td&gt;string&lt;em&gt;or&lt;/em&gt;number&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;n+2&lt;/td&gt;
+&lt;td&gt;to_node&lt;/td&gt;
+&lt;td&gt;node&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;其中 type 是一个 0~6 的数字：&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;编号&lt;/th&gt;
+&lt;th&gt;属性&lt;/th&gt;
+&lt;th&gt;说明&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0&lt;/td&gt;
+&lt;td&gt;context&lt;/td&gt;
+&lt;td&gt;A variable from a function context.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;1&lt;/td&gt;
+&lt;td&gt;element&lt;/td&gt;
+&lt;td&gt;An element of an array&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;2&lt;/td&gt;
+&lt;td&gt;property&lt;/td&gt;
+&lt;td&gt;A named object property.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;3&lt;/td&gt;
+&lt;td&gt;internal&lt;/td&gt;
+&lt;td&gt;A link that can&amp;#39;t be accessed from JS,thus, its name isn&amp;#39;t a real property name (e.g. parts of a ConsString).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;4&lt;/td&gt;
+&lt;td&gt;hidden&lt;/td&gt;
+&lt;td&gt;A link that is needed for proper sizes calculation, but may be hidden from user.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;5&lt;/td&gt;
+&lt;td&gt;shortcut&lt;/td&gt;
+&lt;td&gt;A link that must not be followed during sizes calculation.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;6&lt;/td&gt;
+&lt;td&gt;weak&lt;/td&gt;
+&lt;td&gt;A weak reference (ignored by the GC).&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;nodes 和 edges 的对应关系&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;如果知道某个节点的 id，是没有办法直接从 &lt;code&gt;edges&lt;/code&gt; 中查出和它相邻的点的，因为 &lt;code&gt;edges&lt;/code&gt; 并不是一个 &lt;code&gt;from-to&lt;/code&gt; 的 Hash。想知道从一个节点出发
+可到达那些节点，需要遍历一次 &lt;code&gt;nodes&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;具体做法如下：&lt;/p&gt;
+
+&lt;p&gt;1. 在遍历 &lt;code&gt;nodes&lt;/code&gt; 前初始化一个变量 &lt;code&gt;edge_offset&lt;/code&gt;，初始值是0，每遍历一个节点都会改变它的值。&lt;/p&gt;
+
+&lt;p&gt;2. 遍历某个节点 Nx 的过程中：&lt;/p&gt;
+
+&lt;p&gt;从 Nx 出发的第一条 Edge&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;edges[ edge_offset ]      是 Edge 的类型
+edges[ edge_offset +1 ]   是 Edge 的名称或下标
+edges[ edge_offset +2 ]   是 Edge 指向的对象的节点类型在 `nodes` 里的索引
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;从 Nx 出发的第2条 Edge&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;edges[ edge_offset + 3 ]  
+     ............         是下一个 Edge 
+edges[ edge_offset + 5 ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;从 Nx 出发，一共有 &lt;code&gt;edge_count&lt;/code&gt; 条 Edge &lt;/p&gt;
+
+&lt;p&gt;...&lt;/p&gt;
+
+&lt;p&gt;3. 每遍历完一个节点，就在 &lt;code&gt;edge_offset&lt;/code&gt; 上加 &lt;code&gt;3 x edge_count&lt;/code&gt;，并回到步骤 2，直到所有节点都遍历完&lt;/p&gt;
+
+&lt;p&gt;步骤1到3 用伪代码表示就是：&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;edge_offset=0
+
+// 遍历每一个节点
+for(node in nodes){
+
+  // edges 下标从 edge_offset 到 edge_offset + 3 x edge_count 都是 node 可以到达的点
+  edge_offset+= 3 x node.edge_count
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;以上就是 &lt;code&gt;.heapsnapshot&lt;/code&gt; 的文件格式定义了，基于这些发现，在结合一个前端绘图的库，就可以可视化的展示 Heap Snapshot 了。&lt;/p&gt;
+
+&lt;h2&gt;OneHeap 使用说明&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;链接地址&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;使用 Chrome 打开： &lt;a href=&quot;http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/&quot;&gt;OneHeap&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3&gt;一些有意思的截图&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;@1&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Node.JS&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/root.png&quot; alt=&quot;root&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;朴灵老师的《深入浅出Node.JS》有对 Buffer 的详细介绍，其中提到 Buffer 是 JavaScript 和 C++ 技术结合的典型代表&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;浏览器&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/dom.png&quot; alt=&quot;dom&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;很明显浏览器下多了 Window 和 Document 对象，而 Detached DOM tree 正是前端内存泄露的高发地。&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Objects&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/objects.png&quot; alt=&quot;root&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;最密集的那部分的中心是 Object 构造函数,如果把 Object 和 Array 构造函数隐藏，就变成了下面这样&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/no_objects.png&quot; alt=&quot;root&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;MathConstructor&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/math.png&quot; alt=&quot;Math&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;左上角是例如 &lt;code&gt;自然对数E&lt;/code&gt; 这样的常量，&lt;a href=&quot;https://github.com/joyent/node/blob/master/deps/v8/src/math.js#L380&quot;&gt;v8源码&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;正则表达式&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/regexp.png&quot; alt=&quot;Regexp&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;所有的正则表达式实例的 &lt;code&gt;__proto__&lt;/code&gt; 都指向 RegExp 构造函数，同时 RegExp 的 &lt;code&gt;__proto__&lt;/code&gt; 又指向 Object&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Stream&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/oneheap/stream_inherit.png&quot; alt=&quot;Stream&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;在 Node.JS 中和 Stream 相关的几个类的设计和 &lt;code&gt;Java&lt;/code&gt; 类似，都使用到装饰器的设计模式，层层嵌套, 例如 &lt;a href=&quot;https://github.com/joyent/node/blob/master/lib/_stream_writable.js#L159&quot;&gt;v8源码&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3&gt;参考资料&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://developers.google.com/chrome-developer-tools/docs/heap-profiling&quot;&gt;Heap Profiling&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://www.ibm.com/developerworks/cn/web/wa-jsmemory/&quot;&gt;了解 JavaScript 应用程序中的内存泄漏&lt;/a&gt;&lt;/p&gt;
+
+&lt;h3&gt;关于&lt;/h3&gt;
+
+&lt;p&gt;本文相关的源码在：
+&lt;a href=&quot;https://github.com/wyvernnot/javascript_performance_measurement/tree/gh-pages/heap_snapshot&quot;&gt;https://github.com/wyvernnot/javascript&lt;em&gt;performance&lt;/em&gt;measurement/tree/gh-pages/heap_snapshot&lt;/a&gt;;&lt;/p&gt;
+
+&lt;blockquote&gt;
+&lt;p&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创 ，想阅读更多技术文章，请访问&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM官方技术博客&lt;/a&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+</description>
+    </item>
+    
     
     
     <item>

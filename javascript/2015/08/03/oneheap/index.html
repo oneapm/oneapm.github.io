@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript 堆内存分析新工具 OneHeap &mdash; OneAPM</title>
+    <link rel="stylesheet" href="/assets/main.css">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/images/logo.png"/>
+    <link href="/feed.xml" rel="alternate" type="application/rss+xml" title="OneAPM" />
+    <meta name="title" content="JavaScript 堆内存分析新工具 OneHeap ">
+    <link rel="canonical" href="/javascript/2015/08/03/oneheap/">
+    
+    
+    <meta property="og:title" content="JavaScript 堆内存分析新工具 OneHeap "/>
+    <meta property="og:url" content="/javascript/2015/08/03/oneheap/"/>
+    
+    <meta property="og:image" content="/images/oneheap_title.png"/>
+    
+    <meta property="og:image" content="/images/logo.png"/>
+    
+    
+    <meta property="og:description" content="可视化 JavaSctipt 运行时的 HeapGraph"/>
+    <meta name="description" content="可视化 JavaSctipt 运行时的 HeapGraph"/>
+    
+    <meta property="og:site_name" content="OneAPM">
+    <script>
+      var _hmt = _hmt || [];
+      (function() {
+        var hm = document.createElement("script");
+        hm.src = "//hm.baidu.com/hm.js?587c3092251dfad9189e4815c3464030";
+        var s = document.getElementsByTagName("script")[0];
+        s.parentNode.insertBefore(hm, s);
+      })();
+    </script>
+    <script type='text/javascript'>
+      window.BWEUM||(BWEUM={});
+      BWEUM.info = {
+        "stand":true,
+        "agentType":"browser",
+        "agent":"tpm.oneapm.com/static/js/bw-send-411.4.2.js",
+        "beaconUrl":"tpm.oneapm.com/beacon",
+        "licenseKey":"UgYBG1sUDQle4",
+        "applicationID":238131
+      };
+    </script>
+    <script type="text/javascript" src="//tpm.oneapm.com/static/js/bw-loader-411.4.2.js"></script>
+
+</head>
+<body>
+
+<section class="site-nav">
+    <header>
+        <nav id="navigation">
+            <a class="logo-img" href="/">
+                <!-- <img src="/images/logo.png" alt="Inc"> -->
+            </a>
+            <!-- <a href="/" class="home">Blog</a> -->
+            
+            
+        </nav>
+        
+    </header>
+</section>
+
+
+<div class="article-cover post-cover" style="background-image: url(/images/oneheap_title.png);">
+
+    <!-- <img src="/images/oneheap_title.png" class="image"> -->
+    <div class="article-header">
+        <div class="container">
+            <header>
+                <h1 class="title">JavaScript 堆内存分析新工具 OneHeap</h1>
+                
+                <div class="meta">
+                    <address>王龑</address> &mdash;
+                    <time pubdate datetime="2015-03-August" title="August 03, 2015">August 03, 2015</time>
+                </div>
+            </header>
+        </div>
+    </div>
+</div>
+<article class="post-article">
+    <div class="container">
+        <!-- <header>
+            <div class="meta">
+                <address>王龑</address> &mdash;
+                <time pubdate datetime="2015-03-August" title="August 03, 2015">August 03, 2015</time>
+            </div>
+            <h1 class="title">JavaScript 堆内存分析新工具 OneHeap</h1>
+            
+        </header> -->
+
+        <section>
+            <blockquote>
+<p>OneHeap 关注于运行中的 JavaScript 内存信息的展示，用可视化的方式还原了 HeapGraph，有助于理解 v8 内存管理。</p>
+</blockquote>
+
+<h2>背景</h2>
+
+<p>JavaScript 运行过程中的大部分数据都保存在堆 (Heap) 中，所以 JavaScript 性能分析另一个比较重要的方面是内存，也就是堆的分析。</p>
+
+<p>利用 Chrome Dev Tools 可以生成应用程序某个时刻的堆快照 (HeapSnapshot)，它较完整地记录了各种对象和引用的情况，堪称查找内存泄露问题的神器。
+和 Profile 结果一样，快照可以被导出成 <code>.heapsnapshot</code> 文件。</p>
+
+<p><img src="/images/oneheap/dog.png" alt="heapsnapshot"></p>
+
+<p>上周发布了工具 <a href="http://wyvernnot.github.io/javascript_performance_measurement/cpuprofile_topology/">OneProfile</a> ，
+可以用来动态地展示 Profile 的结果，分析各种函数的调用关系。周末我用类似的思路研究了一下 <code>.heapsnapshot</code> 文件，做了这个网页小工具，把 Heap Snapshot 
+用有向图的方式展现出来。</p>
+
+<p><img src="/images/oneheap/screenshot.gif" alt="screenshot"></p>
+
+<h2>OneHeap 名字的由来</h2>
+
+<blockquote>
+<p>There are only two hard things in Computer Science: cache invalidation and naming things. -- Phil Karlton</p>
+</blockquote>
+
+<p>目前还没有时间想一个高端、大气、上档次的名字，因为我供职的公司名叫 <a href="http://www.oneapm.com/info/about.html">OneAPM</a> 
+( 省去软广1000字，总之做性能监控很牛)，所以就取名 OneHeap 啦。 它是 <a href="https://github.com/wyvernnot/javascript_performance_measurement/">Toolkit</a> 里的第二个。</p>
+
+<h2>如何生成 Heap Snapshot 文件</h2>
+
+<p><strong>浏览器</strong></p>
+
+<p>使用 Chrome 打开 <a href="http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/dog.html">测试页面</a>
+按 F12 打开 <code>Devtools</code>，切换到 <code>Profiles</code> 页，选择 <code>Take Heap Snapshot</code>。稍等片刻，在生成的 <code>Snapshot</code> 上点击右键可以导出，文件后缀一般是 <code>.heapsnapshot</code>。</p>
+
+<p><strong>Node.JS</strong></p>
+
+<p>如果你是 Node.JS 工程师，可以安装 <code>heapdump</code> 这个很有名的模块。</p>
+
+<p><a href="https://github.com/bnoordhuis/node-heapdump">https://github.com/bnoordhuis/node-heapdump</a></p>
+
+<p>上面两种方法都可以生成 <code>.heapsnapshot</code> 文件，这个是用来测试的 <a href="http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/nodejs.heapsnapshot">nodejs.heapsnapshot</a></p>
+
+<h2>理解 .heapsnapshot 文件格式</h2>
+
+<p>打开测试用的 <code>nodejs.heapsnapshot</code> 文件，这是一个很大的 JSON 对象：</p>
+
+<p>1. <code>snapshot</code> 属性保存了关于快照的一些基本信息，如 uid，快照名，节点个数等</p>
+
+<p>2. <code>nodes</code> 保存了是所有节点的 id，name，大小信息等,对应 v8 源码里的 <a href="https://github.com/joyent/node/blob/master/deps/v8/include/v8-profiler.h#L219"><code>HeapGraphNode</code></a></p>
+
+<p>3. <code>edges</code> 属性保存了节点间的映射关系，对应 v8 源码的 <a href="https://github.com/joyent/node/blob/master/deps/v8/include/v8-profiler.h#L183"><code>HeapGraphEdge</code></a></p>
+
+<p>4. <code>strings</code> 保存了所有的字符串， <code>nodes</code> 和 <code>edges</code> 中不会直接存字符串，而是存了字符串在 <code>strings</code> 中的索引</p>
+
+<p>堆快照其实是一个有向图的数据结构，但是 <code>.heapsnapshot</code> 文件在存储的过程中使用了数组来存储图的结构，这一设计十分巧妙而且减少了所需磁盘空间的大小。</p>
+
+<h3>nodes 属性</h3>
+
+<p>nodes 是一个很长一维的数组，但是为了阅读方便，v8 在序列化的时候会自动加上换行。按照 v8 版本的不同，可能是5个一行，也可能是6个一行，如果是 6 个一行，则多出来的一个 <code>trace_node_id</code> 属性。</p>
+
+<table><thead>
+<tr>
+<th>下标</th>
+<th>属性</th>
+<th>类型</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>n</td>
+<td>type</td>
+<td>number</td>
+</tr>
+<tr>
+<td>n+1</td>
+<td>name</td>
+<td>string</td>
+</tr>
+<tr>
+<td>n+2</td>
+<td>id</td>
+<td>number</td>
+</tr>
+<tr>
+<td>n+3</td>
+<td>self_size</td>
+<td>number</td>
+</tr>
+<tr>
+<td>n+4</td>
+<td>edge_count</td>
+<td>number</td>
+</tr>
+</tbody></table>
+
+<p>其中 type 是一个 0~12 的数字，目前的 Chrome 只有 0~9 这几个属性，它们对应的含义分别是</p>
+
+<table><thead>
+<tr>
+<th>编号</th>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>0</td>
+<td>hidden</td>
+<td>Hidden node, may be filtered when shown to user.</td>
+</tr>
+<tr>
+<td>1</td>
+<td>array</td>
+<td>An array of elements.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>string</td>
+<td>A string.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>object</td>
+<td>A JS object (except for arrays and strings).</td>
+</tr>
+<tr>
+<td>4</td>
+<td>code</td>
+<td>Compiled code.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>closure</td>
+<td>Function closure.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>regexp</td>
+<td>RegExp.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>number</td>
+<td>Number stored in the heap.</td>
+</tr>
+<tr>
+<td>8</td>
+<td>native</td>
+<td>Native object (not from V8 heap).</td>
+</tr>
+<tr>
+<td>9</td>
+<td>synthetic</td>
+<td>Synthetic object, usualy used for grouping snapshot items together.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>concatenated string</td>
+<td>Concatenated string. A pair of pointers to strings.</td>
+</tr>
+<tr>
+<td>11</td>
+<td>sliced string</td>
+<td>Sliced string. A fragment of another string.</td>
+</tr>
+<tr>
+<td>12</td>
+<td>symbol</td>
+<td>A Symbol (ES6).</td>
+</tr>
+</tbody></table>
+
+<h3>edges 属性</h3>
+
+<p><code>edges</code> 也是一个一维数组，长度要比 <code>nodes</code> 大好几倍，并且相对于 <code>nodes</code> 要复杂一些：</p>
+
+<table><thead>
+<tr>
+<th>下标</th>
+<th>属性</th>
+<th>类型</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>n</td>
+<td>type</td>
+<td>number</td>
+</tr>
+<tr>
+<td>n+1</td>
+<td>name<em>or</em>index</td>
+<td>string<em>or</em>number</td>
+</tr>
+<tr>
+<td>n+2</td>
+<td>to_node</td>
+<td>node</td>
+</tr>
+</tbody></table>
+
+<p>其中 type 是一个 0~6 的数字：</p>
+
+<table><thead>
+<tr>
+<th>编号</th>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>0</td>
+<td>context</td>
+<td>A variable from a function context.</td>
+</tr>
+<tr>
+<td>1</td>
+<td>element</td>
+<td>An element of an array</td>
+</tr>
+<tr>
+<td>2</td>
+<td>property</td>
+<td>A named object property.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>internal</td>
+<td>A link that can&#39;t be accessed from JS,thus, its name isn&#39;t a real property name (e.g. parts of a ConsString).</td>
+</tr>
+<tr>
+<td>4</td>
+<td>hidden</td>
+<td>A link that is needed for proper sizes calculation, but may be hidden from user.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>shortcut</td>
+<td>A link that must not be followed during sizes calculation.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>weak</td>
+<td>A weak reference (ignored by the GC).</td>
+</tr>
+</tbody></table>
+
+<p><strong>nodes 和 edges 的对应关系</strong></p>
+
+<p>如果知道某个节点的 id，是没有办法直接从 <code>edges</code> 中查出和它相邻的点的，因为 <code>edges</code> 并不是一个 <code>from-to</code> 的 Hash。想知道从一个节点出发
+可到达那些节点，需要遍历一次 <code>nodes</code>。</p>
+
+<p>具体做法如下：</p>
+
+<p>1. 在遍历 <code>nodes</code> 前初始化一个变量 <code>edge_offset</code>，初始值是0，每遍历一个节点都会改变它的值。</p>
+
+<p>2. 遍历某个节点 Nx 的过程中：</p>
+
+<p>从 Nx 出发的第一条 Edge</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">edges[ edge_offset ]      是 Edge 的类型
+edges[ edge_offset +1 ]   是 Edge 的名称或下标
+edges[ edge_offset +2 ]   是 Edge 指向的对象的节点类型在 `nodes` 里的索引
+</code></pre></div>
+<p>从 Nx 出发的第2条 Edge</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">edges[ edge_offset + 3 ]  
+     ............         是下一个 Edge 
+edges[ edge_offset + 5 ]
+</code></pre></div>
+<p>从 Nx 出发，一共有 <code>edge_count</code> 条 Edge </p>
+
+<p>...</p>
+
+<p>3. 每遍历完一个节点，就在 <code>edge_offset</code> 上加 <code>3 x edge_count</code>，并回到步骤 2，直到所有节点都遍历完</p>
+
+<p>步骤1到3 用伪代码表示就是：</p>
+<div class="highlight"><pre><code class="language-text" data-lang="text">edge_offset=0
+
+// 遍历每一个节点
+for(node in nodes){
+
+  // edges 下标从 edge_offset 到 edge_offset + 3 x edge_count 都是 node 可以到达的点
+  edge_offset+= 3 x node.edge_count
+}
+</code></pre></div>
+<p>以上就是 <code>.heapsnapshot</code> 的文件格式定义了，基于这些发现，在结合一个前端绘图的库，就可以可视化的展示 Heap Snapshot 了。</p>
+
+<h2>OneHeap 使用说明</h2>
+
+<p><strong>链接地址</strong></p>
+
+<p>使用 Chrome 打开： <a href="http://wyvernnot.github.io/javascript_performance_measurement/heap_snapshot/">OneHeap</a></p>
+
+<h3>一些有意思的截图</h3>
+
+<p><strong>@1</strong></p>
+
+<p>Node.JS</p>
+
+<p><img src="/images/oneheap/root.png" alt="root"></p>
+
+<p><em>朴灵老师的《深入浅出Node.JS》有对 Buffer 的详细介绍，其中提到 Buffer 是 JavaScript 和 C++ 技术结合的典型代表</em></p>
+
+<p>浏览器</p>
+
+<p><img src="/images/oneheap/dom.png" alt="dom"></p>
+
+<p><em>很明显浏览器下多了 Window 和 Document 对象，而 Detached DOM tree 正是前端内存泄露的高发地。</em></p>
+
+<p><strong>Objects</strong></p>
+
+<p><img src="/images/oneheap/objects.png" alt="root"></p>
+
+<p><em>最密集的那部分的中心是 Object 构造函数,如果把 Object 和 Array 构造函数隐藏，就变成了下面这样</em></p>
+
+<p><img src="/images/oneheap/no_objects.png" alt="root"></p>
+
+<p><strong>MathConstructor</strong></p>
+
+<p><img src="/images/oneheap/math.png" alt="Math"></p>
+
+<p>左上角是例如 <code>自然对数E</code> 这样的常量，<a href="https://github.com/joyent/node/blob/master/deps/v8/src/math.js#L380">v8源码</a></p>
+
+<p><strong>正则表达式</strong></p>
+
+<p><img src="/images/oneheap/regexp.png" alt="Regexp"></p>
+
+<p>所有的正则表达式实例的 <code>__proto__</code> 都指向 RegExp 构造函数，同时 RegExp 的 <code>__proto__</code> 又指向 Object</p>
+
+<p><strong>Stream</strong></p>
+
+<p><img src="/images/oneheap/stream_inherit.png" alt="Stream"></p>
+
+<p>在 Node.JS 中和 Stream 相关的几个类的设计和 <code>Java</code> 类似，都使用到装饰器的设计模式，层层嵌套, 例如 <a href="https://github.com/joyent/node/blob/master/lib/_stream_writable.js#L159">v8源码</a></p>
+
+<h3>参考资料</h3>
+
+<p><a href="https://developers.google.com/chrome-developer-tools/docs/heap-profiling">Heap Profiling</a></p>
+
+<p><a href="http://www.ibm.com/developerworks/cn/web/wa-jsmemory/">了解 JavaScript 应用程序中的内存泄漏</a></p>
+
+<h3>关于</h3>
+
+<p>本文相关的源码在：
+<a href="https://github.com/wyvernnot/javascript_performance_measurement/tree/gh-pages/heap_snapshot">https://github.com/wyvernnot/javascript<em>performance</em>measurement/tree/gh-pages/heap_snapshot</a>;</p>
+
+<blockquote>
+<p>本文由<a href="http://www.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM</a>工程师原创 ，想阅读更多技术文章，请访问<a href="http://code.oneapm.com/?hmsr=media&amp;hmmd=&amp;hmpl=&amp;hmkw=&amp;hmci=">OneAPM官方技术博客</a>。</p>
+</blockquote>
+
+            
+        </section>
+
+        <footer>
+            <address>
+               <img src="/images/wangyan.jpg">
+                <p><strong>王龑</strong><br>
+                <span class="muted">NodeJS高级工程师</span>
+                </p>
+            </address>
+
+          <!-- 多说评论框 start -->
+          	<div class="ds-thread" data-thread-key="/javascript/2015/08/03/oneheap" data-title="JavaScript 堆内存分析新工具 OneHeap" data-url="http://code.oneapm.com/javascript/2015/08/03/oneheap/"></div>
+          <!-- 多说评论框 end -->
+          <!-- 多说公共JS代码 start (一个网页只需插入一次) -->
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"code-oneapm"};
+          	(function() {
+          		var ds = document.createElement('script');
+          		ds.type = 'text/javascript';ds.async = true;
+          		ds.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') + '//static.duoshuo.com/embed.js';
+          		ds.charset = 'UTF-8';
+          		(document.getElementsByTagName('head')[0]
+          		 || document.getElementsByTagName('body')[0]).appendChild(ds);
+          	})();
+          	</script>
+          <!-- 多说公共JS代码 end -->
+        </footer>
+    </div>
+</article>
+
+
+<footer class="site-footer">
+    <div class="container">
+        &copy; 2015
+
+        <nav>
+            <a href="http://www.oneapm.com">OneAPM 官网</a>
+            
+            
+        </nav>
+
+        <nav class="social">
+            <a href="/feed.xml" title="RSS Feed">
+                <i class="icon icon-rss black"></i>
+            </a>
+        </nav>
+    </div>
+</footer>
+
+<script src="/assets/jquery.min.js"></script>
+<script src="/assets/main.js"></script>
+
+
+
+
+</body>
+</html>
