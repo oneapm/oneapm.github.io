@@ -6,9 +6,58 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Mon, 17 Aug 2015 10:05:55 +0000</pubDate>
-    <lastBuildDate>Mon, 17 Aug 2015 10:05:55 +0000</lastBuildDate>
+    <pubDate>Tue, 25 Aug 2015 03:44:08 +0000</pubDate>
+    <lastBuildDate>Tue, 25 Aug 2015 03:44:08 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>被遗忘的Android  mipmaps简介</title>
+      <link>/android/2015/08/25/android3/</link>
+      <pubDate>Tue, 25 Aug 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/android/2015/08/25/android3</guid>
+      <description>&lt;h1&gt;被遗忘的Android  mipmaps简介&lt;/h1&gt;
+
+&lt;p&gt;【&lt;strong&gt;导读&lt;/strong&gt;】已经发布的Android Studio1.1版本是一个bug修复版本。在这个版本中，当你创建工程时一项改变将会吸引你的眼球。工程创建登陆的图标会在mipmap-resource文件夹中，而不是drawable文件夹中。&lt;/p&gt;
+
+&lt;h1&gt;使用mipmap文件夹存放启动图标的好处&lt;/h1&gt;
+
+&lt;p&gt;Android开发团队认为使用mipmap文件夹保存启动图标是最佳的开发方式。使用mipmap的最大优势是你可以在各种屏幕密度的设备下将资源存储在mipmap文件夹下，然后对于特定屏幕密度的设备你可以从drawable文件夹下去除掉与这个特定设备无关的资源信息。&lt;/p&gt;
+
+&lt;p&gt;我们用一个例子来说明这一特性。假设用户有一个设备被标识为xxhdpi的设备，那么开发者apk中的drawable文件夹下的其他分辨率大小的资源，例如xxxhdpi分辨率，就是不被需要的；换句话说，就是可以被去除掉的。然而应用图标很可能是与其他资源图片不同的，因为他可能占据整个屏幕，因此你可能需要启动图标的分辨率高于其他资源。而这时你为了设备适配的原因，高分辨率图片所在的文件夹已经被你去除了，这时当程序运行时，系统会将原来低分辨率的图片进行拉伸，然而这种做法可能会导致产生一个丑陋的模糊的图片。&lt;/p&gt;
+
+&lt;p&gt;另一方面，你可能会说，你并不会使用去除资源来减少apk大小的方式去制作不同版本的apk文件。这个时候你用mipmap文件夹去存储登陆图标看上去不会产生任何意义。然而这并不意味着你不应该使用它，最好的使用它的理由莫过于Android开发团队认为应该使用它，并且把它描述为了开发的最佳实践。他们知道在Android的开发线上将会产生什么样的新特性，而且尽管没有人能确定，但是Android开发团队很可能计划引入这样一个新特性，就是在用户下载App的时候，apk会自动丢弃掉不合适的资源文件&lt;/p&gt;
+
+&lt;h1&gt;Android 登陆mipmap的历史&lt;/h1&gt;
+
+&lt;p&gt;在Android中mipmap资源文件夹很早就出现了，这个时间点远远早于他被介绍为应该作为Android开发社区应该大规模使用它的时间。Android的官方团队并没有发布过多的原因来说明为什么要使用mipmap资源文件夹。在Android 4.3版本发布的时候，Android 框架的卡法人员hackbod宣布:
+假如你正在为不同屏幕分辨率版本的设备制作不同版本的app，那么你应该去了解mipmap资源文件夹，它与drawable文件夹确实是惊人的相似，除了它并不参与屏幕适配在你生成不同版本的目标apk时。
+自从这个宣布之后，如果你仔细观察Google的产品，你会发现一些app确实这样做了。效果是在展示时，仅仅只是向屏幕传输了所被需要的分辨率的图标，但是各种分辨率的登陆图标都别保存到了mipmap资源文件夹下。
+随着时间的推进，并没有过多关于使用mipmap资源文件夹保存登陆图片的消息，知道Android 5.0出现在AOSP以及Nexus设备出现在了市场上。Android开发者的博客上标出了准备好让你的app登陆Nexus6 和Nexus9. 这篇博文透露了一个应该使用mipmap文件夹的理由：
+提供分辨率至少为xxxhpdi的app图标因为身背可以展示更大的图标在登陆的时刻。最好的方法就是见app图标放在mipmap文件夹下因为他将会根据屏幕分辨率以及使用场景选择合适分辨率的图片。例如 xxxhdpi的图标将会被展示在xxhdpi分辨率的设备上&lt;/p&gt;
+
+&lt;h1&gt;使用mipmap创建Android工程&lt;/h1&gt;
+
+&lt;p&gt;更新Android Studio到最新版本，任何一个新的工程都将会使用mipmap的方式创建。&lt;/p&gt;
+
+&lt;h1&gt;将现有的工程改变为使用mipmap文件夹&lt;/h1&gt;
+
+&lt;p&gt;假如你有一个优秀的工具Android Asset Studio去产生你的Android登陆图标，你会注意到mipmap的改变已经被assets文件夹产生的结构所反映出来。
+  你的assets应该变得像之前的登陆图标的结构那样。
+  res/
+    mipmap-mdpi/ic&lt;em&gt;launcher.png (48x48 pixels)
+    mipmap-hdpi/ic&lt;/em&gt;launcher.png (72x72)
+    mipmap-xhdpi/ic&lt;em&gt;launcher.png (96x96)
+    mipmap-xxhdpi/ic&lt;/em&gt;launcher.png (144x144)
+    mipmap-xxxhdpi/ic&lt;em&gt;launcher.png (192x192)
+  同时你要改变你的AndroidManifest.xml文件去使用mipmap作为启动图标：
+  android:icon=&amp;quot;@mipmap/ic&lt;/em&gt;launcher&amp;quot;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文系&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创。想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
