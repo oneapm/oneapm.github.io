@@ -6,9 +6,97 @@
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml" />
     <description></description>
     <language>en-us</language>
-    <pubDate>Tue, 25 Aug 2015 03:44:08 +0000</pubDate>
-    <lastBuildDate>Tue, 25 Aug 2015 03:44:08 +0000</lastBuildDate>
+    <pubDate>Mon, 07 Sep 2015 03:19:27 +0000</pubDate>
+    <lastBuildDate>Mon, 07 Sep 2015 03:19:27 +0000</lastBuildDate>
 
+    
+    
+    <item>
+      <title>玩转OneAPM Browser Insight 性能指标</title>
+      <link>/javascript/2015/09/02/BrowserInsight/</link>
+      <pubDate>Wed, 02 Sep 2015 00:00:00 +0000</pubDate>
+      <author></author>
+      <guid>/javascript/2015/09/02/BrowserInsight</guid>
+      <description>&lt;p&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;近期OneAPM Browser Insight 在原有的五个指标（请求排队、网络、web应用程序、页面加载、资源下载）的基础上增加了5个指标（白屏时间，首屏时间，页面加载完成时间，
+资源下载完成时间，整页时间）。&lt;br&gt;
+&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;这10个指标分别都是什么意思？和我的网站又有什么关系？为什么TOPN页面会惊现平均时间为1分钟？是谁在拖后腿？&lt;br&gt;
+这篇文章将解答大家心中的困惑。&lt;br&gt;
+   &lt;img src=&quot;/images/session/bi4.png&quot; alt=&quot;ruby-prof&quot;&gt;
+ &lt;code&gt;&lt;h3&gt;性能指标不在多，找到适合自己业务的，作为判断标准才是最好的，本期主要带领大家找到适合自己业务性能指标&lt;/h3&gt;&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2&gt;用户打开一个页面的过程&lt;/h2&gt;
+
+&lt;p&gt;从用户在浏览器地址栏里面输入一个网址，到用户最终看到页面，在页面上可以进行各种操作，简单分为一下几个过程&lt;br&gt;
+1、用户输入网址，浏览器发出请求。（主要是网络耗时）&lt;br&gt;
+2、web服务器接到请求，处理请求，（主要是web服务器耗时）&lt;br&gt;
+3、web服务器返回数据，浏览器开始接受数据（主要是网络耗时）&lt;br&gt;
+4、浏览器边接受数据边加载页面中的脚本（下载js脚本等耗时）&lt;br&gt;
+5、浏览器下载页面中的样式、图片、视频等资源（下载图片等耗时）&lt;br&gt;&lt;/p&gt;
+
+&lt;h2&gt;OneApm Browser Insight 指标介绍&lt;/h2&gt;
+
+&lt;p&gt;OneApm Browser Insight 10个指标从两个方面描述了网页加载过程&lt;br&gt;
+&lt;pre&gt;
+第一个方面 页面加载5阶段的耗时，用于分片运营（请求排队、网络、web应用程序、页面加载、资源下载）&lt;br&gt;
+第二个方面 页面加载过程中的5个时间点，分别对应用户感知网页加载过程中的5个关键时间点和页面状态&lt;br&gt;
+&lt;/pre&gt;
+分段运营的5个指标中，请求排队和web应用程序 是从Ai 中获取到的&lt;br&gt;
+  网络=总网络时间-web应用程序耗时&lt;br&gt;
+  页面加载时间段=页面加载完成时间-白屏时间&lt;br&gt;
+  资源下载时间段=资源下载完成时间-面加载完成时间&lt;br&gt;
+  在试用的过程中，当应用程序异常时候，web应用程序面积就会增大&lt;br&gt;
+                 当网络异常时候，网络的面积就会增大&lt;br&gt;
+                 &lt;pre&gt;
+                 平时大家看到页面加载时段或者资源下载时段面积大，是因为在一般情况下，web和网络都不是性能的瓶颈，性能瓶颈往往在复杂的前端页面和资源的加载过程&lt;br&gt;
+                 &lt;/pre&gt;
+   &lt;img src=&quot;/images/session/bi1.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;h2&gt;页面加载过程中5个关键的时间点&lt;/h2&gt;
+
+&lt;p&gt;白屏时间：打开一个页面感觉屏幕从白色开始变化时刻&lt;br&gt;
+  首屏时间：页面刚开始加载是杂乱无章，无样式的（在网速缓慢时候特别明显），当页面样式加载完毕的时候，页面就好看多了&lt;br&gt;&lt;/p&gt;
+
+&lt;p&gt;页面加载完成时间：&lt;pre&gt;
+                   页面加载完成时间是和业务关系最为密切的时间点，大量js业务逻辑都在这个时间点触发&lt;br&gt;
+                  如果你发现页面上一个按钮开始无法点击，过一会可以点击了，那么可以点击的时间点就是页面加载完成时间&lt;br&gt;
+                   对于移动端或者pc端，有很多应用是js控制出现一个loading动画，当有数据了在去掉loading,
+                   js控制出现loading的时刻就是页面加载完成时间&lt;br&gt;
+                   如果页面很长，开始没有滚动条，当滚动条出现的时候，就是页面加载完成时间&lt;br&gt;
+                   &lt;/pre&gt;
+  资源下载完成时间：可以看到页面上的图片、看到iframe 嵌套页面里面的内容，浏览器标签不在出现loding不断旋转的时刻，就是资源加载完成的时间点
+        &lt;img src=&quot;/images/session/bi2.png&quot; alt=&quot;ruby-prof&quot;&gt;
+        &lt;br&gt;
+  整页时间：页面彻底加载完成的时间，一般情况下资源下载完成时间和整页面时间很接近&lt;br&gt;&lt;/p&gt;
+
+&lt;h2&gt;影响 页面加载时段 的主要因素&lt;/h2&gt;
+
+&lt;p&gt;1： 基础的网络质量&lt;br&gt;
+2： 网页html文件的大小 例如 你是10k，1m 10m&lt;br&gt;
+3：是页面中通过scrtpt标签引入的脚本下载和执行，包括head中的也包括body中&lt;br&gt;
+ &lt;pre&gt;
+   因为一个浏览器同时可以可以下载的文件是有限的，同一个域名下可以同时下载的文件也是有限的&lt;br&gt;
+   总的来说一般的浏览器为2~4 性能好点的浏览器是8个左右&lt;br&gt;
+   所以这个阶段网页中下载 css，图片等资源，都会影响页面加载时段的面积&lt;br&gt;
+   因为css影响页面样式，所以一般放在head里面，公共的js文件放在head里面，业务的js建议通过动态加载
+ &lt;/pre&gt;&lt;/p&gt;
+
+&lt;h2&gt;影响 资源下载时段 的主要因素&lt;/h2&gt;
+
+&lt;p&gt;1：基础的网络质量&lt;br&gt;
+ 2：页面中图片、视频、iframe 嵌套页，广告等，都在这个阶段下载&lt;br&gt;
+ 3：下载资源个数和域名数，因为浏览器从同一个域名下同时下载资源是有限的，所以域名个数个和下载文件的个数都会影响整体性能&lt;br&gt;
+    所以一般都会把一个域名下载资源分散到3个左右域名下，同时下载，提高页面性能&lt;br&gt;
+ 4：第三方资源 例如百度统计、谷歌统计、 百度地图 一般都会在这个阶段加载，如果第三方资源处现在问题，资源下载时段面积也会增大&lt;/p&gt;
+
+&lt;h2&gt;查看那些资源的下载拖慢了整个页面的速度&lt;/h2&gt;
+
+&lt;p&gt;OneAPM Browser Insight 的 trace 会收集缓慢页面的资源加载信息，可以作为性能优化的参考
+ &lt;img src=&quot;/images/session/bi5.png&quot; alt=&quot;ruby-prof&quot;&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;本文由&lt;a href=&quot;http://www.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;OneAPM&lt;/a&gt;工程师原创文章 ，想阅读更多技术文章，请访问OneAPM&lt;a href=&quot;http://code.oneapm.com/?hmsr=media&amp;amp;hmmd=&amp;amp;hmpl=&amp;amp;hmkw=&amp;amp;hmci=&quot;&gt;官方技术博客&lt;/a&gt;。&lt;/strong&gt;&lt;/p&gt;
+</description>
+    </item>
+    
     
     
     <item>
